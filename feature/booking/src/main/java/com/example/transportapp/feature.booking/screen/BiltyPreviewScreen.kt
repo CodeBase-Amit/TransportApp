@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -41,11 +42,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.RouteLine
 import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.StepState
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.ui.sample.BiltyPaperData
+
+@Composable
+fun BiltyPreviewScreen(
+    onBack: () -> Unit,
+    onPrint: () -> Unit,
+    onShare: () -> Unit,
+    onSaveNew: () -> Unit,
+    onDone: () -> Unit,
+    viewModel: BiltyPreviewViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    BiltyPreviewContent(
+        state = state,
+        onBack = onBack,
+        onPrint = onPrint,
+        onShare = onShare,
+        onSaveNew = onSaveNew,
+        onDone = onDone
+    )
+}
 
 @Composable
 fun BiltyPreviewContent(
@@ -57,13 +80,14 @@ fun BiltyPreviewContent(
     onDone: () -> Unit
 ) {
     var currentCopy by remember { mutableIntStateOf(0) }
-    val copies = listOf(
-        CopyConfig("CONSIGNOR COPY", PaperColors.paperWhite, "Consignor copy"),
-        CopyConfig("CONSIGNEE COPY", PaperColors.paperPink, "Consignee copy"),
-        CopyConfig("DRIVER COPY", PaperColors.paperYellow, "Driver copy"),
-        CopyConfig("OFFICE COPY", PaperColors.paperGreen, "Office copy")
+    val paperColors = listOf(
+        PaperColors.paperWhite,
+        PaperColors.paperPink,
+        PaperColors.paperYellow,
+        PaperColors.paperGreen
     )
-    val front = copies[currentCopy]
+    val copies = state.copyConfigs
+    val front = copies.getOrElse(currentCopy) { copies.first() }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
         Row(
@@ -86,9 +110,9 @@ fun BiltyPreviewContent(
                         .fillMaxWidth()
                         .aspectRatio(0.71f)
                         .shadow(1.dp, shape = RoundedCornerShape(2.dp), ambientColor = Color(0x14111111), spotColor = Color(0x14111111))
-                        .background(copies[i].paper, RoundedCornerShape(2.dp))
+                        .background(paperColors.getOrElse(i) { PaperColors.paperWhite }, RoundedCornerShape(2.dp))
                 ) {
-                    Text(copies[i].label, modifier = Modifier.align(Alignment.BottomEnd).rotate(90f).padding(end = 4.dp, bottom = 8.dp), color = PaperColors.paperInk, fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text(copies.getOrElse(i) { front }.label, modifier = Modifier.align(Alignment.BottomEnd).rotate(90f).padding(end = 4.dp, bottom = 8.dp), color = PaperColors.paperInk, fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
             Box(
@@ -96,10 +120,10 @@ fun BiltyPreviewContent(
                     .fillMaxWidth()
                     .aspectRatio(0.71f)
                     .shadow(1.dp, shape = RoundedCornerShape(2.dp), ambientColor = Color(0x14111111), spotColor = Color(0x14111111))
-                    .background(front.paper, RoundedCornerShape(2.dp))
+                    .background(paperColors.getOrElse(currentCopy) { PaperColors.paperWhite }, RoundedCornerShape(2.dp))
                     .padding(12.dp)
             ) {
-                BiltyPaperContent(front.label)
+                BiltyPaperContent(paper = state.paper, copyLabel = front.label)
             }
         }
 
@@ -114,56 +138,55 @@ fun BiltyPreviewContent(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BiltyActionItem(Icons.Rounded.Print, "Print all 4", isPrimary = true, onClick = onPrint)
-            BiltyActionItem(Icons.Rounded.Share, "Share PDF", onClick = onShare)
-            BiltyActionItem(Icons.Rounded.NoteAdd, "Save and new", onClick = onSaveNew)
+            BiltyActionItem(Icons.Rounded.Print, "Print", isPrimary = true, onClick = onPrint)
+            BiltyActionItem(Icons.Rounded.Share, "Share", onClick = onShare)
+            BiltyActionItem(Icons.Rounded.NoteAdd, "Save & new", onClick = onSaveNew)
             BiltyActionItem(Icons.Rounded.Check, "Done", onClick = onDone)
         }
     }
 }
 
-private data class CopyConfig(val label: String, val paper: Color, val caption: String)
-
 @Composable
-fun BiltyPaperContent(copyLabel: String) {
+fun BiltyPaperContent(paper: BiltyPaperData, copyLabel: String) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text("SHIVSHAKTI ROADLINES", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PaperColors.paperInk, letterSpacing = 0.5.sp)
-            Text("Plot 14, Transport Nagar, Indore 452003", fontSize = 8.sp, color = PaperColors.paperInk, textAlign = TextAlign.Center)
+            Text(paper.companyName, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PaperColors.paperInk, letterSpacing = 0.5.sp)
+            Text(paper.addressLine, fontSize = 8.sp, color = PaperColors.paperInk, textAlign = TextAlign.Center)
+            Text(paper.contactLine, fontSize = 8.sp, color = PaperColors.paperInk, textAlign = TextAlign.Center)
             Box(Modifier.fillMaxWidth().height(1.dp).padding(vertical = 4.dp).background(PaperColors.paperRule))
             Text("CONSIGNMENT NOTE", fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.SemiBold, color = PaperColors.paperInk)
             Text(copyLabel, fontSize = 8.sp, letterSpacing = 1.sp, color = PaperColors.paperInk)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column { PaperText("GR No.  IND/2627/04188"); PaperText("Date  25.08.2026") }
-            Column(horizontalAlignment = Alignment.End) { PaperText("From  INDORE"); PaperText("To  NASHIK") }
+            Column { PaperText("GR No: ${paper.docNo}"); PaperText("Date: ${paper.date}") }
+            Column(horizontalAlignment = Alignment.End) { PaperText("From: ${paper.fromStation}"); PaperText("To: ${paper.toStation}") }
         }
         Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, RoundedCornerShape(1.dp)).padding(6.dp)) {
             Row {
                 Column(Modifier.weight(1f)) {
-                    PaperText("CONSIGNOR", bold = true); PaperText("Deepak Steel Traders")
-                    PaperText("Indore · +91 94250 61183"); PaperText("GSTIN 23AACDS8812K1Z4")
+                    PaperText("CONSIGNOR", bold = true); PaperText(paper.consignorName)
+                    PaperText(paper.consignorContact); PaperText(paper.consignorGstin); PaperText(paper.consignorAddress)
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                    PaperText("CONSIGNEE", bold = true); PaperText("Nashik Hardware Mart")
-                    PaperText("Nashik · +91 98600 27419"); PaperText("GSTIN 27AAFCN3390L1Z8")
+                    PaperText("CONSIGNEE", bold = true); PaperText(paper.consigneeName)
+                    PaperText(paper.consigneeContact); PaperText(paper.consigneeGstin); PaperText(paper.consigneeAddress)
                 }
             }
         }
         Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, RoundedCornerShape(1.dp)).padding(6.dp)) {
             Column {
-                Row { listOf("Pkgs", "Description", "A. wt", "C. wt", "Rate", "Freight").forEach { Text(it, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
+                Row { paper.goodsHeaders.forEach { Text(it, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
                 Box(Modifier.fillMaxWidth().height(1.dp).padding(vertical = 2.dp).background(PaperColors.paperRule))
-                Row { listOf("12", "MS PIPES", "780 kg", "780 kg", "4.50", "3,510.00").forEach { Text(it, fontSize = 8.sp, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
+                Row { paper.goodsValues.forEach { Text(it, fontSize = 8.sp, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) { Text("Rupees three thousand nine hundred forty four only", fontSize = 8.sp, color = PaperColors.paperInk) }
+            Column(Modifier.weight(1f)) { Text(paper.amountInWords, fontSize = 8.sp, color = PaperColors.paperInk) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                PaperText("Hamali  96.00"); PaperText("Door delivery  150.00"); PaperText("Taxable  3,756.00")
-                PaperText("GST 5%  187.80"); PaperText("Rounding  0.20")
+                PaperText("Hamali  ${paper.hamali}"); PaperText("Door delivery  ${paper.doorDelivery}"); PaperText("Taxable  ${paper.taxable}")
+                PaperText("GST 5%  ${paper.gst}"); PaperText("Rounding  ${paper.rounding}")
                 Box(Modifier.fillMaxWidth(0.6f).align(Alignment.End).height(1.dp).padding(vertical = 2.dp).background(PaperColors.paperRule))
-                Text("TOTAL  3,944.00", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PaperColors.paperInk)
+                Text("${paper.totalLabel}  ${paper.grandTotal}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PaperColors.paperInk)
             }
         }
         Box(
@@ -172,9 +195,9 @@ fun BiltyPaperContent(copyLabel: String) {
                 .border(2.dp, PaperColors.stampViolet, RoundedCornerShape(4.dp))
                 .padding(horizontal = 10.dp, vertical = 2.dp)
         ) {
-            Text("TO PAY", color = PaperColors.stampViolet, fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
+            Text(paper.stamp, color = PaperColors.stampViolet, fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
         }
-        Text("At owner's risk · Door delivery · Private mark DST-114 · E-way bill 281047556392", fontSize = 7.sp, color = PaperColors.paperInk)
+        Text(paper.footer, fontSize = 7.sp, color = PaperColors.paperInk)
     }
 }
 

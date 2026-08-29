@@ -2,6 +2,7 @@ package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,65 +21,85 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.SyncChip
 import com.example.transportapp.core.designsystem.component.SyncState
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.SampleData
+import com.example.transportapp.core.ui.sample.SyncQueueItem
 
 /**
  * T31 — Account and data. Leaving and deleting are visibly different acts.
  */
 @Composable
-fun AccountDataScreen(onBack: () -> Unit) {
+fun AccountDataScreen(
+    onBack: () -> Unit,
+    viewModel: AccountDataViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    AccountDataContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack
+    )
+}
+
+@Composable
+fun AccountDataContent(
+    state: AccountDataUiState,
+    onEvent: (AccountDataEvent) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).verticalScroll(rememberScrollState())) {
-        TransportTopAppBar(title = "Account and data", onNavigationClick = onBack)
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack)
 
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Section A — This phone
             GroupHeading("This phone")
             Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
-                InfoRow("Records stored", "6,412")
-                InfoRow("Space used", "84 MB")
-                InfoRow("Documents cached", "311 PDFs")
-                InfoRow("Last full sync", "25 Aug 11:42 AM")
+                InfoRow("Records stored", state.records)
+                InfoRow("Space used", state.space)
+                InfoRow("Documents cached", state.cachedPdfs)
+                InfoRow("Last full sync", state.lastSync)
                 Spacer(Modifier.height(8.dp))
-                Text("WAITING TO SYNC · 3", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SampleData.syncQueue.forEach { item ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(item.description, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(item.time, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        SyncChip(state = if (item.state == "Syncing") SyncState.SYNCING else SyncState.PENDING)
-                    }
+                Text(state.waiting, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                state.syncQueue.forEach { item ->
+                    SyncQueueRow(item)
                 }
-                Text("They send themselves as soon as you have a connection. Nothing is lost by closing the app.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                AppTextButton("Try now", onClick = {})
+                Text(state.syncNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                AppTextButton(state.tryNow, onClick = { onEvent(AccountDataEvent.TrySync) })
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Clear cached PDFs", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text("Frees about 62 MB. They rebuild when printed again.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+                    Text(state.clearLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(state.clearNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
                 }
             }
 
             // Section B — Your data
             GroupHeading("Your data")
             Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
-                DataRow("Download a copy of everything", "one Excel file, every record you can see")
-                DataRow("What we store and why", "plain-language list")
-                DataRow("Privacy policy", null)
+                DataRow(state.downloadLabel, state.downloadSub)
+                DataRow(state.privacyLabel, null)
             }
 
             // Section C — Sign out
@@ -87,9 +108,9 @@ fun AccountDataScreen(onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Sign out of this phone", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(state.signOutLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
-                Text("Your 3 unsynced changes are sent first. Records stay on this phone in case you sign back in.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(state.signOutNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
 
             // Section D — Leaving
@@ -97,19 +118,82 @@ fun AccountDataScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp)).padding(20.dp)
             ) {
-                Text("Leave Shivshakti Roadlines", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text("You lose access. Everything you created stays with the company, with your name on it. Mahesh Patidar can invite you again.", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(state.leaveTitle, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(state.leaveBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                 Spacer(Modifier.height(12.dp))
-                AppOutlinedButton("Leave this company", onClick = {}, modifier = Modifier.fillMaxWidth(), borderColor = MaterialTheme.colorScheme.error, labelColor = MaterialTheme.colorScheme.error)
+                AppOutlinedButton(state.leaveAction, onClick = { onEvent(AccountDataEvent.Leave) }, modifier = Modifier.fillMaxWidth(), borderColor = MaterialTheme.colorScheme.error, labelColor = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(16.dp))
-                Text("Delete the company and all its data", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text("6,412 records, 311 documents, 3 branches and 4 members are permanently removed. Documents already given to customers are not affected. This cannot be undone.", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(state.deleteTitle, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(state.deleteBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                state.destroyLines.forEach { line ->
+                    Text("> $line", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                }
                 Spacer(Modifier.height(12.dp))
-                AppDestructiveRow("Delete this company", onClick = {})
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { onEvent(AccountDataEvent.RequestDelete) }.background(MaterialTheme.colorScheme.error, RoundedCornerShape(percent = 100)).padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(state.deleteAction, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onError)
+                }
             }
             Spacer(Modifier.height(24.dp))
         }
     }
+
+    if (state.showDeleteDialog) {
+        DeleteDialog(state, onEvent)
+    }
+}
+
+@Composable
+private fun SyncQueueRow(item: SyncQueueItem) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.ref, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(item.description, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        SyncChip(state = if (item.state == "Syncing") SyncState.SYNCING else SyncState.PENDING)
+    }
+}
+
+@Composable
+private fun DeleteDialog(state: AccountDataUiState, onEvent: (AccountDataEvent) -> Unit) {
+    var confirmName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { onEvent(AccountDataEvent.CancelDelete) },
+        title = { Text(state.deleteDialogTitle) },
+        text = {
+            Column {
+                Text(state.deleteDialogBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                state.deleteCounts.forEach { count ->
+                    Text("· $count", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 4.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+                TransportTextField(
+                    value = confirmName,
+                    onValueChange = { confirmName = it },
+                    label = state.deleteDialogPlaceholder
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onEvent(AccountDataEvent.ConfirmDelete) },
+                enabled = confirmName == state.deleteConfirmCompany
+            ) {
+                Text(state.deleteDialogAction, color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onEvent(AccountDataEvent.CancelDelete) }) {
+                Text(state.deleteDialogCancel)
+            }
+        }
+    )
 }
 
 @Composable
@@ -127,16 +211,14 @@ private fun DataRow(label: String, sub: String?) {
             Text(label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             if (sub != null) Text(sub, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        androidx.compose.material3.Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-private fun AppDestructiveRow(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.error, RoundedCornerShape(percent = 100)).padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onError)
+private fun AccountDataPreview() {
+    TransportAppTheme {
+        AccountDataContent(state = AccountDataUiState(), onEvent = {}, onBack = {})
     }
 }

@@ -29,14 +29,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.SummaryStrip
@@ -44,36 +43,64 @@ import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.SampleData
 
 @Composable
-fun UnbilledPoolScreen(onBack: () -> Unit, onBuildBill: () -> Unit) {
-    var parties by remember { mutableStateOf(SampleData.unbilledParties) }
-    val selected = parties.filter { it.selected }
+fun UnbilledPoolScreen(
+    onBack: () -> Unit,
+    onBuildBill: () -> Unit,
+    viewModel: UnbilledPoolViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    UnbilledPoolContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onBuildBill = onBuildBill
+    )
+}
+
+@Composable
+fun UnbilledPoolContent(
+    state: UnbilledPoolUiState,
+    onEvent: (UnbilledPoolEvent) -> Unit,
+    onBack: () -> Unit,
+    onBuildBill: () -> Unit
+) {
+    val selected = state.parties.filter { it.selected }
     val selectedTotal = selected.sumOf { parseAmount(it.total) }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = "Unbilled", onNavigationClick = onBack, trailingIcons = {
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
             IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
-            FilterChip("This quarter", selected = true, onClick = {})
-            FilterChip("All branches", selected = false, onClick = {})
-            FilterChip("Over 30 days", selected = false, onClick = {})
-            FilterChip("Over 60 days", selected = false, onClick = {})
+            state.filterChips.forEach { chip ->
+                FilterChip(chip, selected = state.selectedFilter == chip, onClick = { onEvent(UnbilledPoolEvent.SelectFilter(chip)) })
+            }
         }
-        SummaryStrip("PARTIES" to "18", "CONSIGNMENTS" to "214", "FREIGHT" to "3,86,540.00", modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
+        SummaryStrip(
+            "PARTIES" to state.summaryParties,
+            "CONSIGNMENTS" to state.summaryConsignments,
+            "FREIGHT" to state.summaryFreight,
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
+        )
+        Text(
+            state.oldestCaption,
+            style = TransportTypeScale.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding)
+        )
 
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(parties) { party ->
+            items(state.parties) { party ->
                 UnbilledPartyCard(
                     party = party,
-                    onToggle = { parties = parties.map { if (it.name == party.name) it.copy(selected = !it.selected) else it } },
-                    onExpand = { parties = parties.map { if (it.name == party.name) it.copy(expanded = !it.expanded) else it } }
+                    onToggle = { onEvent(UnbilledPoolEvent.ToggleSelect(party.name)) },
+                    onExpand = { onEvent(UnbilledPoolEvent.ToggleExpand(party.name)) }
                 )
             }
         }
@@ -84,17 +111,17 @@ fun UnbilledPoolScreen(onBack: () -> Unit, onBuildBill: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("SELECTED", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(state.selectedLabel, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatAmount(selectedTotal), style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface)
                 Text("${selected.sumOf { it.consignments }} consignments · ${selected.size} party", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            AppPrimaryButton("Build the bill", onClick = onBuildBill)
+            AppPrimaryButton(state.buildBill, onClick = onBuildBill)
         }
     }
 }
 
 @Composable
-private fun UnbilledPartyCard(party: SampleData.UnbilledParty, onToggle: () -> Unit, onExpand: () -> Unit) {
+private fun UnbilledPartyCard(party: UnbilledParty, onToggle: () -> Unit, onExpand: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
     ) {
@@ -129,7 +156,7 @@ private fun UnbilledPartyCard(party: SampleData.UnbilledParty, onToggle: () -> U
 }
 
 @Composable
-private fun AgeingBar(party: SampleData.UnbilledParty) {
+private fun AgeingBar(party: UnbilledParty) {
     val amber = transportColors().haulAmberContainer
     val green = MaterialTheme.colorScheme.primaryContainer
     val error = MaterialTheme.colorScheme.error
@@ -170,3 +197,16 @@ private fun SelectCheckBox(checked: Boolean, onClick: () -> Unit) {
 
 private fun parseAmount(s: String): Long = s.replace(",", "").toLongOrNull() ?: 0
 private fun formatAmount(v: Long): String = v.toString().reversed().chunked(3).joinToString(",").reversed()
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun UnbilledPoolPreview() {
+    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
+        UnbilledPoolContent(
+            state = UnbilledPoolUiState(),
+            onEvent = {},
+            onBack = {},
+            onBuildBill = {}
+        )
+    }
+}

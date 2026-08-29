@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.challan.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowRightAlt
 import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.LocalShipping
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Print
@@ -30,35 +30,47 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
-import com.example.transportapp.core.designsystem.component.JourneyChip
-import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.SampleData
 import com.example.transportapp.domain.transport.ConsignmentStatus
 
 @Composable
 fun ChallanDetailScreen(
     onBack: () -> Unit,
     onDispatch: () -> Unit,
+    onCloseTrip: () -> Unit,
+    viewModel: ChallanDetailViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    ChallanDetailContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onDispatch = onDispatch,
+        onCloseTrip = onCloseTrip
+    )
+}
+
+@Composable
+fun ChallanDetailContent(
+    state: ChallanDetailUiState,
+    onEvent: (ChallanDetailEvent) -> Unit,
+    onBack: () -> Unit,
+    onDispatch: () -> Unit,
     onCloseTrip: () -> Unit
 ) {
-    var dispatched by remember { mutableStateOf(false) }
-
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(
             modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
@@ -66,8 +78,8 @@ fun ChallanDetailScreen(
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Rounded.MoreVert, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Print, contentDescription = "Print", tint = MaterialTheme.colorScheme.onSurface) }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = { onEvent(ChallanDetailEvent.Print) }) { Icon(Icons.Rounded.Print, contentDescription = "Print", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = { onEvent(ChallanDetailEvent.More) }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
         }
 
         LazyColumn(
@@ -75,13 +87,18 @@ fun ChallanDetailScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
         ) {
-            item { ChallanDocketHeader(dispatched) }
-            item { VehicleAndDriver() }
+            item { ChallanDocketHeader(state) }
             item {
                 Column {
-                    GroupHeading("What's loaded · 14", trailing = { Text("Group by station", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary) })
+                    GroupHeading(state.vehicleAndDriverHeading, modifier = Modifier.padding(bottom = 8.dp))
+                    VehicleAndDriver(state)
+                }
+            }
+            item {
+                Column {
+                    GroupHeading(state.whatsLoadedTitle, trailing = { Text(state.editLoad, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp)) })
                     ContentCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        SampleData.challanGroups.forEach { group ->
+                        state.challanGroups.forEach { group ->
                             if (group.rows.isNotEmpty()) {
                                 Text("${group.station} · ${group.count}", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 group.rows.forEach { row ->
@@ -97,21 +114,21 @@ fun ChallanDetailScreen(
                                 }
                             }
                         }
-                        Text("Show all 14", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(state.showAll, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
-            item { PaperChallanPreview() }
+            item { PaperChallanPreview(state) }
         }
 
-        if (dispatched) {
+        if (state.isDispatched) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(transportColors().haulAmberContainer)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("Balance 6,500.00 payable to the driver when the trip closes.", style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber)
+                Text(state.dispatchedNotice, style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber)
             }
         }
 
@@ -124,43 +141,54 @@ fun ChallanDetailScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ChallanAction(Icons.Rounded.Print, "Print", onClick = {})
-            ChallanAction(Icons.Rounded.Share, "Share", onClick = {})
-            if (dispatched) {
+            ChallanAction(Icons.Rounded.Print, "Print", onClick = { onEvent(ChallanDetailEvent.Print) })
+            ChallanAction(Icons.Rounded.Share, "Share", onClick = { onEvent(ChallanDetailEvent.Share) })
+            if (state.isDispatched) {
                 ChallanAction(Icons.Rounded.TaskAlt, "Close trip", isPrimary = true, onClick = onCloseTrip)
             } else {
-                ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { dispatched = true })
+                ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.Dispatch); onDispatch() })
             }
         }
     }
 }
 
 @Composable
-private fun ChallanDocketHeader(dispatched: Boolean) {
+private fun ChallanDocketHeader(state: ChallanDetailUiState) {
     ContentCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(SampleData.CHALLAN_NO, style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            JourneyChip(status = if (dispatched) ConsignmentStatus.IN_TRANSIT else ConsignmentStatus.DRAFT)
+            Text(state.challanNo, style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            ChallanStatusPill(state.statusLabel)
         }
         Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Indore", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(state.routeFrom, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Icon(Icons.Rounded.ArrowRightAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp).size(24.dp))
-            Text("Bhiwandi", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(state.routeTo, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.weight(1f))
-            Text("via Dhule · 588 km", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(state.routeVia, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 4.dp))
         }
         Text(
-            if (dispatched) SampleData.CHALLAN_DISPATCHED else SampleData.CHALLAN_CREATED,
+            if (state.isDispatched) state.dispatchedLine else state.createdLine,
             style = TransportTypeScale.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
         Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            HeaderFigure("CONSIGNMENTS", SampleData.CHALLAN_CONSIGNMENTS.toString())
-            HeaderFigure("LOAD", SampleData.CHALLAN_LOAD_KG)
-            HeaderFigure("HIRE", SampleData.CHALLAN_HIRE)
-            HeaderFigure("BALANCE", SampleData.CHALLAN_BALANCE)
+            HeaderFigure("CONSIGNMENTS", state.consignments.toString())
+            HeaderFigure("LOAD", state.loadKg)
+            HeaderFigure("HIRE", state.hire)
+            HeaderFigure("BALANCE", state.balance)
         }
+    }
+}
+
+@Composable
+private fun ChallanStatusPill(label: String) {
+    Box(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(percent = 100))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(label, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -173,40 +201,48 @@ private fun HeaderFigure(label: String, value: String) {
 }
 
 @Composable
-private fun VehicleAndDriver() {
+private fun VehicleAndDriver(state: ChallanDetailUiState) {
     ContentCard(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(SampleData.VEHICLE, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            Text("Own · 9,000 kg", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(state.vehicleNumber, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            Text(state.vehicleOwnership, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-                Text("GS", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(state.driverInitials, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             Spacer(Modifier.width(8.dp))
             Icon(Icons.Rounded.Call, contentDescription = "Call driver", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.height(8.dp))
-        Text("${SampleData.DRIVER} · ${SampleData.DRIVER_PHONE}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(state.driverLine, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun PaperChallanPreview() {
+private fun PaperChallanPreview(state: ChallanDetailUiState) {
     Column {
         GroupHeading("The paper", modifier = Modifier.padding(bottom = 8.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
                 .background(PaperColors.paperWhite, RoundedCornerShape(2.dp))
                 .padding(16.dp)
         ) {
-            Text("SHIVSHAKTI ROADLINES", color = PaperColors.paperInk, fontWeight = FontWeight.Bold, style = TransportTypeScale.titleMedium)
-            Text("LOADING CHALLAN", color = PaperColors.paperInk, letterSpacing = 2.sp, style = TransportTypeScale.labelMedium)
-            Text("Challan No. ${SampleData.CHALLAN_NO}", color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
-            Text("Vehicle ${SampleData.VEHICLE}", color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
+            Text(state.paperCompany, color = PaperColors.paperInk, fontWeight = FontWeight.Bold, style = TransportTypeScale.titleMedium)
+            Text(state.paperDocType, color = PaperColors.paperInk, letterSpacing = 2.sp, style = TransportTypeScale.labelMedium)
+            Text(state.paperChallanNo, color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
+            Text(state.paperVehicle, color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
+            Spacer(Modifier.height(8.dp))
+            Text("Bilty / Dest / Weight", color = PaperColors.paperInk, style = TransportTypeScale.labelMedium)
+            state.paperBiltyLines.forEach { line ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(line.bilty, color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
+                    Text(line.dest, color = PaperColors.paperInk, style = TransportTypeScale.dataSmall, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+                    Text(line.weight, color = PaperColors.paperInk, style = TransportTypeScale.dataSmall)
+                }
+            }
         }
-        Text("See full challan", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+        Text(state.paperSeeFull, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -229,5 +265,19 @@ private fun ChallanAction(
             Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         }
         Text(label, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun ChallanDetailPreview() {
+    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
+        ChallanDetailContent(
+            state = ChallanDetailUiState(),
+            onEvent = {},
+            onBack = {},
+            onDispatch = {},
+            onCloseTrip = {}
+        )
     }
 }

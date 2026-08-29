@@ -32,49 +32,111 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SampleData
+import com.example.transportapp.core.ui.sample.MemberRow
 
 @Composable
-fun MembersScreen(onBack: () -> Unit) {
-    val members = SampleData.members
+fun MembersScreen(
+    onBack: () -> Unit,
+    viewModel: MembersViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    MembersContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack
+    )
+}
+
+@Composable
+fun MembersContent(
+    state: MembersUiState,
+    onEvent: (MembersEvent) -> Unit,
+    onBack: () -> Unit
+) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.fillMaxSize()) {
-        TransportTopAppBar(title = "Members", onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.HelpOutline, contentDescription = "Role matrix", tint = MaterialTheme.colorScheme.onSurface) }
-        })
+            TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
+                IconButton(onClick = { onEvent(MembersEvent.ToggleRoleMatrix) }) { Icon(Icons.Rounded.HelpOutline, contentDescription = "Role matrix", tint = MaterialTheme.colorScheme.onSurface) }
+            })
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
-            Text("Active · 4", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text("Invited · 1", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
+                Text(state.activeTab, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(state.invitedTab, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
-        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-            items(members) { member ->
-                if (member.invited) {
-                    InvitedMemberRow(member)
-                } else {
-                    ActiveMemberRow(member)
+            if (state.showRoleMatrix) {
+                RoleMatrix(state)
+            }
+
+            LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                items(state.members) { member ->
+                    if (member.invited) {
+                        InvitedMemberRow(member, onEvent)
+                    } else {
+                        ActiveMemberRow(member)
+                    }
                 }
             }
         }
-        }
 
         Box(modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-            AppPrimaryButton("Invite someone", onClick = {}, leadingIcon = Icons.Rounded.Add)
+            AppPrimaryButton(state.inviteAction, onClick = { onEvent(MembersEvent.Invite) }, leadingIcon = Icons.Rounded.Add)
         }
     }
 }
 
 @Composable
-private fun ActiveMemberRow(member: SampleData.MemberRow) {
+private fun RoleMatrix(state: MembersUiState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp))
+            .padding(16.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Capability", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(2f))
+            state.roleColumns.drop(1).forEach { col ->
+                Text(col, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
+        state.roleMatrix.forEach { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(row.capability, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(2f))
+                row.marks.forEach { mark ->
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        if (mark) {
+                            Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        } else {
+                            Icon(Icons.Rounded.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+            }
+        }
+        Text(state.roleMatrixNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+private fun ActiveMemberRow(member: MemberRow) {
     Row(
         modifier = Modifier.fillMaxWidth().height(88.dp).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -98,7 +160,7 @@ private fun ActiveMemberRow(member: SampleData.MemberRow) {
 }
 
 @Composable
-private fun InvitedMemberRow(member: SampleData.MemberRow) {
+private fun InvitedMemberRow(member: MemberRow, onEvent: (MembersEvent) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(88.dp).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -111,7 +173,15 @@ private fun InvitedMemberRow(member: SampleData.MemberRow) {
             Text(member.email, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Invited ${member.invitedDate} by ${member.invitedBy} · ${member.role} · ${member.scope}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = {}) { Icon(Icons.Rounded.Refresh, contentDescription = "Resend", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        IconButton(onClick = { onEvent(MembersEvent.Resend) }) { Icon(Icons.Rounded.Refresh, contentDescription = "Resend", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         IconButton(onClick = {}) { Icon(Icons.Rounded.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.error) }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MembersPreview() {
+    TransportAppTheme {
+        MembersContent(state = MembersUiState(), onEvent = {}, onBack = {})
     }
 }

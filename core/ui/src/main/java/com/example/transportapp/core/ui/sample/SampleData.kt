@@ -112,33 +112,6 @@ object SampleData {
         "Vehicles" to "22", "Drivers" to "17"
     )
 
-    // ── T2 Company picker ──────────────────────────────────────────────
-    data class CompanyRow(
-        val initials: String,
-        val name: String,
-        val roleLine: String,
-        val branches: List<String>,
-        val activeBranch: String? = null,
-        val series: String = "IND/2627 · next 04189",
-        val isSelected: Boolean = false
-    )
-
-    val companies = listOf(
-        CompanyRow("SR", "Shivshakti Roadlines", "Owner · 3 branches · 4 members", listOf("Indore", "Nagpur", "Bhiwandi"), "Indore", isSelected = true),
-        CompanyRow("BC", "Bharat Cargo Carriers", "Booking Clerk · Nagpur only", emptyList())
-    )
-
-    data class Invitation(
-        val companyName: String,
-        val invitedBy: String,
-        val role: String,
-        val expiresIn: String
-    )
-
-    val invitations = listOf(
-        Invitation("Malwa Goods Transport", "sunita.jain@gmail.com", "Accountant", "5 days")
-    )
-
     // ── T3 Setup wizard ────────────────────────────────────────────────
     const val COMPANY_NAME = "Shivshakti Roadlines"
     const val HEAD_OFFICE = "Plot 14, Transport Nagar, Indore, Madhya Pradesh 452003"

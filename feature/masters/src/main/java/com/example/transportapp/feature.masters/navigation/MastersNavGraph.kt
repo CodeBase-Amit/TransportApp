@@ -26,7 +26,8 @@ fun NavGraphBuilder.mastersNavGraph(navController: NavController) {
         MasterListScreen(
             masterType = type,
             onBack = { navController.popBackStack() },
-            onRowClick = { navController.navigate(Routes.masterEditor(type, "1")) }
+            onRowClick = { navController.navigate(Routes.masterEditor(type, "1")) },
+            onAddParty = { navController.navigate(Routes.masterEditor(type, "new")) }
         )
     }
     composable(

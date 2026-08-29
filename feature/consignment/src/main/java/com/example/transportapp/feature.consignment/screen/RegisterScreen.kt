@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,19 +22,25 @@ import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.DocketRow
+import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.NavDestination
 import com.example.transportapp.core.designsystem.component.SearchField
 import com.example.transportapp.core.designsystem.component.SummaryStrip
 import com.example.transportapp.core.designsystem.component.TransportBottomNavBar
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
-import com.example.transportapp.core.ui.sample.SampleData
+import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.ui.sample.RegisterListItem
 
 @Composable
 fun RegisterScreen(
@@ -41,10 +48,31 @@ fun RegisterScreen(
     onDocketClick: (String) -> Unit,
     onNewBilty: () -> Unit,
     onHome: () -> Unit,
+    onVehicles: () -> Unit,
+    viewModel: RegisterViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    RegisterContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onDocketClick = onDocketClick,
+        onNewBilty = onNewBilty,
+        onHome = onHome,
+        onVehicles = onVehicles
+    )
+}
+
+@Composable
+fun RegisterContent(
+    state: RegisterUiState,
+    onEvent: (RegisterEvent) -> Unit,
+    onBack: () -> Unit,
+    onDocketClick: (String) -> Unit,
+    onNewBilty: () -> Unit,
+    onHome: () -> Unit,
     onVehicles: () -> Unit
 ) {
-    val rows = SampleData.registerRows
-
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             TransportTopAppBar(title = "Register", onNavigationClick = onBack, trailingIcons = {
@@ -53,13 +81,31 @@ fun RegisterScreen(
             })
 
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding)) {
-                SearchField(value = "", onValueChange = {}, placeholder = "Bilty number, party, vehicle or private mark")
+                SearchField(
+                    value = state.searchQuery,
+                    onValueChange = { onEvent(RegisterEvent.ChangeSearchQuery(it)) },
+                    placeholder = "Bilty number, party, vehicle or private mark"
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.chipGap),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Dimens.screenPadding)
+                    .padding(top = 8.dp)
+            ) {
+                state.filterOptions.forEach { option ->
+                    FilterChip(
+                        label = option,
+                        selected = option == state.selectedFilter,
+                        onClick = { onEvent(RegisterEvent.ChangeFilter(option)) }
+                    )
+                }
             }
 
             SummaryStrip(
-                "MATCHING" to "61",
-                "PACKAGES" to "812",
-                "FREIGHT" to "2,41,880.00",
+                *state.summaryFigures.toTypedArray(),
                 modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
             )
 
@@ -67,19 +113,33 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxSize().weight(1f),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(rows) { row ->
-                    DocketRow(
-                        docNumber = row.docNumber,
-                        amount = row.amount,
-                        fromStation = row.from,
-                        toStation = row.to,
-                        consignee = row.consignee,
-                        status = row.status,
-                        paymentMode = row.paymentMode,
-                        packagesCaption = row.caption,
-                        exceptionCaption = row.exception,
-                        onClick = { onDocketClick(row.docNumber) }
-                    )
+                items(state.items) { item ->
+                    when (item) {
+                        is RegisterListItem.Header -> {
+                            Text(
+                                item.label,
+                                style = TransportTypeScale.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
+                            )
+                        }
+                        is RegisterListItem.Row -> {
+                            val row = item.row
+                            DocketRow(
+                                docNumber = row.docNumber,
+                                amount = row.amount,
+                                fromStation = row.from,
+                                toStation = row.to,
+                                consignee = row.consignee,
+                                status = row.status,
+                                paymentMode = row.paymentMode,
+                                packagesCaption = row.caption,
+                                exceptionCaption = row.exception,
+                                syncPending = row.syncPending,
+                                onClick = { onDocketClick(row.docNumber) }
+                            )
+                        }
+                    }
                 }
             }
 

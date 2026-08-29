@@ -51,6 +51,9 @@ import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
+import com.example.transportapp.core.ui.sample.DeliveryType
+import com.example.transportapp.core.ui.sample.Party
+import com.example.transportapp.core.ui.sample.Risk
 import com.example.transportapp.domain.transport.PaymentMode
 
 @Composable
@@ -132,7 +135,7 @@ private fun BookingTopBar(state: BookingFormUiState, onClose: () -> Unit) {
 @Composable
 private fun PartiesSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
-        GroupHeading("Parties", modifier = Modifier.padding(bottom = 12.dp))
+        GroupHeading("PARTIES", modifier = Modifier.padding(bottom = 12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Consignor
             if (state.isSearchingConsignor && state.consignor == null) {
@@ -255,7 +258,7 @@ private fun PartySearchField(
 @Composable
 private fun RouteSection(state: BookingFormUiState) {
     Column {
-        GroupHeading("Route", modifier = Modifier.padding(bottom = 12.dp))
+        GroupHeading("ROUTE", modifier = Modifier.padding(bottom = 12.dp))
         NestedCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
@@ -291,7 +294,7 @@ private fun RouteSection(state: BookingFormUiState) {
 @Composable
 private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
-        GroupHeading("Goods", modifier = Modifier.padding(bottom = 12.dp))
+        GroupHeading("GOODS", modifier = Modifier.padding(bottom = 12.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -375,7 +378,7 @@ private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormE
 @Composable
 private fun TermsSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
-        GroupHeading("Terms", modifier = Modifier.padding(bottom = 12.dp))
+        GroupHeading("TERMS", modifier = Modifier.padding(bottom = 12.dp))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -416,7 +419,7 @@ private fun TermsSection(state: BookingFormUiState, onEvent: (BookingFormEvent) 
 @Composable
 private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
-        GroupHeading("Charges", trailing = {
+        GroupHeading("CHARGES", trailing = {
             AppTextButton("Add charge", onClick = {})
         }, modifier = Modifier.padding(bottom = 12.dp))
         NestedCard(modifier = Modifier.fillMaxWidth()) {
@@ -452,7 +455,7 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Taxable", style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text("Subtotal Taxable", style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                     Text(state.taxable.formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 Row(
@@ -507,7 +510,7 @@ private fun BookingStickyBar(state: BookingFormUiState, onBookAndPrint: () -> Un
         Column(modifier = Modifier.weight(1f)) {
             Text("GRAND TOTAL", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                state.grandTotal.formatted(),
+                "₹${state.grandTotal.formatted()}",
                 style = TransportTypeScale.dataLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )

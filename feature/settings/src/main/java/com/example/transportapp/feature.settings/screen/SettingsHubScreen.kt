@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Article
@@ -39,15 +40,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.SampleData
 
 /**
  * T24 — Settings hub. Routes only; locked rows state who can change them.
@@ -56,49 +62,68 @@ import com.example.transportapp.core.ui.sample.SampleData
 fun SettingsHubScreen(
     onBack: () -> Unit,
     onProfile: () -> Unit,
+    onRowClick: (String) -> Unit,
+    viewModel: SettingsHubViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    SettingsHubContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onProfile = onProfile,
+        onRowClick = onRowClick
+    )
+}
+
+@Composable
+fun SettingsHubContent(
+    state: SettingsHubUiState,
+    onEvent: (SettingsHubEvent) -> Unit,
+    onBack: () -> Unit,
+    onProfile: () -> Unit,
     onRowClick: (String) -> Unit
 ) {
     val isClerk = false // Owner view here
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).verticalScroll(rememberScrollState())) {
-        TransportTopAppBar(title = "Settings", onNavigationClick = onBack)
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack)
 
         // Identity card
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding).background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(16.dp).clickable { onProfile() },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(16.dp).clickable { onProfile() },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-                Text("MP", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(state.identityInitials, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Mahesh Patidar", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text("mahesh@shivshaktiroadlines.in", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(state.identityName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(state.identityEmail, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Box(modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                Text("Owner", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(state.identityRole, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
-        SampleData.settingsGroups.forEach { group ->
+        state.groups.forEach { group ->
             Text(group.heading, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding).background(MaterialTheme.colorScheme.surfaceContainerLow, androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).padding(horizontal = 20.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(horizontal = 20.dp)
             ) {
                 group.rows.forEach { row ->
                     val locked = row.locked && isClerk
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                        modifier = Modifier.fillMaxWidth().clickable { onRowClick(row.label) }.padding(vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(iconGlyph(row.icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(12.dp))
                         Text(row.label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                         if (row.syncIcon) {
-                            Box(modifier = Modifier.background(transportColors().haulAmberContainer, androidx.compose.foundation.shape.RoundedCornerShape(percent = 100)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                            Box(modifier = Modifier.background(transportColors().haulAmberContainer, RoundedCornerShape(percent = 100)).padding(horizontal = 8.dp, vertical = 2.dp)) {
                                 Text("3 changes waiting", style = TransportTypeScale.labelMedium, color = transportColors().onHaulAmber)
                             }
                         } else if (row.value != null) {
@@ -106,12 +131,12 @@ fun SettingsHubScreen(
                         }
                         if (locked) {
                             Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                            if (row.gate != null) {
+                                Text(row.gate!!, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         } else {
                             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
-                    if (locked && row.gate != null) {
-                        Text(row.gate!!, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 32.dp))
                     }
                 }
             }
@@ -120,15 +145,15 @@ fun SettingsHubScreen(
 
         // Sign out
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().clickable { onEvent(SettingsHubEvent.SignOut) }.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(Icons.Rounded.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Sign out of this phone", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.error)
+            Text(state.signOutLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.error)
         }
-        Text("Your 3 unsynced changes will be sent first.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(state.signOutNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), textAlign = TextAlign.Center)
     }
 }
 
@@ -149,4 +174,18 @@ private fun iconGlyph(icon: String): ImageVector = when (icon) {
     "help" -> Icons.Rounded.HelpOutline
     "info" -> Icons.Rounded.Info
     else -> Icons.Rounded.Business
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsHubPreview() {
+    TransportAppTheme {
+        SettingsHubContent(
+            state = SettingsHubUiState(),
+            onEvent = {},
+            onBack = {},
+            onProfile = {},
+            onRowClick = {}
+        )
+    }
 }

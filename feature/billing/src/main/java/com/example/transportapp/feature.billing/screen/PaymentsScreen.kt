@@ -25,44 +25,60 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.transportapp.core.designsystem.component.AppPrimaryButton
-import com.example.transportapp.core.designsystem.component.FilterChip
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.JourneyChip
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.component.SummaryStrip
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SampleData
-
-enum class PaymentsTab { TOPAY, BILL_RECEIPTS }
 
 @Composable
-fun PaymentsScreen(onBack: () -> Unit) {
-    var tab by remember { mutableStateOf(PaymentsTab.TOPAY) }
+fun PaymentsScreen(
+    onBack: () -> Unit,
+    viewModel: PaymentsViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    PaymentsContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack
+    )
+}
 
+@Composable
+fun PaymentsContent(
+    state: PaymentsUiState,
+    onEvent: (PaymentsEvent) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = "Payments", onNavigationClick = onBack, trailingIcons = {
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
             IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
+        Text(
+            state.subtitle,
+            style = TransportTypeScale.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding)
+        )
+
         // Tabs
-        Row(modifier = Modifier.fillMaxWidth()) {
-            PaymentsTabItem("To Pay · 9", selected = tab == PaymentsTab.TOPAY, onClick = { tab = PaymentsTab.TOPAY }, modifier = Modifier.weight(1f))
-            PaymentsTabItem("Bill receipts", selected = tab == PaymentsTab.BILL_RECEIPTS, onClick = { tab = PaymentsTab.BILL_RECEIPTS }, modifier = Modifier.weight(1f))
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            PaymentsTabItem("${state.toPayTab} · 9", selected = state.tab == PaymentsTab.TOPAY, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.TOPAY)) }, modifier = Modifier.weight(1f))
+            PaymentsTabItem(state.billReceiptsTab, selected = state.tab == PaymentsTab.BILL_RECEIPTS, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.BILL_RECEIPTS)) }, modifier = Modifier.weight(1f))
         }
 
-        when (tab) {
-            PaymentsTab.TOPAY -> ToPayTab()
-            PaymentsTab.BILL_RECEIPTS -> BillReceiptsTab()
+        when (state.tab) {
+            PaymentsTab.TOPAY -> ToPayTab(state)
+            PaymentsTab.BILL_RECEIPTS -> BillReceiptsTab(state)
         }
     }
 }
@@ -82,17 +98,14 @@ private fun PaymentsTabItem(label: String, selected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-private fun ToPayTab() {
-    val rows = SampleData.toPayRows
-    var collectSheetOpen by remember { mutableStateOf(false) }
-
+private fun ToPayTab(state: PaymentsUiState) {
     Column(modifier = Modifier.fillMaxSize()) {
-        SummaryStrip("TO COLLECT" to "41,760.00", "AT INDORE" to "9", modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
+        SummaryStrip("TO COLLECT" to state.toCollect, "AT INDORE" to state.atIndore, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            items(rows) { row ->
+            items(state.toPayRows) { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -107,6 +120,9 @@ private fun ToPayTab() {
                             JourneyChip(status = row.status)
                             Spacer(Modifier.width(8.dp))
                             PaymentStamp(mode = row.mode)
+                        }
+                        if (row.caption != null) {
+                            Text(row.caption!!, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error)
                         }
                     }
                     Spacer(Modifier.width(12.dp))
@@ -126,12 +142,11 @@ private fun ToPayTab() {
 }
 
 @Composable
-private fun BillReceiptsTab() {
-    val receipts = SampleData.receiptRows
+private fun BillReceiptsTab(state: PaymentsUiState) {
     Column(modifier = Modifier.fillMaxSize()) {
-        SummaryStrip("RECEIVED THIS MONTH" to "4,18,200.00", "RECEIPTS" to "27", modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
+        SummaryStrip("RECEIVED THIS MONTH" to state.receivedThisMonth, "RECEIPTS" to state.receipts, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
-            items(receipts) { (no, party, amount) ->
+            items(state.receiptRows) { (no, party, amount) ->
                 Row(modifier = Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
                         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
@@ -139,10 +154,22 @@ private fun BillReceiptsTab() {
                             Text(amount, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Text(party, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text("NEFT · 20 Aug", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(state.receiptModeLine, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun PaymentsPreview() {
+    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
+        PaymentsContent(
+            state = PaymentsUiState(),
+            onEvent = {},
+            onBack = {}
+        )
     }
 }

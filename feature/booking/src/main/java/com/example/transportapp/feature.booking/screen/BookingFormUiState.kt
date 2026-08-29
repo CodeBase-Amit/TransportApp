@@ -1,27 +1,32 @@
 package com.example.transportapp.feature.booking.screen
 
 import com.example.transportapp.core.common.Money
+import com.example.transportapp.core.ui.sample.BookingFormSampleData
+import com.example.transportapp.core.ui.sample.ChargeLine
+import com.example.transportapp.core.ui.sample.DeliveryType
+import com.example.transportapp.core.ui.sample.Party
+import com.example.transportapp.core.ui.sample.Risk
 import com.example.transportapp.domain.transport.PaymentMode
 
 data class BookingFormUiState(
-    val reservedNumber: String = "IND/2627/04189",
-    val consignor: Party? = deepakSteel,
-    val consignee: Party? = nashikHardware,
-    val goods: String = "MS pipes",
-    val packages: String = "12",
-    val actualWeightKg: String = "780",
-    val rate: String = "4.50 / kg",
-    val rateNote: String = "from Deepak Steel Traders rate card",
+    val reservedNumber: String = BookingFormSampleData.RESERVED_NUMBER,
+    val consignor: Party? = BookingFormSampleData.deepakSteel,
+    val consignee: Party? = BookingFormSampleData.nashikHardware,
+    val goods: String = BookingFormSampleData.GOODS,
+    val packages: String = BookingFormSampleData.PACKAGES,
+    val actualWeightKg: String = BookingFormSampleData.ACTUAL_WEIGHT_KG,
+    val rate: String = BookingFormSampleData.RATE,
+    val rateNote: String = BookingFormSampleData.RATE_NOTE,
     val paymentMode: PaymentMode = PaymentMode.TOPAY,
     val risk: Risk = Risk.OWNER,
     val delivery: DeliveryType = DeliveryType.DOOR,
-    val charges: List<ChargeLine> = defaultCharges,
-    val taxable: Money = Money.fromRupees(3756),
-    val gst: Money = Money.fromRupees(187, 80),
-    val gstLabel: String = "GST 5% — we pay, forward charge",
-    val rounding: Money = Money.fromRupees(0, 20),
-    val grandTotal: Money = Money.fromRupees(3944),
-    val amountInWords: String = "Three thousand nine hundred forty four rupees only",
+    val charges: List<ChargeLine> = BookingFormSampleData.defaultCharges,
+    val taxable: Money = BookingFormSampleData.TAXABLE,
+    val gst: Money = BookingFormSampleData.GST,
+    val gstLabel: String = BookingFormSampleData.GST_LABEL,
+    val rounding: Money = BookingFormSampleData.ROUNDING,
+    val grandTotal: Money = BookingFormSampleData.GRAND_TOTAL,
+    val amountInWords: String = BookingFormSampleData.AMOUNT_IN_WORDS,
     val isSearchingConsignor: Boolean = false,
     val isSearchingConsignee: Boolean = false,
     val searchQuery: String = "",
@@ -29,59 +34,9 @@ data class BookingFormUiState(
     val showMoreDetails: Boolean = false,
     val weightError: String? = null,
     val rateCardWarning: String? = null,
-    val bookedBy: String = "Mahesh Patidar · Indore · 25 Aug 2026, 11:42 AM",
+    val bookedBy: String = BookingFormSampleData.BOOKED_BY,
     val isLoading: Boolean = false,
     val error: String? = null
-)
-
-data class Party(
-    val name: String,
-    val phone: String,
-    val station: String,
-    val gstin: String,
-    val biltyCount: Int = 0,
-    val usualRoute: String? = null
-)
-
-data class Route(
-    val from: String,
-    val to: String,
-    val distance: String = "585 km",
-    val transitDays: String = "2 days",
-    val expectedArrival: String = "27 Aug"
-)
-
-data class ChargeLine(
-    val label: String,
-    val amount: Money,
-    val detail: String,
-    val isRemovable: Boolean = false,
-    val isComputed: Boolean = false
-)
-
-enum class Risk { OWNER, CARRIER }
-enum class DeliveryType { GODOWN, DOOR }
-
-val deepakSteel = Party(
-    name = "Deepak Steel Traders",
-    phone = "+91 94250 61183",
-    station = "Indore",
-    gstin = "23AACDS8812K1Z4",
-    biltyCount = 41,
-    usualRoute = "Indore → Nashik"
-)
-
-val nashikHardware = Party(
-    name = "Nashik Hardware Mart",
-    phone = "+91 98600 27419",
-    station = "Nashik",
-    gstin = "27AAFCN3390L1Z8"
-)
-
-private val defaultCharges = listOf(
-    ChargeLine("Freight", Money.fromRupees(3510), "780 kg × 4.50", isComputed = true),
-    ChargeLine("Hamali", Money.fromRupees(96), "12 × 8.00", isRemovable = true),
-    ChargeLine("Door delivery", Money.fromRupees(150), "fixed", isRemovable = true)
 )
 
 sealed interface BookingFormEvent {

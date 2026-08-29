@@ -2,7 +2,6 @@ package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,48 +9,68 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.SampleData
+import com.example.transportapp.core.ui.sample.SeriesRow
 
 @Composable
-fun NumberingScreen(onBack: () -> Unit) {
+fun NumberingScreen(
+    onBack: () -> Unit,
+    viewModel: NumberingViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    NumberingContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack
+    )
+}
+
+@Composable
+fun NumberingContent(
+    state: NumberingUiState,
+    onEvent: (NumberingEvent) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = "Numbering series", onNavigationClick = onBack)
-        Text("One series per document type per branch. A number is reserved the moment a form opens, so two clerks can never take the same one.", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding))
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack)
+        Text(state.subtitle, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding))
 
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SampleData.seriesList.forEach { series ->
-                SeriesCard(series)
+            state.series.forEach { series ->
+                SeriesCard(series, state.editLabel)
             }
         }
     }
 }
 
 @Composable
-private fun SeriesCard(series: SampleData.SeriesRow) {
+private fun SeriesCard(series: SeriesRow, editLabel: String) {
     Column(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
     ) {
@@ -75,8 +94,8 @@ private fun SeriesCard(series: SampleData.SeriesRow) {
         }
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${series.issued} issued this year · ${series.remaining} left in this phone's block", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            AppTextButton("Edit", onClick = {})
+            Text(series.caption, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            AppTextButton(editLabel, onClick = {})
         }
         if (series.neverUsed) {
             Spacer(Modifier.height(8.dp))
@@ -84,8 +103,16 @@ private fun SeriesCard(series: SampleData.SeriesRow) {
                 modifier = Modifier.fillMaxWidth().background(transportColors().haulAmberContainer, RoundedCornerShape(12.dp)).padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Never used. Change the format now, before the first bilty is printed.", style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber)
+                Text(series.caption, style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber)
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun NumberingPreview() {
+    TransportAppTheme {
+        NumberingContent(state = NumberingUiState(), onEvent = {}, onBack = {})
     }
 }

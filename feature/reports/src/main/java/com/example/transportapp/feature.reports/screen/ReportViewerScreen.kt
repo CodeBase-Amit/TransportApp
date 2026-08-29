@@ -1,16 +1,15 @@
 package com.example.transportapp.feature.reports.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,108 +28,132 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SampleData
+import com.example.transportapp.core.designsystem.theme.transportColors
+import com.example.transportapp.core.ui.sample.ReportViewerRow
 
-/**
- * T22 — Report viewer (Freight register). Frozen first column, pinned totals.
- */
 @Composable
-fun ReportViewerScreen(onBack: () -> Unit) {
-    val rows = SampleData.freightRows
-    val hScroll = rememberScrollState()
+fun ReportViewerScreen(onBack: () -> Unit, viewModel: ReportViewerViewModel = viewModel()) {
+    val state by viewModel.uiState.collectAsState()
+    ReportViewerContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack
+    )
+}
 
+@Composable
+fun ReportViewerContent(
+    state: ReportViewerUiState,
+    onEvent: (ReportViewerEvent) -> Unit,
+    onBack: () -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = "Freight register", onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.FileDownload, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSurface) }
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
+            IconButton(onClick = { onEvent(ReportViewerEvent.OpenFilters) }) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = { onEvent(ReportViewerEvent.ExportExcel) }) { Icon(Icons.Rounded.FileDownload, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSurface) }
         })
-        Text("1 Apr – 25 Aug 2026 · Indore · 1,842 rows", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding))
+        Text(state.subtitle, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding))
 
-        // Applied filter chips
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("Indore branch", "To Pay only", "Over 1,000 kg").forEach {
+            state.filters.forEach { filter ->
                 Row(
                     modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(percent = 100)).padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(it, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(filter, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Rounded.Close, contentDescription = "Remove filter", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = "Remove filter",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onEvent(ReportViewerEvent.RemoveFilter(filter)) }
+                    )
                 }
             }
-            Text("Clear all", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(state.clearAll, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onEvent(ReportViewerEvent.ClearAll) })
         }
 
-        // Header row (frozen Bilty no. column + scrollable rest)
         Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(vertical = 8.dp)) {
-            Text("Bilty no.", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(140.dp).padding(start = 16.dp))
-            Row(modifier = Modifier.horizontalScroll(hScroll)) {
-                listOf("Date", "Consignor", "Consignee", "Route", "Pkg", "Weight", "Freight", "GST", "Total").forEach {
-                    Text(it, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(100.dp))
-                }
-            }
+            Text(state.columns[0], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(140.dp).padding(start = 16.dp))
+            Text(state.columns[1], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(70.dp))
+            Text(state.columns[2], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(state.columns[3], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(90.dp))
+            Text(state.columns[4], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(90.dp))
+            Text(state.columns[5], style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp).padding(end = 16.dp))
         }
 
-        // Rows
         LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(bottom = 8.dp)) {
-            itemsIndexed(rows) { index, row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).background(if (index % 2 == 0) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.width(140.dp).padding(start = 16.dp)) {
-                        Text(row.bilty, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
-                        if (row.cancelled) Text("CANCELLED", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.error)
-                    }
-                    Row(modifier = Modifier.horizontalScroll(hScroll)) {
-                        Text(row.date, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(100.dp))
-                        Text(row.consignor, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(100.dp))
-                        Text(row.consignee, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(100.dp))
-                        Text(row.route, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(100.dp))
-                        Text(row.pkg, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(60.dp))
-                        Text(row.weight, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
-                        Text(row.freight, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
-                        Text(row.gst, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
-                        Text(row.total, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
-                    }
-                }
+            itemsIndexed(state.rows) { index, row ->
+                ReportViewerRowItem(
+                    row = row,
+                    background = if (index % 2 == 0) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow
+                )
             }
         }
 
-        // Pinned totals
         Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(vertical = 10.dp)) {
-            Text("TOTAL · 1,842", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(140.dp).padding(start = 16.dp))
-            Row(modifier = Modifier.horizontalScroll(hScroll)) {
-                Text("", modifier = Modifier.width(100.dp))
-                Text("", modifier = Modifier.width(100.dp))
-                Text("", modifier = Modifier.width(100.dp))
-                Text("", modifier = Modifier.width(100.dp))
-                Text("18,204", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(60.dp))
-                Text("9,84,120 kg", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(80.dp))
-                Text("39,86,420.00", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(90.dp))
-                Text("1,99,321.00", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(80.dp))
-                Text("41,85,741.00", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(90.dp))
-            }
+            Text(state.totalLabel, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(140.dp).padding(start = 16.dp))
+            Text("", modifier = Modifier.width(70.dp))
+            Text("", modifier = Modifier.weight(1f))
+            Text(state.totalWeight, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(90.dp))
+            Text(state.totalAmount, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.width(90.dp))
+            Text("", modifier = Modifier.width(80.dp).padding(end = 16.dp))
         }
 
-        // Export bar
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            AppOutlinedButton("Export to Excel", onClick = {}, leadingIcon = Icons.Rounded.TableChart, modifier = Modifier.weight(1f), height = 48.dp)
-            AppOutlinedButton("Export to PDF", onClick = {}, leadingIcon = Icons.Rounded.PictureAsPdf, modifier = Modifier.weight(1f), height = 48.dp)
+            AppOutlinedButton(state.exportExcel, onClick = { onEvent(ReportViewerEvent.ExportExcel) }, leadingIcon = Icons.Rounded.TableChart, modifier = Modifier.weight(1f), height = 48.dp)
+            AppOutlinedButton(state.exportPdf, onClick = { onEvent(ReportViewerEvent.ExportPdf) }, leadingIcon = Icons.Rounded.PictureAsPdf, modifier = Modifier.weight(1f), height = 48.dp)
         }
+    }
+}
+
+@Composable
+private fun ReportViewerRowItem(row: ReportViewerRow, background: Color) {
+    val statusColor = if (row.status == "Paid") MaterialTheme.colorScheme.primary else transportColors().haulAmber
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).background(background),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(row.bilty, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(140.dp).padding(start = 16.dp))
+        Text(row.date, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(70.dp))
+        Text(row.consignor, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(row.weight, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
+        Text(row.amount, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
+        Text(row.status, style = TransportTypeScale.labelMedium, color = statusColor, modifier = Modifier.width(80.dp).padding(end = 16.dp))
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ReportViewerPreview() {
+    TransportAppTheme {
+        ReportViewerContent(
+            state = ReportViewerUiState(),
+            onEvent = {},
+            onBack = {}
+        )
     }
 }

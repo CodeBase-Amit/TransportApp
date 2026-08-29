@@ -3,6 +3,9 @@ package com.example.transportapp.feature.booking.screen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.core.common.Money
+import com.example.transportapp.core.ui.sample.BookingFormSampleData
+import com.example.transportapp.core.ui.sample.ChargeLine
+import com.example.transportapp.core.ui.sample.Party
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +29,7 @@ class BookingFormViewModel : ViewModel() {
             BookingFormEvent.ClearConsignee -> _uiState.update { it.copy(consignee = null) }
             is BookingFormEvent.SearchConsignor -> {
                 val results = if (event.query.length >= 2) {
-                    listOf(deepakSteel, Party("Deepak Hardware", "+91 98765 43210", "Dewas", "23AACDH1234K1Z4", 3),
+                    listOf(BookingFormSampleData.deepakSteel, Party("Deepak Hardware", "+91 98765 43210", "Dewas", "23AACDH1234K1Z4", 3),
                         Party("Deep Enterprises", "+91 94250 12345", "Indore", "23AACDE5678K1Z4", 1))
                         .filter { it.name.contains(event.query, ignoreCase = true) || it.phone.contains(event.query) }
                         .take(3)
@@ -35,7 +38,7 @@ class BookingFormViewModel : ViewModel() {
             }
             is BookingFormEvent.SearchConsignee -> {
                 val results = if (event.query.length >= 2) {
-                    listOf(nashikHardware, Party("Nashik Cement Depot", "+91 98200 12345", "Nashik", "27AACNC1234K1Z8", 7))
+                    listOf(BookingFormSampleData.nashikHardware, Party("Nashik Cement Depot", "+91 98200 12345", "Nashik", "27AACNC1234K1Z8", 7))
                         .filter { it.name.contains(event.query, ignoreCase = true) }
                         .take(3)
                 } else emptyList()

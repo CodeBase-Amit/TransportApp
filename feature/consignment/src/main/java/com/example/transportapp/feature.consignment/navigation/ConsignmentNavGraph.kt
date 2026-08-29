@@ -28,12 +28,20 @@ fun NavGraphBuilder.consignmentNavGraph(navController: NavController) {
         CaseFileScreen(
             biltyNo = biltyNo,
             onBack = { navController.popBackStack() },
-            onUpdateStatus = { navController.navigate(Routes.statusSheet(biltyNo)) }
+            onPrint = {},
+            onAddPhoto = {},
+            onHold = { navController.navigate(Routes.statusSheet(biltyNo)) },
+            onRaiseBill = {},
+            onFullHistory = {}
         )
     }
-    composable(Routes.STATUS_SHEET) {
+    composable(
+        route = Routes.STATUS_SHEET,
+        arguments = listOf(navArgument("biltyNo") { type = NavType.StringType })
+    ) { entry ->
+        val biltyNo = entry.arguments?.getString("biltyNo") ?: "IND/2627/04188"
         StatusUpdateSheet(
-            biltyNo = "IND/2627/04188",
+            biltyNo = biltyNo,
             onDismiss = { navController.popBackStack() },
             onSave = { navController.popBackStack() }
         )

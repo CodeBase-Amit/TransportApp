@@ -23,29 +23,46 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SampleData
 
 @Composable
 fun VehicleBoardScreen(
     onBack: () -> Unit,
+    onNewChallan: () -> Unit,
+    viewModel: VehicleBoardViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    VehicleBoardContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onNewChallan = onNewChallan
+    )
+}
+
+@Composable
+fun VehicleBoardContent(
+    state: VehicleBoardUiState,
+    onEvent: (VehicleBoardEvent) -> Unit,
+    onBack: () -> Unit,
     onNewChallan: () -> Unit
 ) {
-    val vehicles = SampleData.vehicles
-
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TransportTopAppBar(title = "Vehicles", onNavigationClick = onBack, trailingIcons = {
+            TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
                 IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
             })
 
@@ -53,11 +70,9 @@ fun VehicleBoardScreen(
                 modifier = Modifier.padding(horizontal = Dimens.screenPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip("Running", selected = true, onClick = {})
-                FilterChip("Idle", selected = false, onClick = {})
-                FilterChip("Own", selected = false, onClick = {})
-                FilterChip("Attached", selected = false, onClick = {})
-                FilterChip("Late", selected = false, onClick = {})
+                state.filterChips.forEach { chip ->
+                    FilterChip(chip, selected = state.selectedFilter == chip, onClick = { onEvent(VehicleBoardEvent.SelectFilter(chip)) })
+                }
             }
 
             // Summary strip
@@ -69,9 +84,9 @@ fun VehicleBoardScreen(
                     .padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                SummaryValue("RUNNING", "4", normal = true)
-                SummaryValue("IDLE", "2", normal = true)
-                SummaryValue("LATE", "1", normal = false)
+                SummaryValue("RUNNING", state.summaryRunning, normal = true)
+                SummaryValue("IDLE", state.summaryIdle, normal = true)
+                SummaryValue("LATE", state.summaryLate, normal = false)
             }
 
             LazyColumn(
@@ -79,8 +94,8 @@ fun VehicleBoardScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(vehicles) { vehicle ->
-                    VehicleCard(vehicle, onLoad = { onNewChallan() })
+                items(state.vehicles) { vehicle ->
+                    VehicleCard(vehicle, state.loadIt, onLoad = { onNewChallan() })
                 }
             }
         }
@@ -91,7 +106,7 @@ fun VehicleBoardScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 16.dp)
         ) {
-            AppPrimaryButton("New challan", onClick = onNewChallan, leadingIcon = Icons.Rounded.Add)
+            AppPrimaryButton(state.newChallan, onClick = onNewChallan, leadingIcon = Icons.Rounded.Add)
         }
     }
 }
@@ -109,7 +124,7 @@ private fun SummaryValue(label: String, value: String, normal: Boolean) {
 }
 
 @Composable
-private fun VehicleCard(vehicle: SampleData.VehicleRow, onLoad: () -> Unit) {
+private fun VehicleCard(vehicle: VehicleRow, loadIt: String, onLoad: () -> Unit) {
     val primary = MaterialTheme.colorScheme.primary
     val outlineVariant = MaterialTheme.colorScheme.outlineVariant
 
@@ -145,7 +160,7 @@ private fun VehicleCard(vehicle: SampleData.VehicleRow, onLoad: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                Text("Load it", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(loadIt, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
         } else {
             // Route line
@@ -193,5 +208,18 @@ private fun VehicleCard(vehicle: SampleData.VehicleRow, onLoad: () -> Unit) {
                 Text(" · ${vehicle.lateLine}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+private fun VehicleBoardPreview() {
+    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
+        VehicleBoardContent(
+            state = VehicleBoardUiState(),
+            onEvent = {},
+            onBack = {},
+            onNewChallan = {}
+        )
     }
 }

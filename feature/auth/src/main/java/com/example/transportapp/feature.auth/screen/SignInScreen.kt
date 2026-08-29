@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.auth.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,10 +22,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.example.transportapp.core.designsystem.component.AppPrimaryButton
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.ErrorBanner
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
@@ -37,8 +41,19 @@ fun SignInScreen(
     onSignedIn: () -> Unit,
     onTerms: () -> Unit,
     onPrivacy: () -> Unit,
-    errorMessage: String? = null,
-    loading: Boolean = false
+    viewModel: SignInViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    SignInContent(state = state, onEvent = viewModel::onEvent, onSignedIn = onSignedIn, onTerms = onTerms, onPrivacy = onPrivacy)
+}
+
+@Composable
+fun SignInContent(
+    state: SignInUiState,
+    onEvent: (SignInEvent) -> Unit,
+    onSignedIn: () -> Unit,
+    onTerms: () -> Unit,
+    onPrivacy: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(16.dp)
@@ -48,13 +63,13 @@ fun SignInScreen(
             modifier = Modifier.size(72.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text("SR", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
+            Text(state.initials, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
         }
         Spacer(Modifier.height(24.dp))
-        Text("Book a bilty in under a minute", style = TransportTypeScale.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(state.title, style = TransportTypeScale.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Four printed copies, a live register, and every challan and freight bill built from the same form.",
+            state.body,
             style = TransportTypeScale.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -62,16 +77,22 @@ fun SignInScreen(
         Spacer(Modifier.height(40.dp))
 
         // Three reassurances
-        ReassuranceRow(Icons.Rounded.CloudOff, "Works offline", "Bilties save on the phone and sync when there's signal")
-        Spacer(Modifier.height(16.dp))
-        ReassuranceRow(Icons.Rounded.Lock, "Only your staff see your data", "Each company's register is separate and private")
-        Spacer(Modifier.height(16.dp))
-        ReassuranceRow(Icons.Rounded.Print, "Prints on your own letterhead", "Real A4 output, sharp on paper and as PDF")
+        state.reassurances.forEachIndexed { index, reassurance ->
+            val icon = when (index % 3) {
+                0 -> Icons.Rounded.CloudOff
+                1 -> Icons.Rounded.Lock
+                else -> Icons.Rounded.Print
+            }
+            ReassuranceRow(icon, reassurance.title, reassurance.body)
+            if (index < state.reassurances.lastIndex) {
+                Spacer(Modifier.height(16.dp))
+            }
+        }
 
         Spacer(Modifier.weight(1f))
 
-        if (errorMessage != null) {
-            ErrorBanner(message = errorMessage, modifier = Modifier.padding(bottom = 16.dp))
+        if (state.errorMessage != null) {
+            ErrorBanner(message = state.errorMessage, modifier = Modifier.padding(bottom = 16.dp))
         }
 
         // Google sign-in button
@@ -79,10 +100,8 @@ fun SignInScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
+                .clickable { onEvent(SignInEvent.ContinueWithGoogle); onSignedIn() }
                 .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(percent = 100))
-                .then(
-                    if (loading) Modifier else Modifier
-                )
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -93,7 +112,7 @@ fun SignInScreen(
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    if (loading) "Signing in…" else "Continue with Google",
+                    if (state.loading) state.googleLoadingLabel else state.googleLabel,
                     style = TransportTypeScale.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -102,16 +121,16 @@ fun SignInScreen(
 
         Spacer(Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            Text("By continuing you agree to our ", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            AppTextButton("Terms", onClick = onTerms)
-            Text(" and ", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            AppTextButton("Privacy Policy", onClick = onPrivacy)
+            Text(state.termsIntro, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppTextButton(state.termsLabel, onClick = onTerms)
+            Text(state.conjunction, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppTextButton(state.privacyLabel, onClick = onPrivacy)
         }
     }
 }
 
 @Composable
-private fun ReassuranceRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String) {
+private fun ReassuranceRow(icon: ImageVector, title: String, body: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(16.dp))

@@ -20,20 +20,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocalShipping
 import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.Caption
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -41,31 +41,32 @@ import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
-/**
- * T9 — Status update bottom sheet. The next event is a chip, not a dropdown.
- */
-enum class StatusEventOption(val label: String, val detail: String, val holdPath: Boolean = false) {
-    DEPARTED("Departed Dhule — back in transit", "The usual next step from At hub"),
-    ARRIVED("Arrived at Nashik", "Reached the destination branch"),
-    OUT_FOR_DELIVERY("Out for delivery", "Door delivery loaded out"),
-    DELIVERED("Delivered", "POD captured"),
-    HOLD("Hold", "Exception — needs a reason", holdPath = true),
-    RETURN("Return to origin", "RTO decision")
-}
-
-enum class HoldReason(val label: String) { SHORTAGE("Shortage"), DAMAGE("Damage"), DETAINED("Detained"), OTHER("Other") }
-
 @Composable
 fun StatusUpdateSheet(
     biltyNo: String,
     onDismiss: () -> Unit,
+    onSave: () -> Unit,
+    viewModel: StatusUpdateSheetViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    StatusUpdateSheetContent(
+        state = state,
+        biltyNo = biltyNo,
+        onEvent = viewModel::onEvent,
+        onDismiss = onDismiss,
+        onSave = onSave
+    )
+}
+
+@Composable
+fun StatusUpdateSheetContent(
+    state: StatusUpdateSheetUiState,
+    biltyNo: String,
+    onEvent: (StatusUpdateSheetEvent) -> Unit,
+    onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
-    var selectedEvent by remember { mutableStateOf<StatusEventOption?>(StatusEventOption.DEPARTED) }
-    var holdReason by remember { mutableStateOf<HoldReason>(HoldReason.SHORTAGE) }
-    var remark by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("Dhule") }
-    val isHold = selectedEvent == StatusEventOption.HOLD
+    val isHold = state.isHold
 
     Column(
         modifier = Modifier
@@ -94,8 +95,8 @@ fun StatusUpdateSheet(
         GroupHeading("What happened", modifier = Modifier.padding(bottom = 8.dp))
 
         // Primary event card
-        val primary = selectedEvent ?: StatusEventOption.DEPARTED
-        val primaryBorder = if (selectedEvent == StatusEventOption.DEPARTED) {
+        val primary = state.selectedEvent
+        val primaryBorder = if (primary == StatusEventOption.DEPARTED) {
             Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
         } else Modifier
         Row(
@@ -103,7 +104,7 @@ fun StatusUpdateSheet(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp))
                 .then(primaryBorder)
-                .clickable { selectedEvent = StatusEventOption.DEPARTED }
+                .clickable { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.DEPARTED)) }
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -125,16 +126,16 @@ fun StatusUpdateSheet(
             otherEvents.forEach { event ->
                 StatusChip(
                     label = event.label,
-                    selected = selectedEvent == event,
+                    selected = state.selectedEvent == event,
                     error = false,
-                    onClick = { selectedEvent = event }
+                    onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(event)) }
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatusChip("Hold", selected = selectedEvent == StatusEventOption.HOLD, error = true, onClick = { selectedEvent = StatusEventOption.HOLD })
-            StatusChip("Return to origin", selected = selectedEvent == StatusEventOption.RETURN, error = true, onClick = { selectedEvent = StatusEventOption.RETURN })
+            StatusChip("Hold", selected = state.selectedEvent == StatusEventOption.HOLD, error = true, onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.HOLD)) })
+            StatusChip("Return to origin", selected = state.selectedEvent == StatusEventOption.RETURN, error = true, onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.RETURN)) })
         }
 
         // Hold path
@@ -145,10 +146,10 @@ fun StatusUpdateSheet(
                 HoldReason.entries.forEach { reason ->
                     StatusChip(
                         label = reason.label,
-                        selected = holdReason == reason,
+                        selected = state.holdReason == reason,
                         error = true,
                         filled = true,
-                        onClick = { holdReason = reason }
+                        onClick = { onEvent(StatusUpdateSheetEvent.SelectHoldReason(reason)) }
                     )
                 }
             }
@@ -157,18 +158,30 @@ fun StatusUpdateSheet(
         Spacer(Modifier.height(24.dp))
         GroupHeading("Where", modifier = Modifier.padding(bottom = 8.dp))
         TransportTextField(
-            value = location,
-            onValueChange = { location = it },
+            value = state.location,
+            onValueChange = { onEvent(StatusUpdateSheetEvent.ChangeLocation(it)) },
             label = "Location",
             leadingIcon = Icons.Rounded.LocationOn
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onEvent(StatusUpdateSheetEvent.UseMyLocation) }
+                .padding(top = 8.dp)
+                .align(Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(Icons.Rounded.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text("Use my location", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+        }
         Text("Recorded to the nearest town, not an exact position.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
 
         Spacer(Modifier.height(24.dp))
         GroupHeading(if (isHold) "Remark · Required" else "Remark · Optional", modifier = Modifier.padding(bottom = 8.dp))
         TransportTextField(
-            value = remark,
-            onValueChange = { remark = it },
+            value = state.remark,
+            onValueChange = { onEvent(StatusUpdateSheetEvent.ChangeRemark(it)) },
             label = "Anything the office should know",
             singleLine = false,
             maxLines = 3

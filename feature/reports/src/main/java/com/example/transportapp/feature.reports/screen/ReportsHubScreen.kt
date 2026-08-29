@@ -1,15 +1,14 @@
 package com.example.transportapp.feature.reports.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,40 +22,56 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
+import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SampleData
 
-/**
- * T21 — Reports hub. Grouped by the question they answer.
- */
 @Composable
-fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit) {
+fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewModel: ReportsHubViewModel = viewModel()) {
+    val state by viewModel.uiState.collectAsState()
+    ReportsHubContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onReportClick = onReportClick
+    )
+}
+
+@Composable
+fun ReportsHubContent(
+    state: ReportsHubUiState,
+    onEvent: (ReportsHubEvent) -> Unit,
+    onBack: () -> Unit,
+    onReportClick: (String) -> Unit
+) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = "Reports", onNavigationClick = onBack, trailingIcons = {
+        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
             IconButton(onClick = {}) { Icon(Icons.Rounded.History, contentDescription = "History", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
-            Text("1 Apr 2026 – 25 Aug 2026", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text("  All branches", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(state.period, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text("  ${state.scope}", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.DateRange, contentDescription = "Change period", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            IconButton(onClick = { onEvent(ReportsHubEvent.ChangePeriod) }) { Icon(Icons.Rounded.DateRange, contentDescription = "Change period", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
-        Text("Every report below uses this period and branch.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 4.dp))
+        Text(state.periodNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 4.dp))
 
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SampleData.reportGroups.forEach { group ->
+            state.groups.forEach { group ->
                 GroupHeading(group.heading, modifier = Modifier.padding(top = 8.dp))
                 Column(
                     modifier = Modifier
@@ -64,17 +79,20 @@ fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit) {
                         .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp))
                         .padding(horizontal = 20.dp)
                 ) {
-                    group.reports.forEach { (label, desc, figure) ->
+                    group.reports.forEach { report ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onReportClick(report.label) }
+                                .padding(vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                                Text(desc, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(report.label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                                Text(report.desc, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            if (figure != null) {
-                                Text(figure, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.primary)
+                            report.figure?.let {
+                                Text(it, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(8.dp))
                             }
                             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -83,5 +101,18 @@ fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ReportsHubPreview() {
+    TransportAppTheme {
+        ReportsHubContent(
+            state = ReportsHubUiState(),
+            onEvent = {},
+            onBack = {},
+            onReportClick = {}
+        )
     }
 }
