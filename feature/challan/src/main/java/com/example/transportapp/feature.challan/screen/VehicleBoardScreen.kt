@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.FilterChip
@@ -42,7 +43,7 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 fun VehicleBoardScreen(
     onBack: () -> Unit,
     onNewChallan: () -> Unit,
-    viewModel: VehicleBoardViewModel = viewModel()
+    viewModel: VehicleBoardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     VehicleBoardContent(

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.RouteLine
 import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.StepState
@@ -57,7 +58,7 @@ fun BiltyPreviewScreen(
     onShare: () -> Unit,
     onSaveNew: () -> Unit,
     onDone: () -> Unit,
-    viewModel: BiltyPreviewViewModel = viewModel()
+    viewModel: BiltyPreviewViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     BiltyPreviewContent(

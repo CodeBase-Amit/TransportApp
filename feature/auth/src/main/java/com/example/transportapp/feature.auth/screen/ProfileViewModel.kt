@@ -1,18 +1,54 @@
 package com.example.transportapp.feature.auth.screen
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.transportapp.data.transport.session.SessionRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class ProfileViewModel : ViewModel() {
+/**
+ * T33 — Your profile (Phase2.md S2). Identity comes from the mocked session
+ * (SessionRepository); sign-out clears the local mirror only (§17.4).
+ */
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val sessionRepository: SessionRepository,
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            sessionRepository.session.collect { session ->
+                _uiState.update {
+                    it.copy(
+                        name = session.name,
+                        email = session.email,
+                        roleLine = roleLine(session),
+                        displayName = session.name,
+                        defaultBranch = session.branchName.ifEmpty { it.defaultBranch },
+                    )
+                }
+            }
+        }
+    }
+
+    private fun roleLine(session: com.example.transportapp.data.transport.session.UserSession): String {
+        val role = runCatching { com.example.transportapp.domain.transport.Role.valueOf(session.role) }
+            .getOrDefault(com.example.transportapp.domain.transport.Role.DELIVERY_CLERK)
+        return "${role.label} · ${session.companyName}"
+    }
+
     fun onEvent(event: ProfileEvent) {
         when (event) {
-            ProfileEvent.Save, ProfileEvent.SignOut -> Unit
+            ProfileEvent.Save -> Unit
+            ProfileEvent.SignOut -> viewModelScope.launch { sessionRepository.signOut() }
             ProfileEvent.Clear, ProfileEvent.Redraw -> _uiState.update { it.copy(clearSignal = it.clearSignal + 1) }
             is ProfileEvent.ChangeLanguage -> _uiState.update { it.copy(language = event.language) }
             ProfileEvent.ToggleOpenOnLaunch -> _uiState.update { it.copy(openOnLaunch = !it.openOnLaunch) }

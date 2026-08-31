@@ -25,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.ContentCard
@@ -37,7 +37,7 @@ import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 @Composable
-fun RateCardEditorScreen(onBack: () -> Unit, viewModel: RateCardEditorViewModel = viewModel()) {
+fun RateCardEditorScreen(onBack: () -> Unit, viewModel: RateCardEditorViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     RateCardEditorContent(
         state = state,
@@ -77,7 +77,7 @@ fun RateCardEditorContent(
                                     .background(if (i < state.resolutionSteps.lastIndex) MaterialTheme.colorScheme.outlineVariant else Color.Transparent)
                             )
                             Spacer(Modifier.width(8.dp))
-                            val sub = step.sub
+                            val sub = step.note
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(step.label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                                 if (sub != null) {
@@ -110,10 +110,7 @@ fun RateCardEditorContent(
                             Text(rate.goods, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
                             Text(rate.basis, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
                             Text(rate.rate, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
-                            Text(rate.min, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
-                        }
-                        rate.note?.let { note ->
-                            Text(note, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 140.dp))
+                            Text(rate.minQty, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
                         }
                     }
                 }
@@ -135,9 +132,9 @@ fun RateCardEditorContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(charge.label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(charge.detail, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(charge.value, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text(if (charge.isOn) "ON" else "OFF", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (charge.enabled) "ON" else "OFF", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Text(

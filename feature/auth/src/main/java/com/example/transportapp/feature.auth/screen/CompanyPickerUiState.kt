@@ -1,23 +1,44 @@
 package com.example.transportapp.feature.auth.screen
 
-import com.example.transportapp.core.ui.sample.CompanyPickerSampleData
-import com.example.transportapp.core.ui.sample.CompanyRow
-import com.example.transportapp.core.ui.sample.Invitation
+/**
+ * T2 — Company and branch picker UI models. Migrated to real data in Phase2 S2: companies and
+ * invitations flow from CompanyRepository; these data classes are the UiState's own view models.
+ */
+data class CompanyRow(
+    val membershipLocalId: String,
+    val initials: String,
+    val name: String,
+    val roleLine: String,
+    val branches: List<String>,
+    val activeBranch: String? = null,
+    val series: String? = null,
+    val isSelected: Boolean = false,
+)
+
+data class Invitation(
+    val membershipLocalId: String,
+    val companyName: String,
+    val invitedBy: String,
+    val role: String,
+    val expiresIn: String,
+)
 
 data class CompanyPickerUiState(
-    val title: String = CompanyPickerSampleData.TITLE,
-    val companiesHeading: String = CompanyPickerSampleData.COMPANIES_HEADING,
-    val invitationsHeading: String = CompanyPickerSampleData.INVITATIONS_HEADING,
-    val companies: List<CompanyRow> = CompanyPickerSampleData.COMPANIES,
-    val invitations: List<Invitation> = CompanyPickerSampleData.INVITATIONS,
+    val title: String = "Your companies",
+    val companiesHeading: String = "Companies you work at",
+    val invitationsHeading: String = "Invitations",
+    val companies: List<CompanyRow> = emptyList(),
+    val invitations: List<Invitation> = emptyList(),
     val selectedIndex: Int = 0,
     val selectedBranch: String = "Indore",
-    val workSection: String = CompanyPickerSampleData.BRANCH_SECTION,
-    val biltySeriesLabel: String = CompanyPickerSampleData.BILTY_SERIES_LABEL,
-    val openPrefix: String = CompanyPickerSampleData.OPEN_PREFIX,
-    val acceptLabel: String = CompanyPickerSampleData.ACCEPT,
-    val declineLabel: String = CompanyPickerSampleData.DECLINE,
-    val registerLabel: String = CompanyPickerSampleData.REGISTER
+    val workSection: String = "WORKING AT",
+    val biltySeriesLabel: String = "Bilty series ",
+    val openPrefix: String = "Open ",
+    val acceptLabel: String = "Accept",
+    val declineLabel: String = "Decline",
+    val registerLabel: String = "Register a new company",
+    val isLoading: Boolean = false,
+    val error: String? = null,
 )
 
 sealed interface CompanyPickerEvent {

@@ -299,33 +299,6 @@ object SampleData {
         DashException("MH 15 BK 4412 is 1 day late", "Indore → Bhiwandi · expected 24 Aug, 6:00 PM", isLate = true)
     )
 
-    // ── T17 Masters ────────────────────────────────────────────────────
-    data class MasterGroup(val heading: String, val rows: List<Pair<String, String>>)
-    val masterGroups = listOf(
-        MasterGroup("WHO AND WHERE", listOf("Parties" to "1,284", "Stations" to "96", "Routes" to "141", "Branches" to "3")),
-        MasterGroup("WHAT AND HOW MUCH", listOf("Goods types" to "38", "Charge heads" to "9", "Rate cards" to "64")),
-        MasterGroup("WHO CARRIES IT", listOf("Vehicles" to "22", "Drivers" to "17"))
-    )
-
-    // ── T18 Parties list ───────────────────────────────────────────────
-    data class PartyListItem(val name: String, val detail: String, val initials: String, val isDuplicate: Boolean = false)
-    val partiesList = listOf(
-        PartyListItem("Deepak Steel Traders", "Indore · +91 94250 61183 · 41 bilties", "DS", isDuplicate = true),
-        PartyListItem("Deepak Steel Trader", "Indore · +91 94250 61183 · 2 bilties", "DS", isDuplicate = true),
-        PartyListItem("Krishna Alloys", "Dewas · +91 98765 43210 · 18 bilties", "KA"),
-        PartyListItem("Kalyan Steel Mart", "Indore · +91 98220 33445 · 7 bilties", "KS")
-    )
-
-    // ── T20 Rate card ──────────────────────────────────────────────────
-    data class RateRow(val route: String, val goods: String, val basis: String, val rate: String, val min: String, val note: String? = null)
-    val rateRows = listOf(
-        RateRow("Indore → Nashik", "MS pipes", "Per kg", "4.50", "500 kg"),
-        RateRow("Indore → Nashik", "Any", "Per kg", "5.00", "500 kg", note = "wider — used when goods don't match"),
-        RateRow("Indore → Bhiwandi", "MS pipes", "Per kg", "4.20", "1,000 kg"),
-        RateRow("Indore → Pune", "Any", "Per package", "180.00", "5 pkg"),
-        RateRow("Nagpur → Nashik", "Cement", "Per tonne", "1,240.00", "3 t")
-    )
-
     // ── T21 Reports ────────────────────────────────────────────────────
     data class ReportGroup(val heading: String, val reports: List<Triple<String, String, String?>>)
     val reportGroups = listOf(

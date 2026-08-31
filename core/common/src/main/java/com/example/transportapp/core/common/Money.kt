@@ -30,8 +30,33 @@ value class Money(val paise: Long) {
         return sign + formatIndianGrouping(whole) + "." + frac.toString().padStart(2, '0')
     }
 
-    /** Amount in words for the "rupees ... only" line. */
-    fun inWords(): String = amountInWords(paise).trim() + if (paise > 0) " rupees only" else "zero rupees only"
+    /** Amount in words for the "rupees ... only" line (§10.4 step 8). */
+    fun inWords(): String {
+        val abs = kotlin.math.abs(paise)
+        val whole = abs / 100
+        val frac = abs % 100
+        val parts = mutableListOf<String>()
+        if (whole > 0) parts.add(capitalizeFirst(indianWords(whole)) + " rupees")
+        if (frac > 0) parts.add(twoDigits(frac) + " paise")
+        if (parts.isEmpty()) return "Zero rupees only"
+        val core = capitalizeFirst(parts.joinToString(" and "))
+        return (if (paise < 0) "minus " else "") + core + " only"
+    }
+
+    /**
+     * The printed-lettersheet form ("Rupees three thousand nine hundred forty four only")
+     * that the bilty's words block uses.
+     */
+    fun inWordsLedger(): String {
+        val abs = kotlin.math.abs(paise)
+        val whole = abs / 100
+        val frac = abs % 100
+        val parts = mutableListOf<String>()
+        if (whole > 0) parts.add(indianWords(whole))
+        if (frac > 0) parts.add(twoDigits(frac) + " paise")
+        if (parts.isEmpty()) return "Rupees zero only"
+        return (if (paise < 0) "minus " else "") + "Rupees " + parts.joinToString(" and ") + " only"
+    }
 
     companion object {
         val ZERO = Money(0)
@@ -71,20 +96,19 @@ private fun threeDigits(n: Long): String {
     return parts.joinToString(" ")
 }
 
-private fun amountInWords(paise: Long): String {
-    val abs = kotlin.math.abs(paise)
-    val whole = abs / 100
-    val frac = abs % 100
-    val parts = mutableListOf<String>()
-    // Indian numbering: crore, lakh, thousand, then hundreds
-    val crore = whole / 10_000_000
-    val lakh = (whole % 10_000_000) / 100_000
-    val thousand = (whole % 100_000) / 1000
-    val hundred = whole % 1000
-    if (crore > 0) parts.add(twoDigits(crore) + " crore")
-    if (lakh > 0) parts.add(twoDigits(lakh) + " lakh")
-    if (thousand > 0) parts.add(twoDigits(thousand) + " thousand")
-    if (hundred > 0) parts.add(threeDigits(hundred))
-    val wholeWords = parts.joinToString(" ").ifEmpty { "zero" }
-    return if (frac > 0) "$wholeWords and ${twoDigits(frac)} paise" else wholeWords
+private fun capitalizeFirst(text: String): String =
+    if (text.isEmpty()) text else text[0].uppercase() + text.substring(1)
+
+private fun joinWords(head: String, tail: String): String = if (tail.isEmpty()) head else "$head $tail"
+
+/**
+ * Indian words: crore → lakh → thousand → hundreds, the quotient read the same way so
+ * values beyond 99 crore still print correctly ("one thousand two hundred thirty four crore").
+ */
+private fun indianWords(n: Long): String = when {
+    n <= 0L -> ""
+    n >= 10_000_000L -> joinWords(indianWords(n / 10_000_000L) + " crore", indianWords(n % 10_000_000L))
+    n >= 100_000L -> joinWords(twoDigits(n / 100_000L) + " lakh", indianWords(n % 100_000L))
+    n >= 1000L -> joinWords(twoDigits(n / 1000L) + " thousand", threeDigits(n % 1000L))
+    else -> threeDigits(n)
 }

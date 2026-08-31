@@ -1,4 +1,4 @@
-package com.example.transportapp.feature.masters.screen
+﻿package com.example.transportapp.feature.masters.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -40,7 +40,7 @@ import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 @Composable
-fun MasterEditorScreen(masterType: String, onBack: () -> Unit, viewModel: MasterEditorViewModel = viewModel()) {
+fun MasterEditorScreen(masterType: String, onBack: () -> Unit, viewModel: MasterEditorViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     MasterEditorContent(
         state = state,

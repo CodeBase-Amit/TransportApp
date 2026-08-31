@@ -47,7 +47,7 @@ import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SyncQueueItem
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * T31 — Account and data. Leaving and deleting are visibly different acts.
@@ -55,7 +55,7 @@ import com.example.transportapp.core.ui.sample.SyncQueueItem
 @Composable
 fun AccountDataScreen(
     onBack: () -> Unit,
-    viewModel: AccountDataViewModel = viewModel()
+    viewModel: AccountDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     AccountDataContent(
@@ -149,11 +149,11 @@ fun AccountDataContent(
 }
 
 @Composable
-private fun SyncQueueRow(item: SyncQueueItem) {
+private fun SyncQueueRow(item: SyncQueueRowUi) {
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.ref, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(item.description, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(item.description, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(item.atText, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         SyncChip(state = if (item.state == "Syncing") SyncState.SYNCING else SyncState.PENDING)
     }

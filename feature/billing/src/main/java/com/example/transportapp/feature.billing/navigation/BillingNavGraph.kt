@@ -15,18 +15,24 @@ fun NavGraphBuilder.billingNavGraph(navController: NavController) {
     composable(Routes.UNBILLED_POOL) {
         UnbilledPoolScreen(
             onBack = { navController.popBackStack() },
-            onBuildBill = { navController.navigate(Routes.FREIGHT_BILL) }
+            onBillBuilt = { billId -> navController.navigate(Routes.freightBill(billId)) },
         )
     }
-    composable(Routes.FREIGHT_BILL) {
-        FreightBillScreen(onBack = { navController.popBackStack() })
+    composable(
+        route = Routes.FREIGHT_BILL,
+        arguments = listOf(navArgument("billId") { type = NavType.StringType }),
+    ) {
+        FreightBillScreen(
+            onBack = { navController.popBackStack() },
+            onRecordReceipt = { navController.navigate(Routes.PAYMENTS) },
+        )
     }
     composable(Routes.PAYMENTS) {
         PaymentsScreen(onBack = { navController.popBackStack() })
     }
     composable(
         route = Routes.STATEMENT,
-        arguments = listOf(navArgument("partyId") { type = NavType.StringType })
+        arguments = listOf(navArgument("partyId") { type = NavType.StringType }),
     ) { entry ->
         val partyId = entry.arguments?.getString("partyId") ?: ""
         StatementScreen(partyId = partyId, onBack = { navController.popBackStack() })

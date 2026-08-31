@@ -30,7 +30,7 @@ object Routes {
 
     // Money
     const val UNBILLED_POOL = "unbilled_pool"           // T13
-    const val FREIGHT_BILL = "freight_bill"             // T14
+    const val FREIGHT_BILL = "freight_bill/{billId}"    // T14 — a draft or an issued record
     const val PAYMENTS = "payments"                     // T15
     const val STATEMENT = "statement/{partyId}"         // T16
 
@@ -62,6 +62,7 @@ object Routes {
     fun caseFile(biltyNo: String) = "case_file/${Uri.encode(biltyNo)}"
     fun statusSheet(biltyNo: String) = "status_sheet/${Uri.encode(biltyNo)}"
     fun challanDetail(challanNo: String) = "challan_detail/${Uri.encode(challanNo)}"
+    fun freightBill(billId: String) = "freight_bill/${Uri.encode(billId)}"
     fun statement(partyId: String) = "statement/${Uri.encode(partyId)}"
     fun masterList(type: String) = "master_list/${Uri.encode(type)}"
     fun masterEditor(type: String, id: String) = "master_editor/${Uri.encode(type)}/${Uri.encode(id)}"

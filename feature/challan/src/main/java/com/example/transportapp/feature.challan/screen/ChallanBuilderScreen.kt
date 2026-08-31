@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -50,16 +51,22 @@ import com.example.transportapp.core.designsystem.theme.transportColors
 fun ChallanBuilderScreen(
     onBack: () -> Unit,
     onCreate: () -> Unit,
-    onOpenTrip: () -> Unit,
-    viewModel: ChallanBuilderViewModel = viewModel()
+    onOpenTrip: (String) -> Unit,
+    viewModel: ChallanBuilderViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(state.createdChallanNo) {
+        state.createdChallanNo?.let { no ->
+            onOpenTrip(no)
+            viewModel.consumeCreatedChallanNo()
+        }
+    }
     ChallanBuilderContent(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack,
         onCreate = onCreate,
-        onOpenTrip = onOpenTrip
+        onOpenTrip = { onOpenTrip("") }
     )
 }
 
@@ -73,10 +80,8 @@ fun ChallanBuilderContent(
 ) {
     val selectedItems = state.loadable.filter { it.docNumber in state.selectedBilties }
 
-    val selectedWeight = selectedItems.sumOf {
-        it.weight.filter { c -> c.isDigit() }.toIntOrNull() ?: 0
-    }
-    val overloaded = selectedWeight > state.capacityKg
+    val selectedWeight = state.selectedWeightKg
+    val overloaded = state.overloaded
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         // Top bar
@@ -178,13 +183,21 @@ fun ChallanBuilderContent(
                 ) {
                     Icon(Icons.Rounded.Warning, contentDescription = null, tint = transportColors().onHaulAmber, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("$selectedWeight kg over capacity. A manager has to approve this challan before dispatch.", style = TransportTypeScale.bodyMedium, color = transportColors().onHaulAmber)
+                    Text("${state.overByKg} kg over capacity. A manager has to approve this challan before dispatch.", style = TransportTypeScale.bodyMedium, color = transportColors().onHaulAmber)
                 }
                 Spacer(Modifier.height(8.dp))
             }
+            if (state.error != null) {
+                Text(
+                    state.error,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
             AppPrimaryButton(
                 "${state.createChallan} · ${selectedItems.size} ${state.consignmentsSuffix}",
-                onClick = onCreate,
+                onClick = { onEvent(ChallanBuilderEvent.Create) },
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = Icons.Rounded.LocalShipping
             )

@@ -46,7 +46,10 @@ data class SetupWizardUiState(
     val capacity: String = SetupWizardSampleData.CAPACITY,
     val capacityUnit: String = SetupWizardSampleData.CAPACITY_UNIT,
     val driverName: String = SetupWizardSampleData.DRIVER_NAME,
-    val driverPhone: String = SetupWizardSampleData.DRIVER_PHONE
+    val driverPhone: String = SetupWizardSampleData.DRIVER_PHONE,
+    // Phase2 S2: Finish persists the company; error surfaces typed failures (Spec.md §9).
+    val justFinished: Boolean = false,
+    val error: String? = null
 )
 
 sealed interface SetupWizardEvent {

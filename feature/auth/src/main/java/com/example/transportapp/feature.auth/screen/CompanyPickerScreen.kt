@@ -33,14 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.CompanyRow
-import com.example.transportapp.core.ui.sample.Invitation
 
 /**
  * T2 — Company and branch picker. Branch is chosen inside the company card.
@@ -50,7 +49,7 @@ fun CompanyPickerScreen(
     onCompanySelected: (String) -> Unit,
     onRegisterCompany: () -> Unit,
     onSignOut: () -> Unit,
-    viewModel: CompanyPickerViewModel = viewModel()
+    viewModel: CompanyPickerViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     CompanyPickerContent(state = state, onEvent = viewModel::onEvent, onCompanySelected = onCompanySelected, onRegisterCompany = onRegisterCompany, onSignOut = onSignOut)
@@ -177,9 +176,11 @@ private fun CompanyCard(
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Row {
-                Text(biltySeriesLabel, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(company.series, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (company.series != null) {
+                Row {
+                    Text(biltySeriesLabel, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(company.series, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             Spacer(Modifier.height(12.dp))
             AppPrimaryButton("$openPrefix${company.name}", onClick = onOpen, modifier = Modifier.fillMaxWidth())

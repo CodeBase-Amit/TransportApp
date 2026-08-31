@@ -29,13 +29,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.SummaryStrip
@@ -43,20 +45,22 @@ import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
+import java.text.SimpleDateFormat
+import java.util.Locale
 
+/**
+ * T13 — the unbilled pool (§12.1): TBB consignments not yet on a bill, grouped by party,
+ * with the ageing bar as the card's signature. The sticky bar totals the explicit selection.
+ */
 @Composable
 fun UnbilledPoolScreen(
     onBack: () -> Unit,
-    onBuildBill: () -> Unit,
-    viewModel: UnbilledPoolViewModel = viewModel()
+    onBillBuilt: (String) -> Unit,
+    viewModel: UnbilledPoolViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    UnbilledPoolContent(
-        state = state,
-        onEvent = viewModel::onEvent,
-        onBack = onBack,
-        onBuildBill = onBuildBill
-    )
+    LaunchedEffect(viewModel) { viewModel.onBillBuilt = onBillBuilt }
+    UnbilledPoolContent(state = state, onEvent = viewModel::onEvent, onBack = onBack)
 }
 
 @Composable
@@ -64,120 +68,170 @@ fun UnbilledPoolContent(
     state: UnbilledPoolUiState,
     onEvent: (UnbilledPoolEvent) -> Unit,
     onBack: () -> Unit,
-    onBuildBill: () -> Unit
 ) {
-    val selected = state.parties.filter { it.selected }
-    val selectedTotal = selected.sumOf { parseAmount(it.total) }
-
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
+        TransportTopAppBar(title = "Unbilled", onNavigationClick = onBack, trailingIcons = {
             IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
-            state.filterChips.forEach { chip ->
-                FilterChip(chip, selected = state.selectedFilter == chip, onClick = { onEvent(UnbilledPoolEvent.SelectFilter(chip)) })
-            }
-        }
-        SummaryStrip(
-            "PARTIES" to state.summaryParties,
-            "CONSIGNMENTS" to state.summaryConsignments,
-            "FREIGHT" to state.summaryFreight,
-            modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
-        )
-        Text(
-            state.oldestCaption,
-            style = TransportTypeScale.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = Dimens.screenPadding)
-        )
 
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding).fillMaxWidth(),
         ) {
-            items(state.parties) { party ->
-                UnbilledPartyCard(
-                    party = party,
-                    onToggle = { onEvent(UnbilledPoolEvent.ToggleSelect(party.name)) },
-                    onExpand = { onEvent(UnbilledPoolEvent.ToggleExpand(party.name)) }
-                )
+            FilterChip("This quarter", selected = state.thisQuarter, onClick = { onEvent(UnbilledPoolEvent.ToggleQuarter(!state.thisQuarter)) })
+            FilterChip("All branches", selected = state.allBranches, onClick = { onEvent(UnbilledPoolEvent.ToggleAllBranches(!state.allBranches)) })
+            FilterChip("Over 30 days", selected = state.minAgeDays == 30, onClick = { onEvent(UnbilledPoolEvent.SetAgeFilter(if (state.minAgeDays == 30) null else 30)) })
+            FilterChip("Over 60 days", selected = state.minAgeDays == 60, onClick = { onEvent(UnbilledPoolEvent.SetAgeFilter(if (state.minAgeDays == 60) null else 60)) })
+        }
+
+        SummaryStrip(
+            "PARTIES" to state.summaryParties.toString(),
+            "CONSIGNMENTS" to state.summaryConsignments.toString(),
+            "FREIGHT" to Money(state.summaryFreightPaise).formatted(),
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
+        )
+
+        if (state.parties.isEmpty()) {
+            EmptyPool(modifier = Modifier.weight(1f))
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(state.parties, key = { it.group.partyId }) { party ->
+                    UnbilledPartyCard(
+                        party = party,
+                        onToggle = { onEvent(UnbilledPoolEvent.ToggleParty(party.group.partyId)) },
+                        onExpand = { onEvent(UnbilledPoolEvent.ToggleExpand(party.group.partyId)) },
+                        onToggleConsignment = { id -> onEvent(UnbilledPoolEvent.ToggleConsignment(party.group.partyId, id)) },
+                    )
+                }
             }
         }
 
-        // Sticky bar
+        state.error?.let { message ->
+            Text(
+                message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().clickable { onEvent(UnbilledPoolEvent.DismissError) }.padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
+
+        // Sticky bar — the selection total updates as the accountant ticks (the signature).
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(state.selectedLabel, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(formatAmount(selectedTotal), style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text("${selected.sumOf { it.consignments }} consignments · ${selected.size} party", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("SELECTED", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(Money(state.selectedPaise).formatted(), style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "${state.selectedConsignments} consignments · ${state.selectedPartyCount} ${if (state.selectedPartyCount == 1) "party" else "parties"}",
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            AppPrimaryButton(state.buildBill, onClick = onBuildBill)
+            AppPrimaryButton(
+                if (state.building) "Building…" else "Build the bill",
+                onClick = { onEvent(UnbilledPoolEvent.BuildBill) },
+                enabled = state.canBuild,
+            )
         }
     }
 }
 
 @Composable
-private fun UnbilledPartyCard(party: UnbilledParty, onToggle: () -> Unit, onExpand: () -> Unit) {
+private fun EmptyPool(modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("Nothing waiting to be billed", style = TransportTypeScale.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            "Every TBB consignment this quarter is on a bill. Widen the period to see older ones.",
+            style = TransportTypeScale.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun UnbilledPartyCard(
+    party: UnbilledPartyState,
+    onToggle: () -> Unit,
+    onExpand: () -> Unit,
+    onToggleConsignment: (String) -> Unit,
+) {
     Column(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SelectCheckBox(checked = party.selected, onClick = onToggle)
             Spacer(Modifier.width(12.dp))
-            Text(party.name, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            Text(party.total, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(party.group.partyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+            Text(Money(party.group.totalPaise).formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
         }
-        Text("${party.consignments} consignments · ${party.period} · ${party.branches}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 36.dp, top = 4.dp))
+        val period = SimpleDateFormat("d MMM", Locale.ENGLISH)
+        Text(
+            "${party.group.consignments} consignments · ${period.format(party.group.firstBookedAt)} to ${period.format(party.group.lastBookedAt)}",
+            style = TransportTypeScale.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 36.dp, top = 4.dp),
+        )
         Spacer(Modifier.height(8.dp))
-        AgeingBar(party)
+        AgeingBar(party.group)
         Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onExpand), horizontalArrangement = Arrangement.End) {
-            if (party.expanded) {
-                Icon(Icons.Rounded.ExpandMore, contentDescription = "Collapse", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = "Expand", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Icon(
+                if (party.expanded) Icons.Rounded.ExpandMore else Icons.Rounded.ChevronRight,
+                contentDescription = if (party.expanded) "Collapse" else "Expand",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
-        if (party.expanded && party.rows.isNotEmpty()) {
-            party.rows.forEach { row ->
-                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(36.dp))
-                    Text(row.bilty, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                    Text(row.route, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    Text(row.amount, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface)
+        if (party.expanded) {
+            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                party.rows.take(5).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SelectCheckBox(
+                            checked = row.localId in party.selectedIds,
+                            onClick = { onToggleConsignment(row.localId) },
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(row.displayNo, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                        Text("${row.fromStation}–${row.toStation}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(Money(row.totalPaise).formatted(), style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+                if (party.rows.size > 5) {
+                    Text("Show all ${party.group.consignments}", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            Text("Show all ${party.consignments}", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
 
 @Composable
-private fun AgeingBar(party: UnbilledParty) {
+private fun AgeingBar(group: com.example.transportapp.data.transport.billing.UnbilledPartyGroup) {
     val amber = transportColors().haulAmberContainer
     val green = MaterialTheme.colorScheme.primaryContainer
     val error = MaterialTheme.colorScheme.error
-    if (party.allOver60) {
-        Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(percent = 100)).background(error))
-    } else {
-        val total = (party.ageBuckets.first + party.ageBuckets.second + party.ageBuckets.third).coerceAtLeast(1)
-        val p1 = party.ageBuckets.first.toFloat() / total
-        val p2 = party.ageBuckets.second.toFloat() / total
-        Row(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(percent = 100)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
-            if (p1 > 0) Box(modifier = Modifier.fillMaxWidth(p1).height(8.dp).background(green))
-            if (p2 > 0) Box(modifier = Modifier.fillMaxWidth(p2).height(8.dp).background(amber))
-            if (party.ageBuckets.third > 0) Box(modifier = Modifier.weight(1f).height(8.dp).background(error))
-        }
+    val b0 = group.bucket0to30Paise
+    val b1 = group.bucket31to60Paise
+    val b2 = group.bucket60plusPaise
+    val total = (b0 + b1 + b2).coerceAtLeast(1)
+    val p0 = b0.toFloat() / total
+    val p1 = b1.toFloat() / total
+    Row(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(percent = 100)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+        if (p0 > 0) Box(modifier = Modifier.fillMaxWidth(p0).height(8.dp).background(green))
+        if (p1 > 0) Box(modifier = Modifier.fillMaxWidth(p1).height(8.dp).background(amber))
+        if (b2 > 0) Box(modifier = Modifier.weight(1f).height(8.dp).background(error))
     }
-    Text(
-        if (party.allOver60) "All of this is over 60 days old" else "0–30 · 31–60 · 60+",
-        style = TransportTypeScale.labelMedium,
-        color = if (party.allOver60) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp)
-    )
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("0–30 · 31–60 · 60+", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text("oldest ${group.oldestDays} days", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.error)
+    }
 }
 
 @Composable
@@ -189,24 +243,8 @@ private fun SelectCheckBox(checked: Boolean, onClick: () -> Unit) {
             .background(if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh)
             .border(1.dp, if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
         if (checked) Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
-    }
-}
-
-private fun parseAmount(s: String): Long = s.replace(",", "").toLongOrNull() ?: 0
-private fun formatAmount(v: Long): String = v.toString().reversed().chunked(3).joinToString(",").reversed()
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
-@Composable
-private fun UnbilledPoolPreview() {
-    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
-        UnbilledPoolContent(
-            state = UnbilledPoolUiState(),
-            onEvent = {},
-            onBack = {},
-            onBuildBill = {}
-        )
     }
 }

@@ -1,0 +1,576 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "4f473f8bfd65f47376434ad7cb9b3981",
+    "entities": [
+      {
+        "tableName": "outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `client_op_id` TEXT NOT NULL, `op` TEXT NOT NULL, `entity_type` TEXT NOT NULL, `entity_local_id` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `state` TEXT NOT NULL, `attempt_count` INTEGER NOT NULL, `next_attempt_at` INTEGER NOT NULL, `last_error_code` TEXT, `created_at` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_op_id",
+            "columnName": "client_op_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "op",
+            "columnName": "op",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entity_type",
+            "columnName": "entity_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entity_local_id",
+            "columnName": "entity_local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload_json",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempt_count",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "next_attempt_at",
+            "columnName": "next_attempt_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "last_error_code",
+            "columnName": "last_error_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "created_at",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outbox_client_op_id",
+            "unique": true,
+            "columnNames": [
+              "client_op_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_outbox_client_op_id` ON `${TABLE_NAME}` (`client_op_id`)"
+          },
+          {
+            "name": "index_outbox_state_next_attempt_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "next_attempt_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_state_next_attempt_at` ON `${TABLE_NAME}` (`state`, `next_attempt_at`)"
+          },
+          {
+            "name": "index_outbox_entity_type_entity_local_id",
+            "unique": false,
+            "columnNames": [
+              "entity_type",
+              "entity_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_entity_type_entity_local_id` ON `${TABLE_NAME}` (`entity_type`, `entity_local_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "outbox_prereq",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`outbox_id` INTEGER NOT NULL, `client_op_id` TEXT NOT NULL, PRIMARY KEY(`outbox_id`, `client_op_id`), FOREIGN KEY(`outbox_id`) REFERENCES `outbox`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "outbox_id",
+            "columnName": "outbox_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_op_id",
+            "columnName": "client_op_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "outbox_id",
+            "client_op_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outbox_prereq_client_op_id",
+            "unique": false,
+            "columnNames": [
+              "client_op_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_prereq_client_op_id` ON `${TABLE_NAME}` (`client_op_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "outbox",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "outbox_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_cursor",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entity_family` TEXT NOT NULL, `cursor` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`entity_family`))",
+        "fields": [
+          {
+            "fieldPath": "entity_family",
+            "columnName": "entity_family",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entity_family"
+          ]
+        }
+      },
+      {
+        "tableName": "seed_version",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `version` INTEGER NOT NULL, `seeded_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seeded_at",
+            "columnName": "seeded_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "COMPANY_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `name` TEXT NOT NULL, `legal_name` TEXT, `address` TEXT, `gstin` TEXT, `pan` TEXT, `transporter_id` TEXT, `gst_treatment` TEXT NOT NULL, `display_bilty_series` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "legal_name",
+            "columnName": "legal_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gstin",
+            "columnName": "gstin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pan",
+            "columnName": "pan",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "transporter_id",
+            "columnName": "transporter_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gst_treatment",
+            "columnName": "gst_treatment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "display_bilty_series",
+            "columnName": "display_bilty_series",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_COMPANY_E_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_COMPANY_E_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "BRANCH_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `code` TEXT NOT NULL, `address` TEXT, `is_head_office` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`company_id`) REFERENCES `COMPANY_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "is_head_office",
+            "columnName": "is_head_office",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_BRANCH_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_BRANCH_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_BRANCH_E_company_id_name",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_BRANCH_E_company_id_name` ON `${TABLE_NAME}` (`company_id`, `name`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "COMPANY_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "company_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MEMBERSHIP_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `user_name` TEXT NOT NULL, `user_email` TEXT NOT NULL, `role` TEXT NOT NULL, `branch_scope` TEXT NOT NULL, `status` TEXT NOT NULL, `invited_by` TEXT, `invited_expires_at` INTEGER, `display_expires` TEXT, PRIMARY KEY(`local_id`), FOREIGN KEY(`company_id`) REFERENCES `COMPANY_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "user_name",
+            "columnName": "user_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "user_email",
+            "columnName": "user_email",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "branch_scope",
+            "columnName": "branch_scope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invited_by",
+            "columnName": "invited_by",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "invited_expires_at",
+            "columnName": "invited_expires_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "display_expires",
+            "columnName": "display_expires",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MEMBERSHIP_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_MEMBERSHIP_E_user_email",
+            "unique": false,
+            "columnNames": [
+              "user_email"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_user_email` ON `${TABLE_NAME}` (`user_email`)"
+          },
+          {
+            "name": "index_MEMBERSHIP_E_company_id_user_email_status",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "user_email",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_company_id_user_email_status` ON `${TABLE_NAME}` (`company_id`, `user_email`, `status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "COMPANY_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "company_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4f473f8bfd65f47376434ad7cb9b3981')"
+    ]
+  }
+}

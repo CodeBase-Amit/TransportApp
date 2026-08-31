@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -68,9 +69,13 @@ fun CaseFileScreen(
     onHold: () -> Unit,
     onRaiseBill: () -> Unit,
     onFullHistory: () -> Unit,
-    viewModel: CaseFileViewModel = viewModel()
+    viewModel: CaseFileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    androidx.lifecycle.compose.LifecycleResumeEffect(biltyNo) {
+        viewModel.refresh()
+        onPauseOrDispose { }
+    }
     CaseFileContent(
         state = state,
         biltyNo = biltyNo,
@@ -116,11 +121,12 @@ fun CaseFileContent(
             contentPadding = PaddingValues(horizontal = Dimens.screenPadding, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
         ) {
-            item { DocketHeaderCard(state, biltyNo) }
+            item { DocketHeaderCard(state, state.biltyNo.ifEmpty { biltyNo }) }
             item { CaseFileActions(onPrint, onAddPhoto, onHold, onRaiseBill) }
             item { WhereItIs(state, onFullHistory) }
-            item { DocumentsSection(biltyNo) }
+            item { DocumentsSection(state) }
             item { MoneySection(state) }
+            item { RecordSection(state) }
         }
     }
 }
@@ -261,14 +267,24 @@ private fun EventDot(state: StepState) {
 }
 
 @Composable
-private fun DocumentsSection(biltyNo: String) {
+private fun DocumentsSection(state: CaseFileUiState) {
     Column {
         GroupHeading("The documents", modifier = Modifier.padding(bottom = 8.dp))
         ContentCard {
-            DocumentRow(Icons.Rounded.Description, "Bilty", biltyNo, trailing = "4 copies")
-            DocumentRow(Icons.Rounded.LocalShipping, "Loading challan", "CHL/IND/2627/00742", trailing = "MH 15 BK 4412")
-            DocumentRow(Icons.Rounded.ReceiptLong, "Freight bill", "Not raised yet", trailing = "Raise", action = true)
-            DocumentRow(Icons.Rounded.TaskAlt, "POD", "Pending delivery", trailing = null)
+            state.documents.forEach { doc ->
+                DocumentRow(
+                    icon = when (doc.title) {
+                        "Bilty" -> Icons.Rounded.Description
+                        "Loading challan" -> Icons.Rounded.LocalShipping
+                        "Freight bill" -> Icons.Rounded.ReceiptLong
+                        else -> Icons.Rounded.TaskAlt
+                    },
+                    title = doc.title,
+                    detail = doc.detail,
+                    trailing = doc.trailing,
+                    action = doc.action,
+                )
+            }
         }
     }
 }
@@ -312,21 +328,38 @@ private fun MoneySection(state: CaseFileUiState) {
                 MoneyRow(line.label, line.value, line.strong)
             }
         }
-        NestedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            fill = transportColors().haulAmberContainer
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Payments, contentDescription = null, tint = transportColors().onHaulAmber, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    state.toPayCallout,
-                    style = TransportTypeScale.bodyMedium,
-                    color = transportColors().onHaulAmber
-                )
+        if (state.toPayCallout != null) {
+            NestedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                fill = transportColors().haulAmberContainer
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Payments, contentDescription = null, tint = transportColors().onHaulAmber, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        state.toPayCallout,
+                        style = TransportTypeScale.bodyMedium,
+                        color = transportColors().onHaulAmber
+                    )
+                }
             }
+        }
+    }
+}
+
+/** Design T8 §RECORD — provenance lines, no card. */
+@Composable
+private fun RecordSection(state: CaseFileUiState) {
+    Column {
+        state.recordLines.forEach { line ->
+            Text(
+                line,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
         }
     }
 }

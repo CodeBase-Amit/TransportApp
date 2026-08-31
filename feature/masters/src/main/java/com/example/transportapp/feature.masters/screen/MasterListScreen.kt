@@ -1,4 +1,4 @@
-package com.example.transportapp.feature.masters.screen
+﻿package com.example.transportapp.feature.masters.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,23 +36,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.FilterChip
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.MasterListParty
 
 @Composable
 fun MasterListScreen(
     masterType: String,
     onBack: () -> Unit,
-    onRowClick: () -> Unit,
+    onRowClick: (String) -> Unit,
     onAddParty: () -> Unit,
-    viewModel: MasterListViewModel = viewModel()
+    viewModel: MasterListViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     MasterListContent(
@@ -69,15 +69,24 @@ fun MasterListContent(
     state: MasterListUiState,
     onEvent: (MasterListEvent) -> Unit,
     onBack: () -> Unit,
-    onRowClick: () -> Unit,
+    onRowClick: (String) -> Unit,
     onAddParty: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
-                IconButton(onClick = {}) { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurface) }
+                IconButton(onClick = { onEvent(MasterListEvent.ToggleSearch) }) { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurface) }
                 IconButton(onClick = {}) { Icon(Icons.Rounded.Sort, contentDescription = "Sort", tint = MaterialTheme.colorScheme.onSurface) }
             })
+
+            if (state.isSearching) {
+                TransportTextField(
+                    value = state.query,
+                    onValueChange = { onEvent(MasterListEvent.SearchQuery(it)) },
+                    label = "Search by name or phone",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                )
+            }
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -120,11 +129,11 @@ fun MasterListContent(
                                 Text(state.duplicateBanner, style = TransportTypeScale.labelMedium, color = transportColors().onHaulAmber, modifier = Modifier.weight(1f))
                                 Text(state.duplicateAction, style = TransportTypeScale.labelMedium, color = transportColors().onHaulAmber, modifier = Modifier.clickable { onEvent(MasterListEvent.MergeDuplicates) })
                             }
-                            duplicates.forEach { PartyRow(it, onClick = { onRowClick() }) }
+                            duplicates.forEach { PartyRow(it, onClick = { onRowClick(it.localId) }) }
                         }
                     }
                 }
-                items(state.parties.filter { !it.isDuplicate }) { party -> PartyRow(party, onClick = { onRowClick() }) }
+                items(state.parties.filter { !it.isDuplicate }) { party -> PartyRow(party, onClick = { onRowClick(party.localId) }) }
             }
         }
 

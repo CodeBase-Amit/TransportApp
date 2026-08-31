@@ -22,20 +22,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.BranchRow
 
 /**
  * T26 — Branches. Each branch carries its own document series.
@@ -43,7 +42,7 @@ import com.example.transportapp.core.ui.sample.BranchRow
 @Composable
 fun BranchesScreen(
     onBack: () -> Unit,
-    viewModel: BranchesViewModel = viewModel()
+    viewModel: BranchesViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     BranchesContent(

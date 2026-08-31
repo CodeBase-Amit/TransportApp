@@ -1,0 +1,44 @@
+package com.example.transportapp.domain.transport.tracking
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** §7.3 — the late flag is computed, never stored; the buckets feed the dashboard tile. */
+class AgeingTest {
+
+    private val day = Ageing.DAY_MS
+    private val booked = 1_000_000L * day
+
+    @Test
+    fun `overdue only past expected plus grace`() {
+        val expected = booked + 2 * day
+        assertTrue("well past, no grace left", Ageing.isOverdue(expected, booked + 5 * day))
+        assertFalse("inside the grace window", Ageing.isOverdue(expected, expected + Ageing.DEFAULT_GRACE_DAYS * day))
+        assertFalse("not yet due", Ageing.isOverdue(expected, expected))
+    }
+
+    @Test
+    fun `buckets follow the grace-adjusted days`() {
+        val expected = booked + 2 * day
+        assertEquals(AgeingBucket.ON_TIME, Ageing.bucket(expected, expected + day, graceDays = 1))
+        assertEquals(AgeingBucket.OVERDUE_1_3, Ageing.bucket(expected, expected + 2 * day))
+        assertEquals(AgeingBucket.OVERDUE_1_3, Ageing.bucket(expected, expected + 4 * day))
+        assertEquals(AgeingBucket.OVERDUE_4_7, Ageing.bucket(expected, expected + 6 * day))
+        assertEquals(AgeingBucket.OVERDUE_7_PLUS, Ageing.bucket(expected, expected + 9 * day))
+    }
+
+    @Test
+    fun `days overdue never goes negative`() {
+        assertEquals(0L, Ageing.daysOverdue(booked + 10 * day, booked))
+    }
+
+    @Test
+    fun `changing the grace period re-flags without any stored state`() {
+        val expected = booked + 2 * day
+        val now = expected + 2 * day
+        assertTrue(Ageing.isOverdue(expected, now, graceDays = 0))
+        assertFalse("the same moment with a wider grace: on time again", Ageing.isOverdue(expected, now, graceDays = 3))
+    }
+}

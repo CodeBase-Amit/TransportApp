@@ -29,11 +29,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -47,11 +48,11 @@ import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.ExportKind
-import com.example.transportapp.core.ui.sample.RecentExport
+
+
 
 @Composable
-fun ExportCentreScreen(onBack: () -> Unit, viewModel: ExportCentreViewModel = viewModel()) {
+fun ExportCentreScreen(onBack: () -> Unit, viewModel: ExportCentreViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     ExportCentreContent(
         state = state,
@@ -106,7 +107,7 @@ fun ExportCentreContent(
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(sheet.name, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                            Text("${sheet.count}", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(sheet.count?.toString() ?: "—", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Row(modifier = Modifier.clickable { onEvent(ExportCentreEvent.UncheckAll) }) {
@@ -135,21 +136,21 @@ fun ExportCentreContent(
 }
 
 @Composable
-private fun RecentExportRow(item: RecentExport) {
-    val faded = item.kind == ExportKind.EXPIRED
-    val iconTint = if (faded) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurfaceVariant
-    val nameColor = if (faded) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f) else MaterialTheme.colorScheme.onSurface
-    val statusColor = if (faded) transportColors().haulAmber else MaterialTheme.colorScheme.onSurfaceVariant
-
+private fun RecentExportRow(item: RecentExportUi) {
+    val timeFormat = remember { java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.ENGLISH) }
     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.FileCopy, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+        Icon(Icons.Rounded.FileCopy, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(item.name, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = nameColor)
-            Text(item.statusText, style = TransportTypeScale.bodySmall, color = statusColor)
+            Text(item.filename, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Built ${timeFormat.format(item.builtAt)} · ${item.sizeBytes / 1024} KB",
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         IconButton(onClick = {}) {
-            Icon(if (faded) Icons.Rounded.History else Icons.Rounded.Share, contentDescription = null, tint = if (faded) transportColors().haulAmber else MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(Icons.Rounded.Share, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

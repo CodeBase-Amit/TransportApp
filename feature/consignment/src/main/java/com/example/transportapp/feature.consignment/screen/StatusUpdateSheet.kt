@@ -27,13 +27,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.Caption
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -46,9 +47,12 @@ fun StatusUpdateSheet(
     biltyNo: String,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
-    viewModel: StatusUpdateSheetViewModel = viewModel()
+    viewModel: StatusUpdateSheetViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    LaunchedEffect(state.saved) {
+        if (state.saved) onSave()
+    }
     StatusUpdateSheetContent(
         state = state,
         biltyNo = biltyNo,
@@ -67,6 +71,7 @@ fun StatusUpdateSheetContent(
     onSave: () -> Unit
 ) {
     val isHold = state.isHold
+    val primary = state.selected
 
     Column(
         modifier = Modifier
@@ -85,7 +90,7 @@ fun StatusUpdateSheetContent(
 
         Text("Update status", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 12.dp))
         Text(
-            "$biltyNo · Indore → Nashik · currently At hub, Dhule",
+            "$biltyNo${if (state.contextLine.isNotEmpty()) " · " + state.contextLine else ""}",
             style = TransportTypeScale.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
@@ -94,25 +99,23 @@ fun StatusUpdateSheetContent(
         Spacer(Modifier.height(24.dp))
         GroupHeading("What happened", modifier = Modifier.padding(bottom = 8.dp))
 
-        // Primary event card
-        val primary = state.selectedEvent
-        val primaryBorder = if (primary == StatusEventOption.DEPARTED) {
-            Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-        } else Modifier
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp))
-                .then(primaryBorder)
-                .clickable { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.DEPARTED)) }
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Rounded.LocalShipping, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(StatusEventOption.DEPARTED.label, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Text(StatusEventOption.DEPARTED.detail, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (primary != null) {
+            // Primary event card — the first §7.1-legal continuation.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp))
+                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                    .clickable { onEvent(StatusUpdateSheetEvent.SelectOption(primary)) }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.LocalShipping, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(primary.label, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(primary.detail, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
@@ -120,22 +123,17 @@ fun StatusUpdateSheetContent(
         Caption("Or choose another")
         Spacer(Modifier.height(8.dp))
 
-        // Other event chips
-        val otherEvents = listOf(StatusEventOption.ARRIVED, StatusEventOption.OUT_FOR_DELIVERY, StatusEventOption.DELIVERED)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            otherEvents.forEach { event ->
+        // The remaining legal events, hold-family options drawn in the error colours.
+        state.options.filter { it != primary }.forEach { option ->
+            Row {
                 StatusChip(
-                    label = event.label,
-                    selected = state.selectedEvent == event,
-                    error = false,
-                    onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(event)) }
+                    label = option.label,
+                    selected = state.selected == option,
+                    error = option.holdPath,
+                    onClick = { onEvent(StatusUpdateSheetEvent.SelectOption(option)) }
                 )
             }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatusChip("Hold", selected = state.selectedEvent == StatusEventOption.HOLD, error = true, onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.HOLD)) })
-            StatusChip("Return to origin", selected = state.selectedEvent == StatusEventOption.RETURN, error = true, onClick = { onEvent(StatusUpdateSheetEvent.SelectEvent(StatusEventOption.RETURN)) })
+            Spacer(Modifier.height(4.dp))
         }
 
         // Hold path
@@ -188,7 +186,7 @@ fun StatusUpdateSheetContent(
         )
 
         Spacer(Modifier.height(24.dp))
-        GroupHeading(if (isHold) "Photo · Required" else "Photo · Optional", modifier = Modifier.padding(bottom = 8.dp))
+        GroupHeading("Photo · Optional", modifier = Modifier.padding(bottom = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CaptureTile(Icons.Rounded.PhotoCamera, "Camera")
             CaptureTile(Icons.Rounded.PhotoLibrary, "Gallery")
@@ -212,9 +210,19 @@ fun StatusUpdateSheetContent(
             )
         }
 
+        if (state.error != null) {
+            Text(
+                state.error,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+
         AppPrimaryButton(
             if (isHold) "Hold this consignment" else "Save update",
-            onClick = onSave,
+            onClick = { onEvent(StatusUpdateSheetEvent.Save) },
             modifier = Modifier.fillMaxWidth()
         )
         Text(

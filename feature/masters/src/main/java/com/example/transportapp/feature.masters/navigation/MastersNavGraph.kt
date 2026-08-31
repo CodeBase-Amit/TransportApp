@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.transportapp.core.common.SeedIds
 import com.example.transportapp.core.ui.Routes
 import com.example.transportapp.feature.masters.screen.MasterEditorScreen
 import com.example.transportapp.feature.masters.screen.MasterListScreen
@@ -15,7 +16,14 @@ fun NavGraphBuilder.mastersNavGraph(navController: NavController) {
     composable(Routes.MASTERS_HUB) {
         MastersHubScreen(
             onBack = { navController.popBackStack() },
-            onMasterClick = { type -> navController.navigate(Routes.masterList(type)) }
+            onMasterClick = { type ->
+                // Rate cards are party-scoped (§3): the hub row opens the demo party's card.
+                if (type.equals("Rate cards", ignoreCase = true)) {
+                    navController.navigate(Routes.rateCardEditor(SeedIds.PARTY_DEEPAK_STEEL))
+                } else {
+                    navController.navigate(Routes.masterList(type))
+                }
+            }
         )
     }
     composable(
@@ -26,7 +34,7 @@ fun NavGraphBuilder.mastersNavGraph(navController: NavController) {
         MasterListScreen(
             masterType = type,
             onBack = { navController.popBackStack() },
-            onRowClick = { navController.navigate(Routes.masterEditor(type, "1")) },
+            onRowClick = { partyId -> navController.navigate(Routes.masterEditor(type, partyId)) },
             onAddParty = { navController.navigate(Routes.masterEditor(type, "new")) }
         )
     }
@@ -39,7 +47,10 @@ fun NavGraphBuilder.mastersNavGraph(navController: NavController) {
     ) {
         MasterEditorScreen(masterType = "party", onBack = { navController.popBackStack() })
     }
-    composable(Routes.RATE_CARD_EDITOR) {
+    composable(
+        route = Routes.RATE_CARD_EDITOR,
+        arguments = listOf(navArgument("partyId") { type = NavType.StringType })
+    ) {
         RateCardEditorScreen(onBack = { navController.popBackStack() })
     }
 }

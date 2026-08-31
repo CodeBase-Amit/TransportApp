@@ -1,0 +1,2644 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "93bdc0367f90ceafdc86c722c9865b33",
+    "entities": [
+      {
+        "tableName": "outbox",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `client_op_id` TEXT NOT NULL, `op` TEXT NOT NULL, `entity_type` TEXT NOT NULL, `entity_local_id` TEXT NOT NULL, `payload_json` TEXT NOT NULL, `state` TEXT NOT NULL, `attempt_count` INTEGER NOT NULL, `next_attempt_at` INTEGER NOT NULL, `last_error_code` TEXT, `created_at` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_op_id",
+            "columnName": "client_op_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "op",
+            "columnName": "op",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entity_type",
+            "columnName": "entity_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entity_local_id",
+            "columnName": "entity_local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload_json",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempt_count",
+            "columnName": "attempt_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "next_attempt_at",
+            "columnName": "next_attempt_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "last_error_code",
+            "columnName": "last_error_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "created_at",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outbox_client_op_id",
+            "unique": true,
+            "columnNames": [
+              "client_op_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_outbox_client_op_id` ON `${TABLE_NAME}` (`client_op_id`)"
+          },
+          {
+            "name": "index_outbox_state_next_attempt_at",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "next_attempt_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_state_next_attempt_at` ON `${TABLE_NAME}` (`state`, `next_attempt_at`)"
+          },
+          {
+            "name": "index_outbox_entity_type_entity_local_id",
+            "unique": false,
+            "columnNames": [
+              "entity_type",
+              "entity_local_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_entity_type_entity_local_id` ON `${TABLE_NAME}` (`entity_type`, `entity_local_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "outbox_prereq",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`outbox_id` INTEGER NOT NULL, `client_op_id` TEXT NOT NULL, PRIMARY KEY(`outbox_id`, `client_op_id`), FOREIGN KEY(`outbox_id`) REFERENCES `outbox`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "outbox_id",
+            "columnName": "outbox_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_op_id",
+            "columnName": "client_op_id",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "outbox_id",
+            "client_op_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outbox_prereq_client_op_id",
+            "unique": false,
+            "columnNames": [
+              "client_op_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outbox_prereq_client_op_id` ON `${TABLE_NAME}` (`client_op_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "outbox",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "outbox_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_cursor",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entity_family` TEXT NOT NULL, `cursor` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`entity_family`))",
+        "fields": [
+          {
+            "fieldPath": "entity_family",
+            "columnName": "entity_family",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entity_family"
+          ]
+        }
+      },
+      {
+        "tableName": "seed_version",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `version` INTEGER NOT NULL, `seeded_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seeded_at",
+            "columnName": "seeded_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "COMPANY_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `name` TEXT NOT NULL, `legal_name` TEXT, `address` TEXT, `gstin` TEXT, `pan` TEXT, `transporter_id` TEXT, `gst_treatment` TEXT NOT NULL, `display_bilty_series` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "legal_name",
+            "columnName": "legal_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gstin",
+            "columnName": "gstin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pan",
+            "columnName": "pan",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "transporter_id",
+            "columnName": "transporter_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gst_treatment",
+            "columnName": "gst_treatment",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "display_bilty_series",
+            "columnName": "display_bilty_series",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_COMPANY_E_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_COMPANY_E_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "BRANCH_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `code` TEXT NOT NULL, `address` TEXT, `is_head_office` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`company_id`) REFERENCES `COMPANY_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "address",
+            "columnName": "address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "is_head_office",
+            "columnName": "is_head_office",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_BRANCH_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_BRANCH_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_BRANCH_E_company_id_name",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_BRANCH_E_company_id_name` ON `${TABLE_NAME}` (`company_id`, `name`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "COMPANY_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "company_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "MEMBERSHIP_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `user_name` TEXT NOT NULL, `user_email` TEXT NOT NULL, `role` TEXT NOT NULL, `branch_scope` TEXT NOT NULL, `status` TEXT NOT NULL, `invited_by` TEXT, `invited_expires_at` INTEGER, `display_expires` TEXT, PRIMARY KEY(`local_id`), FOREIGN KEY(`company_id`) REFERENCES `COMPANY_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "user_name",
+            "columnName": "user_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "user_email",
+            "columnName": "user_email",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "role",
+            "columnName": "role",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "branch_scope",
+            "columnName": "branch_scope",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "invited_by",
+            "columnName": "invited_by",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "invited_expires_at",
+            "columnName": "invited_expires_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "display_expires",
+            "columnName": "display_expires",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_MEMBERSHIP_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_MEMBERSHIP_E_user_email",
+            "unique": false,
+            "columnNames": [
+              "user_email"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_user_email` ON `${TABLE_NAME}` (`user_email`)"
+          },
+          {
+            "name": "index_MEMBERSHIP_E_company_id_user_email_status",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "user_email",
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_MEMBERSHIP_E_company_id_user_email_status` ON `${TABLE_NAME}` (`company_id`, `user_email`, `status`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "COMPANY_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "company_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "PARTY_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `phone` TEXT NOT NULL, `email` TEXT, `type` TEXT NOT NULL, `street_address` TEXT, `station` TEXT, `pincode` TEXT, `gstin` TEXT, `usual_route_id` TEXT, `usual_payment_mode` TEXT, `display_bilty_count` INTEGER NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "street_address",
+            "columnName": "street_address",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "station",
+            "columnName": "station",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pincode",
+            "columnName": "pincode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gstin",
+            "columnName": "gstin",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "usual_route_id",
+            "columnName": "usual_route_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "usual_payment_mode",
+            "columnName": "usual_payment_mode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "display_bilty_count",
+            "columnName": "display_bilty_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_PARTY_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_PARTY_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_PARTY_E_company_id_name",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_PARTY_E_company_id_name` ON `${TABLE_NAME}` (`company_id`, `name`)"
+          },
+          {
+            "name": "index_PARTY_E_phone",
+            "unique": false,
+            "columnNames": [
+              "phone"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_PARTY_E_phone` ON `${TABLE_NAME}` (`phone`)"
+          }
+        ]
+      },
+      {
+        "tableName": "STATION_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `state` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_STATION_E_company_id_name",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_STATION_E_company_id_name` ON `${TABLE_NAME}` (`company_id`, `name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ROUTE_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `origin_station_id` TEXT NOT NULL, `dest_station_id` TEXT NOT NULL, `distance_km` INTEGER NOT NULL, `transit_days` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`origin_station_id`) REFERENCES `STATION_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`dest_station_id`) REFERENCES `STATION_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin_station_id",
+            "columnName": "origin_station_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dest_station_id",
+            "columnName": "dest_station_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distance_km",
+            "columnName": "distance_km",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "transit_days",
+            "columnName": "transit_days",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ROUTE_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ROUTE_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_ROUTE_E_company_id_origin_station_id_dest_station_id",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "origin_station_id",
+              "dest_station_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_ROUTE_E_company_id_origin_station_id_dest_station_id` ON `${TABLE_NAME}` (`company_id`, `origin_station_id`, `dest_station_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "STATION_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "origin_station_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          },
+          {
+            "table": "STATION_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "dest_station_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "GOODS_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_GOODS_E_company_id_name",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_GOODS_E_company_id_name` ON `${TABLE_NAME}` (`company_id`, `name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "VEHICLE_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `number` TEXT NOT NULL, `capacity_kg` INTEGER NOT NULL, `ownership` TEXT NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "number",
+            "columnName": "number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "capacity_kg",
+            "columnName": "capacity_kg",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownership",
+            "columnName": "ownership",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_VEHICLE_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_VEHICLE_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_VEHICLE_E_company_id_number",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "number"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_VEHICLE_E_company_id_number` ON `${TABLE_NAME}` (`company_id`, `number`)"
+          }
+        ]
+      },
+      {
+        "tableName": "DRIVER_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `licence` TEXT, `phone` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "licence",
+            "columnName": "licence",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_DRIVER_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_DRIVER_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "BROKER_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `name` TEXT NOT NULL, `phone` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_BROKER_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_BROKER_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "CHARGE_HEAD_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `code` TEXT NOT NULL, `label` TEXT NOT NULL, `basis` TEXT NOT NULL, `display_value` TEXT, `default_value_paise` INTEGER NOT NULL, `bearer` TEXT NOT NULL, `taxable` INTEGER NOT NULL, `auto_apply` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "code",
+            "columnName": "code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basis",
+            "columnName": "basis",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "display_value",
+            "columnName": "display_value",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "default_value_paise",
+            "columnName": "default_value_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bearer",
+            "columnName": "bearer",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "taxable",
+            "columnName": "taxable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "auto_apply",
+            "columnName": "auto_apply",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sort_order",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_CHARGE_HEAD_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CHARGE_HEAD_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_CHARGE_HEAD_E_company_id_code",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "code"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_CHARGE_HEAD_E_company_id_code` ON `${TABLE_NAME}` (`company_id`, `code`)"
+          }
+        ]
+      },
+      {
+        "tableName": "RATE_CARD_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `party_id` TEXT, `route_id` TEXT, `goods_id` TEXT, `basis` TEXT NOT NULL, `rate_paise` INTEGER NOT NULL, `min_qty_label` TEXT, `min_freight_paise` INTEGER, `max_freight_paise` INTEGER, `note` TEXT, `sort_order` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`party_id`) REFERENCES `PARTY_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`route_id`) REFERENCES `ROUTE_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`goods_id`) REFERENCES `GOODS_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "party_id",
+            "columnName": "party_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "route_id",
+            "columnName": "route_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "goods_id",
+            "columnName": "goods_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "basis",
+            "columnName": "basis",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rate_paise",
+            "columnName": "rate_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "min_qty_label",
+            "columnName": "min_qty_label",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "min_freight_paise",
+            "columnName": "min_freight_paise",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "max_freight_paise",
+            "columnName": "max_freight_paise",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sort_order",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_RATE_CARD_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_RATE_CARD_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_RATE_CARD_E_party_id",
+            "unique": false,
+            "columnNames": [
+              "party_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_RATE_CARD_E_party_id` ON `${TABLE_NAME}` (`party_id`)"
+          },
+          {
+            "name": "index_RATE_CARD_E_company_id_party_id_route_id_goods_id",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "party_id",
+              "route_id",
+              "goods_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_RATE_CARD_E_company_id_party_id_route_id_goods_id` ON `${TABLE_NAME}` (`company_id`, `party_id`, `route_id`, `goods_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "PARTY_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "party_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          },
+          {
+            "table": "ROUTE_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "route_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          },
+          {
+            "table": "GOODS_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "goods_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "NUMBER_SERIES_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `branch_id` TEXT NOT NULL, `doc_type` TEXT NOT NULL, `prefix` TEXT NOT NULL, `fy_part` TEXT NOT NULL, `digits` INTEGER NOT NULL, `last_issued` INTEGER NOT NULL, `reset_rule` TEXT NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "branch_id",
+            "columnName": "branch_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "doc_type",
+            "columnName": "doc_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "prefix",
+            "columnName": "prefix",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fy_part",
+            "columnName": "fy_part",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "digits",
+            "columnName": "digits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "last_issued",
+            "columnName": "last_issued",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reset_rule",
+            "columnName": "reset_rule",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_NUMBER_SERIES_E_company_id_branch_id_doc_type",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "branch_id",
+              "doc_type"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_NUMBER_SERIES_E_company_id_branch_id_doc_type` ON `${TABLE_NAME}` (`company_id`, `branch_id`, `doc_type`)"
+          }
+        ]
+      },
+      {
+        "tableName": "NUMBER_LEASE_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `series_id` TEXT NOT NULL, `device_id` TEXT NOT NULL, `range_start` INTEGER NOT NULL, `range_end` INTEGER NOT NULL, `next_value` INTEGER NOT NULL, `expires_at` INTEGER NOT NULL, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "series_id",
+            "columnName": "series_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "device_id",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "range_start",
+            "columnName": "range_start",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "range_end",
+            "columnName": "range_end",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "next_value",
+            "columnName": "next_value",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expires_at",
+            "columnName": "expires_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_NUMBER_LEASE_E_series_id",
+            "unique": false,
+            "columnNames": [
+              "series_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NUMBER_LEASE_E_series_id` ON `${TABLE_NAME}` (`series_id`)"
+          },
+          {
+            "name": "index_NUMBER_LEASE_E_series_id_device_id",
+            "unique": false,
+            "columnNames": [
+              "series_id",
+              "device_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_NUMBER_LEASE_E_series_id_device_id` ON `${TABLE_NAME}` (`series_id`, `device_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "CONSIGNMENT_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `series_id` TEXT NOT NULL, `bilty_no` TEXT, `provisional_no` TEXT, `status_projection` TEXT NOT NULL, `booking_branch_id` TEXT NOT NULL, `dest_branch_id` TEXT, `consignor_id` TEXT NOT NULL, `consignee_id` TEXT NOT NULL, `route_id` TEXT NOT NULL, `from_station_id` TEXT NOT NULL, `to_station_id` TEXT NOT NULL, `payment_mode` TEXT NOT NULL, `risk` TEXT NOT NULL, `delivery_type` TEXT NOT NULL, `place_of_supply_state` TEXT, `eway_bill_no` TEXT, `private_mark` TEXT, `packages` INTEGER NOT NULL, `actual_weight_g` INTEGER NOT NULL, `chargeable_weight_g` INTEGER NOT NULL, `declared_value_paise` INTEGER NOT NULL, `freight_paise` INTEGER NOT NULL, `gst_paise` INTEGER NOT NULL, `total_paise` INTEGER NOT NULL, `booked_at` INTEGER NOT NULL, `booked_by_name` TEXT NOT NULL, `expected_arrival` INTEGER NOT NULL, `party_names` TEXT NOT NULL, `freight_bill_id` TEXT, `amends_id` TEXT, PRIMARY KEY(`local_id`))",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "series_id",
+            "columnName": "series_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bilty_no",
+            "columnName": "bilty_no",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "provisional_no",
+            "columnName": "provisional_no",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status_projection",
+            "columnName": "status_projection",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "booking_branch_id",
+            "columnName": "booking_branch_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dest_branch_id",
+            "columnName": "dest_branch_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "consignor_id",
+            "columnName": "consignor_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consignee_id",
+            "columnName": "consignee_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "route_id",
+            "columnName": "route_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "from_station_id",
+            "columnName": "from_station_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "to_station_id",
+            "columnName": "to_station_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payment_mode",
+            "columnName": "payment_mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "risk",
+            "columnName": "risk",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "delivery_type",
+            "columnName": "delivery_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "place_of_supply_state",
+            "columnName": "place_of_supply_state",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "eway_bill_no",
+            "columnName": "eway_bill_no",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "private_mark",
+            "columnName": "private_mark",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "packages",
+            "columnName": "packages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actual_weight_g",
+            "columnName": "actual_weight_g",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chargeable_weight_g",
+            "columnName": "chargeable_weight_g",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "declared_value_paise",
+            "columnName": "declared_value_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "freight_paise",
+            "columnName": "freight_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "gst_paise",
+            "columnName": "gst_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "total_paise",
+            "columnName": "total_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "booked_at",
+            "columnName": "booked_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "booked_by_name",
+            "columnName": "booked_by_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expected_arrival",
+            "columnName": "expected_arrival",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "party_names",
+            "columnName": "party_names",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "freight_bill_id",
+            "columnName": "freight_bill_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "amends_id",
+            "columnName": "amends_id",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_CONSIGNMENT_E_company_id",
+            "unique": false,
+            "columnNames": [
+              "company_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id` ON `${TABLE_NAME}` (`company_id`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_series_id",
+            "unique": false,
+            "columnNames": [
+              "series_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_series_id` ON `${TABLE_NAME}` (`series_id`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_bilty_no",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "bilty_no"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_bilty_no` ON `${TABLE_NAME}` (`company_id`, `bilty_no`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_booking_branch_id_booked_at",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "booking_branch_id",
+              "booked_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_booking_branch_id_booked_at` ON `${TABLE_NAME}` (`company_id`, `booking_branch_id`, `booked_at`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_status_projection_expected_arrival",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "status_projection",
+              "expected_arrival"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_status_projection_expected_arrival` ON `${TABLE_NAME}` (`company_id`, `status_projection`, `expected_arrival`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_payment_mode_status_projection",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "payment_mode",
+              "status_projection"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_payment_mode_status_projection` ON `${TABLE_NAME}` (`company_id`, `payment_mode`, `status_projection`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_consignor_id_freight_bill_id",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "consignor_id",
+              "freight_bill_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_consignor_id_freight_bill_id` ON `${TABLE_NAME}` (`company_id`, `consignor_id`, `freight_bill_id`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_company_id_consignee_id_freight_bill_id",
+            "unique": false,
+            "columnNames": [
+              "company_id",
+              "consignee_id",
+              "freight_bill_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_company_id_consignee_id_freight_bill_id` ON `${TABLE_NAME}` (`company_id`, `consignee_id`, `freight_bill_id`)"
+          },
+          {
+            "name": "index_CONSIGNMENT_E_route_id",
+            "unique": false,
+            "columnNames": [
+              "route_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_E_route_id` ON `${TABLE_NAME}` (`route_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "CONSIGNMENT_ITEM_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `consignment_id` TEXT NOT NULL, `goods_id` TEXT, `description` TEXT NOT NULL, `packages` INTEGER NOT NULL, `actual_weight_g` INTEGER NOT NULL, `chargeable_weight_g` INTEGER NOT NULL, `rate_paise` INTEGER, `basis` TEXT, `freight_paise` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`consignment_id`) REFERENCES `CONSIGNMENT_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "consignment_id",
+            "columnName": "consignment_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "goods_id",
+            "columnName": "goods_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packages",
+            "columnName": "packages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actual_weight_g",
+            "columnName": "actual_weight_g",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chargeable_weight_g",
+            "columnName": "chargeable_weight_g",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rate_paise",
+            "columnName": "rate_paise",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "basis",
+            "columnName": "basis",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "freight_paise",
+            "columnName": "freight_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_CONSIGNMENT_ITEM_E_consignment_id",
+            "unique": false,
+            "columnNames": [
+              "consignment_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CONSIGNMENT_ITEM_E_consignment_id` ON `${TABLE_NAME}` (`consignment_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "CONSIGNMENT_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "consignment_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "CHARGE_LINE_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `consignment_id` TEXT NOT NULL, `head_code` TEXT NOT NULL, `label` TEXT NOT NULL, `basis` TEXT NOT NULL, `input_value` TEXT, `computed_paise` INTEGER NOT NULL, `taxable` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`consignment_id`) REFERENCES `CONSIGNMENT_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "consignment_id",
+            "columnName": "consignment_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "head_code",
+            "columnName": "head_code",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basis",
+            "columnName": "basis",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "input_value",
+            "columnName": "input_value",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "computed_paise",
+            "columnName": "computed_paise",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "taxable",
+            "columnName": "taxable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sort_order",
+            "columnName": "sort_order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_CHARGE_LINE_E_consignment_id",
+            "unique": false,
+            "columnNames": [
+              "consignment_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_CHARGE_LINE_E_consignment_id` ON `${TABLE_NAME}` (`consignment_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "CONSIGNMENT_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "consignment_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "STATUS_EVENT_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `company_id` TEXT NOT NULL, `consignment_id` TEXT NOT NULL, `client_event_id` TEXT NOT NULL, `event_type` TEXT NOT NULL, `occurred_at` INTEGER NOT NULL, `recorded_at` INTEGER NOT NULL, `actor_member_id` TEXT, `actor_name` TEXT NOT NULL, `branch_id` TEXT NOT NULL, `location` TEXT, `photo_ref` TEXT, `reason_code` TEXT, `remark` TEXT, `challan_ref` TEXT, PRIMARY KEY(`local_id`), FOREIGN KEY(`consignment_id`) REFERENCES `CONSIGNMENT_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "company_id",
+            "columnName": "company_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consignment_id",
+            "columnName": "consignment_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "client_event_id",
+            "columnName": "client_event_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "event_type",
+            "columnName": "event_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurred_at",
+            "columnName": "occurred_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recorded_at",
+            "columnName": "recorded_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actor_member_id",
+            "columnName": "actor_member_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "actor_name",
+            "columnName": "actor_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "branch_id",
+            "columnName": "branch_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photo_ref",
+            "columnName": "photo_ref",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "reason_code",
+            "columnName": "reason_code",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "remark",
+            "columnName": "remark",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "challan_ref",
+            "columnName": "challan_ref",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_STATUS_EVENT_E_consignment_id_occurred_at",
+            "unique": false,
+            "columnNames": [
+              "consignment_id",
+              "occurred_at"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_STATUS_EVENT_E_consignment_id_occurred_at` ON `${TABLE_NAME}` (`consignment_id`, `occurred_at`)"
+          },
+          {
+            "name": "index_STATUS_EVENT_E_company_id_client_event_id",
+            "unique": true,
+            "columnNames": [
+              "company_id",
+              "client_event_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_STATUS_EVENT_E_company_id_client_event_id` ON `${TABLE_NAME}` (`company_id`, `client_event_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "CONSIGNMENT_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "consignment_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "DOC_SNAPSHOT_E",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`local_id` TEXT NOT NULL, `server_id` TEXT, `updated_at_local` INTEGER NOT NULL, `updated_at_server` INTEGER, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `consignment_id` TEXT NOT NULL, `document_type` TEXT NOT NULL, `template_id` TEXT NOT NULL, `template_version` TEXT NOT NULL, `version` INTEGER NOT NULL, `payload_json` TEXT NOT NULL, `content_hash` TEXT NOT NULL, `copy_count` INTEGER NOT NULL, PRIMARY KEY(`local_id`), FOREIGN KEY(`consignment_id`) REFERENCES `CONSIGNMENT_E`(`local_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "server_id",
+            "columnName": "server_id",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updated_at_local",
+            "columnName": "updated_at_local",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updated_at_server",
+            "columnName": "updated_at_server",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sync_state",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted_at",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "consignment_id",
+            "columnName": "consignment_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "document_type",
+            "columnName": "document_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "template_id",
+            "columnName": "template_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "template_version",
+            "columnName": "template_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload_json",
+            "columnName": "payload_json",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content_hash",
+            "columnName": "content_hash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "copy_count",
+            "columnName": "copy_count",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "local_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_DOC_SNAPSHOT_E_consignment_id_version",
+            "unique": false,
+            "columnNames": [
+              "consignment_id",
+              "version"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_DOC_SNAPSHOT_E_consignment_id_version` ON `${TABLE_NAME}` (`consignment_id`, `version`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "CONSIGNMENT_E",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "consignment_id"
+            ],
+            "referencedColumns": [
+              "local_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "PARTY_FTS",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`local_id` TEXT NOT NULL, `name` TEXT NOT NULL, `phone` TEXT NOT NULL, content=`PARTY_E`)",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "PARTY_E",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_PARTY_FTS_BEFORE_UPDATE BEFORE UPDATE ON `PARTY_E` BEGIN DELETE FROM `PARTY_FTS` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_PARTY_FTS_BEFORE_DELETE BEFORE DELETE ON `PARTY_E` BEGIN DELETE FROM `PARTY_FTS` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_PARTY_FTS_AFTER_UPDATE AFTER UPDATE ON `PARTY_E` BEGIN INSERT INTO `PARTY_FTS`(`docid`, `local_id`, `name`, `phone`) VALUES (NEW.`rowid`, NEW.`local_id`, NEW.`name`, NEW.`phone`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_PARTY_FTS_AFTER_INSERT AFTER INSERT ON `PARTY_E` BEGIN INSERT INTO `PARTY_FTS`(`docid`, `local_id`, `name`, `phone`) VALUES (NEW.`rowid`, NEW.`local_id`, NEW.`name`, NEW.`phone`); END"
+        ]
+      },
+      {
+        "tableName": "CONSIGNMENT_FTS",
+        "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`local_id` TEXT NOT NULL, `bilty_no` TEXT NOT NULL, `party_names` TEXT NOT NULL, content=`CONSIGNMENT_E`)",
+        "fields": [
+          {
+            "fieldPath": "local_id",
+            "columnName": "local_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bilty_no",
+            "columnName": "bilty_no",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "party_names",
+            "columnName": "party_names",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": []
+        },
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "CONSIGNMENT_E",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": [
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_CONSIGNMENT_FTS_BEFORE_UPDATE BEFORE UPDATE ON `CONSIGNMENT_E` BEGIN DELETE FROM `CONSIGNMENT_FTS` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_CONSIGNMENT_FTS_BEFORE_DELETE BEFORE DELETE ON `CONSIGNMENT_E` BEGIN DELETE FROM `CONSIGNMENT_FTS` WHERE `docid`=OLD.`rowid`; END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_CONSIGNMENT_FTS_AFTER_UPDATE AFTER UPDATE ON `CONSIGNMENT_E` BEGIN INSERT INTO `CONSIGNMENT_FTS`(`docid`, `local_id`, `bilty_no`, `party_names`) VALUES (NEW.`rowid`, NEW.`local_id`, NEW.`bilty_no`, NEW.`party_names`); END",
+          "CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_CONSIGNMENT_FTS_AFTER_INSERT AFTER INSERT ON `CONSIGNMENT_E` BEGIN INSERT INTO `CONSIGNMENT_FTS`(`docid`, `local_id`, `bilty_no`, `party_names`) VALUES (NEW.`rowid`, NEW.`local_id`, NEW.`bilty_no`, NEW.`party_names`); END"
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '93bdc0367f90ceafdc86c722c9865b33')"
+    ]
+  }
+}

@@ -1,34 +1,46 @@
 package com.example.transportapp.feature.consignment.screen
 
-import com.example.transportapp.core.ui.sample.StatusUpdateSheetSampleData
+import com.example.transportapp.domain.transport.ConsignmentStatus
 
 /**
- * T9 — Status update bottom sheet. The next event is a chip, not a dropdown.
+ * T9 — Status update bottom sheet. The next event is a chip, not a dropdown, and only the
+ * §7.1-legal continuations appear (Design T9: "Booked and Loaded are absent and must not
+ * be drawn greyed").
  */
-enum class StatusEventOption(val label: String, val detail: String, val holdPath: Boolean = false) {
-    DEPARTED("Departed Dhule — back in transit", "The usual next step from At hub"),
-    ARRIVED("Arrived at Nashik", "Reached the destination branch"),
-    OUT_FOR_DELIVERY("Out for delivery", "Door delivery loaded out"),
-    DELIVERED("Delivered", "POD captured"),
-    HOLD("Hold", "Exception — needs a reason", holdPath = true),
-    RETURN("Return to origin", "RTO decision")
+data class SheetOption(
+    val target: ConsignmentStatus,
+    val label: String,
+    val detail: String,
+    val holdPath: Boolean = false,
+)
+
+enum class HoldReason(val label: String, val code: String) {
+    SHORTAGE("Shortage", "SHORTAGE"),
+    DAMAGE("Damage", "DAMAGE"),
+    DETAINED("Detained", "DETAINED"),
+    OTHER("Other", "OTHER")
 }
 
-enum class HoldReason(val label: String) { SHORTAGE("Shortage"), DAMAGE("Damage"), DETAINED("Detained"), OTHER("Other") }
-
 data class StatusUpdateSheetUiState(
-    val selectedEvent: StatusEventOption = StatusEventOption.DEPARTED,
+    val biltyNo: String = "",
+    val contextLine: String = "",
+    val options: List<SheetOption> = emptyList(),
+    val selected: SheetOption? = null,
     val holdReason: HoldReason = HoldReason.SHORTAGE,
     val remark: String = "",
-    val location: String = StatusUpdateSheetSampleData.LOCATION
+    val location: String = "",
+    val isSaving: Boolean = false,
+    val error: String? = null,
+    val saved: Boolean = false,
 ) {
-    val isHold: Boolean get() = selectedEvent == StatusEventOption.HOLD
+    val isHold: Boolean get() = selected?.holdPath == true
 }
 
 sealed interface StatusUpdateSheetEvent {
-    data class SelectEvent(val event: StatusEventOption) : StatusUpdateSheetEvent
+    data class SelectOption(val option: SheetOption) : StatusUpdateSheetEvent
     data class SelectHoldReason(val reason: HoldReason) : StatusUpdateSheetEvent
     data class ChangeRemark(val value: String) : StatusUpdateSheetEvent
     data class ChangeLocation(val value: String) : StatusUpdateSheetEvent
     data object UseMyLocation : StatusUpdateSheetEvent
+    data object Save : StatusUpdateSheetEvent
 }

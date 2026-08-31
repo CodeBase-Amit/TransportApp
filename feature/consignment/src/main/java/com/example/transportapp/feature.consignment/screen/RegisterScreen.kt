@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalShipping
+import androidx.compose.material.icons.rounded.Rule
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalShipping
@@ -29,8 +30,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
+import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.DocketRow
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.NavDestination
@@ -49,11 +53,13 @@ fun RegisterScreen(
     onNewBilty: () -> Unit,
     onHome: () -> Unit,
     onVehicles: () -> Unit,
-    viewModel: RegisterViewModel = viewModel()
+    viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val items = viewModel.items.collectAsLazyPagingItems()
     RegisterContent(
         state = state,
+        items = items,
         onEvent = viewModel::onEvent,
         onBack = onBack,
         onDocketClick = onDocketClick,
@@ -66,6 +72,7 @@ fun RegisterScreen(
 @Composable
 fun RegisterContent(
     state: RegisterUiState,
+    items: androidx.paging.compose.LazyPagingItems<RegisterListItem>,
     onEvent: (RegisterEvent) -> Unit,
     onBack: () -> Unit,
     onDocketClick: (String) -> Unit,
@@ -95,51 +102,35 @@ fun RegisterContent(
                     .padding(horizontal = Dimens.screenPadding)
                     .padding(top = 8.dp)
             ) {
-                state.filterOptions.forEach { option ->
+                state.chips.forEach { chip ->
                     FilterChip(
-                        label = option,
-                        selected = option == state.selectedFilter,
-                        onClick = { onEvent(RegisterEvent.ChangeFilter(option)) }
+                        label = chip.label,
+                        selected = chip.selected,
+                        onClick = { onEvent(RegisterEvent.ToggleChip(chip.kind)) }
                     )
                 }
             }
 
+            val summary = state.summary
             SummaryStrip(
-                *state.summaryFigures.toTypedArray(),
+                "MATCHING" to (summary?.matching?.toString() ?: "—"),
+                "PACKAGES" to (summary?.packages?.toString() ?: "—"),
+                "FREIGHT" to (summary?.amountPaise?.let { com.example.transportapp.core.common.Money(it).formatted() } ?: "—"),
                 modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().weight(1f),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(state.items) { item ->
-                    when (item) {
-                        is RegisterListItem.Header -> {
-                            Text(
-                                item.label,
-                                style = TransportTypeScale.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
-                            )
-                        }
-                        is RegisterListItem.Row -> {
-                            val row = item.row
-                            DocketRow(
-                                docNumber = row.docNumber,
-                                amount = row.amount,
-                                fromStation = row.from,
-                                toStation = row.to,
-                                consignee = row.consignee,
-                                status = row.status,
-                                paymentMode = row.paymentMode,
-                                packagesCaption = row.caption,
-                                exceptionCaption = row.exception,
-                                syncPending = row.syncPending,
-                                onClick = { onDocketClick(row.docNumber) }
-                            )
-                        }
-                    }
+            if (items.itemCount == 0 && !state.isLoading) {
+                RegisterEmptyState(
+                    noRecordsAtAll = state.summary?.matching == 0 && state.chips.none { it.selected } && state.searchQuery.isEmpty(),
+                    onClearFilters = { onEvent(RegisterEvent.ClearFilters) },
+                    onNewBilty = onNewBilty
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().weight(1f),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    registerList(items, onDocketClick)
                 }
             }
 
@@ -171,6 +162,89 @@ fun RegisterContent(
                 onClick = onNewBilty,
                 leadingIcon = Icons.Rounded.Add
             )
+        }
+    }
+}
+
+private fun LazyListScope.registerList(
+    items: androidx.paging.compose.LazyPagingItems<RegisterListItem>,
+    onDocketClick: (String) -> Unit
+) {
+    items(
+        count = items.itemCount,
+        key = items.itemKey { item ->
+            when (item) {
+                is RegisterListItem.Header -> "h-${item.label}"
+                is RegisterListItem.Row -> "r-${item.row.docNumber}"
+            }
+        },
+    ) { index ->
+        when (val item = items[index]) {
+            is RegisterListItem.Header -> Text(
+                item.label,
+                style = TransportTypeScale.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
+            )
+            is RegisterListItem.Row -> {
+                val row = item.row
+                DocketRow(
+                    docNumber = row.docNumber,
+                    amount = row.amount,
+                    fromStation = row.from,
+                    toStation = row.to,
+                    consignee = row.consignee,
+                    status = row.status,
+                    paymentMode = row.paymentMode,
+                    packagesCaption = row.caption,
+                    exceptionCaption = row.exception,
+                    syncPending = row.syncPending,
+                    onClick = { onDocketClick(row.docNumber) }
+                )
+            }
+            null -> {}
+        }
+    }
+}
+
+/** Design T7's two distinct empty states — an empty register is not a filtered-out register. */
+@Composable
+private fun RegisterEmptyState(
+    noRecordsAtAll: Boolean,
+    onClearFilters: () -> Unit,
+    onNewBilty: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = Dimens.screenPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            if (noRecordsAtAll) Icons.Rounded.LocalShipping else Icons.Rounded.Rule,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        if (noRecordsAtAll) {
+            Text("No bilties yet", style = TransportTypeScale.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Book one and it shows up here straight away.",
+                style = TransportTypeScale.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            AppPrimaryButton(text = "Book a bilty", onClick = onNewBilty)
+        } else {
+            Text("No bilties match these filters", style = TransportTypeScale.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Try clearing a filter or widening the date range.",
+                style = TransportTypeScale.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            AppTextButton("Clear filters", onClick = onClearFilters)
         }
     }
 }

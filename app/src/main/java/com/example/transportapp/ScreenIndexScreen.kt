@@ -2,6 +2,7 @@ package com.example.transportapp
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.example.transportapp.core.common.SeedIds
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -125,9 +126,9 @@ private val screenGroups = listOf(
     )),
     ScreenGroup("Money", listOf(
         ScreenEntry("T13", "Unbilled pool", Routes.UNBILLED_POOL),
-        ScreenEntry("T14", "Freight bill builder", Routes.FREIGHT_BILL),
+        ScreenEntry("T14", "Freight bill detail", Routes.freightBill(SeedIds.BILL_00311), "seeded issued bill"),
         ScreenEntry("T15", "Payments & receipts", Routes.PAYMENTS),
-        ScreenEntry("T16", "Party statement", Routes.statement("deepak"))
+        ScreenEntry("T16", "Party statement", Routes.statement(SeedIds.PARTY_DEEPAK_STEEL))
     )),
     ScreenGroup("Masters", listOf(
         ScreenEntry("T17", "Masters hub", Routes.MASTERS_HUB, "9 counts"),

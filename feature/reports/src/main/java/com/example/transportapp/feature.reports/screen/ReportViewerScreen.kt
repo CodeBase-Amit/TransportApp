@@ -36,7 +36,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
@@ -44,10 +43,10 @@ import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.ReportViewerRow
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
-fun ReportViewerScreen(onBack: () -> Unit, viewModel: ReportViewerViewModel = viewModel()) {
+fun ReportViewerScreen(onBack: () -> Unit, viewModel: ReportViewerViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     ReportViewerContent(
         state = state,
@@ -131,8 +130,8 @@ fun ReportViewerContent(
 }
 
 @Composable
-private fun ReportViewerRowItem(row: ReportViewerRow, background: Color) {
-    val statusColor = if (row.status == "Paid") MaterialTheme.colorScheme.primary else transportColors().haulAmber
+private fun ReportViewerRowItem(row: RegisterRowUi, background: Color) {
+    val statusColor = if (row.status == "CANCELLED") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).background(background),
         verticalAlignment = Alignment.CenterVertically

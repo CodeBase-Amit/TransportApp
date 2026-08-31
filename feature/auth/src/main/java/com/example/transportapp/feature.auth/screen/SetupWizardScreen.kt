@@ -65,6 +65,11 @@ fun SetupWizardContent(
     onSkip: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+        if (state.justFinished) {
+            // §6.1/T3: after the company persists, the done frame offers the next action.
+            SetupDoneFrame(onBookFirst = onFinish, onGoDashboard = onFinish)
+            return@Column
+        }
         Row(
             modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically

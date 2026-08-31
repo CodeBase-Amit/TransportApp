@@ -1,21 +1,29 @@
 package com.example.transportapp.feature.reports.screen
 
-import com.example.transportapp.core.ui.sample.ReportViewerRow
-import com.example.transportapp.core.ui.sample.ReportViewerSampleData
+data class RegisterRowUi(
+    val bilty: String,
+    val date: String,
+    val consignor: String,
+    val weight: String,
+    val amount: String,
+    val status: String,
+)
 
 data class ReportViewerUiState(
-    val title: String = ReportViewerSampleData.TITLE,
-    val subtitle: String = ReportViewerSampleData.SUBTITLE,
-    val filters: List<String> = ReportViewerSampleData.filters,
-    val clearAll: String = ReportViewerSampleData.CLEAR_ALL_LABEL,
-    val filterLabel: String = ReportViewerSampleData.FILTER_LABEL,
-    val columns: List<String> = ReportViewerSampleData.columns,
-    val rows: List<ReportViewerRow> = ReportViewerSampleData.rows,
-    val totalLabel: String = ReportViewerSampleData.TOTAL_LABEL,
-    val totalWeight: String = ReportViewerSampleData.TOTAL_WEIGHT,
-    val totalAmount: String = ReportViewerSampleData.TOTAL_AMOUNT,
-    val exportExcel: String = ReportViewerSampleData.EXPORT_EXCEL,
-    val exportPdf: String = ReportViewerSampleData.EXPORT_PDF
+    val title: String = "Freight register",
+    val subtitle: String = "",
+    val filters: List<String> = emptyList(),
+    val clearAll: String = "Clear all",
+    val filterLabel: String = "Filters",
+    val columns: List<String> = listOf("Bilty no.", "Date", "Consignor", "Weight", "Amount", "Status"),
+    val rows: List<RegisterRowUi> = emptyList(),
+    val totalLabel: String = "",
+    val totalWeight: String = "",
+    val totalAmount: String = "",
+    val exportExcel: String = "Export to CSV",
+    val exportPdf: String = "Export to PDF",
+    val notice: String? = null,
+    val loading: Boolean = true,
 )
 
 sealed interface ReportViewerEvent {
@@ -24,4 +32,5 @@ sealed interface ReportViewerEvent {
     data object OpenFilters : ReportViewerEvent
     data object ExportExcel : ReportViewerEvent
     data object ExportPdf : ReportViewerEvent
+    data object DismissNotice : ReportViewerEvent
 }

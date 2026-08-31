@@ -2,6 +2,7 @@ package com.example.transportapp.feature.challan.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,10 +35,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.theme.Dimens
@@ -51,7 +54,7 @@ fun ChallanDetailScreen(
     onBack: () -> Unit,
     onDispatch: () -> Unit,
     onCloseTrip: () -> Unit,
-    viewModel: ChallanDetailViewModel = viewModel()
+    viewModel: ChallanDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     ChallanDetailContent(
@@ -144,7 +147,7 @@ fun ChallanDetailContent(
             ChallanAction(Icons.Rounded.Print, "Print", onClick = { onEvent(ChallanDetailEvent.Print) })
             ChallanAction(Icons.Rounded.Share, "Share", onClick = { onEvent(ChallanDetailEvent.Share) })
             if (state.isDispatched) {
-                ChallanAction(Icons.Rounded.TaskAlt, "Close trip", isPrimary = true, onClick = onCloseTrip)
+                ChallanAction(Icons.Rounded.TaskAlt, "Close trip", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.CloseTrip) })
             } else {
                 ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.Dispatch); onDispatch() })
             }
@@ -253,7 +256,13 @@ private fun ChallanAction(
     isPrimary: Boolean = false,
     onClick: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    ) {
         if (isPrimary) {
             Box(
                 modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(percent = 100)),

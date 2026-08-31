@@ -18,11 +18,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,56 +35,72 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.transportapp.core.common.Money
+import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.JourneyChip
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.component.SummaryStrip
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.domain.transport.ConsignmentStatus
+import com.example.transportapp.domain.transport.PaymentMode
+import java.text.SimpleDateFormat
+import java.util.Locale
 
+/**
+ * T15 — money coming in (§12.2). Tab 1 collects To Pay at this branch (Held rows wait for a
+ * Manager waiver); tab 2 records receipts and allocates them explicitly across bills.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentsScreen(
     onBack: () -> Unit,
-    viewModel: PaymentsViewModel = viewModel()
+    viewModel: PaymentsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    PaymentsContent(
-        state = state,
-        onEvent = viewModel::onEvent,
-        onBack = onBack
-    )
+    PaymentsContent(state = state, onEvent = viewModel::onEvent, onBack = onBack)
 }
+
+private val timeFormat = SimpleDateFormat("d MMM", Locale.ENGLISH)
 
 @Composable
 fun PaymentsContent(
     state: PaymentsUiState,
     onEvent: (PaymentsEvent) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
+        TransportTopAppBar(title = "Payments", onNavigationClick = onBack, trailingIcons = {
             IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
-        Text(
-            state.subtitle,
-            style = TransportTypeScale.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = Dimens.screenPadding)
-        )
-
-        // Tabs
         Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            PaymentsTabItem("${state.toPayTab} · 9", selected = state.tab == PaymentsTab.TOPAY, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.TOPAY)) }, modifier = Modifier.weight(1f))
-            PaymentsTabItem(state.billReceiptsTab, selected = state.tab == PaymentsTab.BILL_RECEIPTS, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.BILL_RECEIPTS)) }, modifier = Modifier.weight(1f))
+            PaymentsTabItem(
+                "To Pay · ${state.toPayRows.size}",
+                selected = state.tab == PaymentsTab.TOPAY,
+                onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.TOPAY)) },
+                modifier = Modifier.weight(1f),
+            )
+            PaymentsTabItem(
+                "Bill receipts",
+                selected = state.tab == PaymentsTab.BILL_RECEIPTS,
+                onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.BILL_RECEIPTS)) },
+                modifier = Modifier.weight(1f),
+            )
         }
 
-        when (state.tab) {
-            PaymentsTab.TOPAY -> ToPayTab(state)
-            PaymentsTab.BILL_RECEIPTS -> BillReceiptsTab(state)
+        Box(modifier = Modifier.weight(1f)) {
+            when (state.tab) {
+                PaymentsTab.TOPAY -> ToPayTab(state, onEvent)
+                PaymentsTab.BILL_RECEIPTS -> BillReceiptsTab(state, onEvent)
+            }
         }
     }
+
+    state.collectSheet?.let { sheet -> CollectSheet(sheet, onEvent) }
+    state.allocationSheet?.let { sheet -> AllocationSheet(sheet, onEvent) }
 }
 
 @Composable
@@ -92,48 +112,63 @@ private fun PaymentsTabItem(label: String, selected: Boolean, onClick: () -> Uni
                 .padding(top = 6.dp)
                 .height(3.dp)
                 .width(if (selected) 48.dp else 0.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(percent = 100))
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(percent = 100)),
         )
     }
 }
 
 @Composable
-private fun ToPayTab(state: PaymentsUiState) {
+private fun ToPayTab(state: PaymentsUiState, onEvent: (PaymentsEvent) -> Unit) {
     Column(modifier = Modifier.fillMaxSize()) {
-        SummaryStrip("TO COLLECT" to state.toCollect, "AT INDORE" to state.atIndore, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            items(state.toPayRows) { row ->
+        SummaryStrip(
+            "TO COLLECT" to Money(state.toCollectPaise).formatted(),
+            "AWAITING" to state.toPayRows.size.toString(),
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
+        )
+        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
+            items(state.toPayRows, key = { it.localId }) { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
                         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Text(row.bilty, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(row.amount, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(row.displayNo, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(Money(row.amountPaise).formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
                         }
-                        Text("· ${row.consignee}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("· ${row.consigneeName}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            JourneyChip(status = row.status)
+                            val status = runCatching { ConsignmentStatus.valueOf(row.status) }.getOrDefault(ConsignmentStatus.BOOKED)
+                            JourneyChip(status = status)
                             Spacer(Modifier.width(8.dp))
-                            PaymentStamp(mode = row.mode)
+                            PaymentStamp(mode = PaymentMode.TOPAY)
                         }
-                        if (row.caption != null) {
-                            Text(row.caption!!, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error)
+                        if (row.status == "HELD" && !row.waived) {
+                            Text(
+                                row.heldRemark?.let { "Held — $it" } ?: "Held — collect only after the hold is settled",
+                                style = TransportTypeScale.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                maxLines = 1,
+                            )
                         }
                     }
                     Spacer(Modifier.width(12.dp))
-                    // Collect button
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(if (row.collectable) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(percent = 100)),
-                        contentAlignment = Alignment.Center
+                            .background(
+                                if (row.collectable) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                RoundedCornerShape(percent = 100),
+                            )
+                            .clickable { onEvent(PaymentsEvent.OpenCollect(row)) },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Rounded.Payments, contentDescription = "Collect", tint = if (row.collectable) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f), modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Rounded.Payments,
+                            contentDescription = "Collect",
+                            tint = if (row.collectable) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 }
             }
@@ -141,35 +176,209 @@ private fun ToPayTab(state: PaymentsUiState) {
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun BillReceiptsTab(state: PaymentsUiState) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        SummaryStrip("RECEIVED THIS MONTH" to state.receivedThisMonth, "RECEIPTS" to state.receipts, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp))
-        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
-            items(state.receiptRows) { (no, party, amount) ->
-                Row(modifier = Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
-                        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                            Text(no, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(amount, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+private fun BillReceiptsTab(state: PaymentsUiState, onEvent: (PaymentsEvent) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SummaryStrip(
+                "RECEIVED THIS MONTH" to Money(state.receivedThisMonthPaise).formatted(),
+                "RECEIPTS" to state.receiptsCount.toString(),
+                modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
+            )
+            LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(vertical = 8.dp)) {
+                items(state.receipts, key = { it.localId }) { row ->
+                    Row(modifier = Modifier.fillMaxWidth().height(88.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.SpaceBetween) {
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                Text(row.receiptNo ?: "(no number)", style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text(Money(row.amountPaise).formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            Text(row.partyName, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                "${row.instrument}${row.instrumentRef?.let { " $it" } ?: ""} · ${timeFormat.format(row.receivedAt)}",
+                                style = TransportTypeScale.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                        Text(party, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(state.receiptModeLine, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+            }
+        }
+        ExtendedFloatingActionButton(
+            onClick = { onEvent(PaymentsEvent.OpenAllocation) },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            text = { Text("Record a receipt") },
+            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+        )
+    }
+}
+
+@Composable
+private fun ModeButtons(selected: String, onSelect: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("CASH", "UPI", "CHEQUE", "NEFT").forEach { mode ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        if (mode == selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        RoundedCornerShape(12.dp),
+                    )
+                    .clickable { onSelect(mode) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(mode, style = TransportTypeScale.labelLarge, color = if (mode == selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun PaymentsPreview() {
-    com.example.transportapp.core.designsystem.theme.TransportAppTheme {
-        PaymentsContent(
-            state = PaymentsUiState(),
-            onEvent = {},
-            onBack = {}
-        )
+private fun CollectSheet(sheet: CollectSheetState, onEvent: (PaymentsEvent) -> Unit) {
+    ModalBottomSheet(onDismissRequest = { onEvent(PaymentsEvent.DismissCollect) }) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Collect ${Money(sheet.line.amountPaise).formatted()}", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text("${sheet.line.displayNo} · ${sheet.line.consigneeName}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            if (sheet.line.status == "HELD" && !sheet.line.waived) {
+                Text(
+                    "Held — collect only after the hold is settled.",
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                if (sheet.isManager) {
+                    OutlinedTextField(
+                        value = sheet.waiverReason,
+                        onValueChange = { onEvent(PaymentsEvent.SetWaiverReason(it)) },
+                        label = { Text("Waiver reason (Manager)") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    AppPrimaryButton(
+                        if (sheet.waiving) "Recording…" else "Record the waiver",
+                        onClick = { onEvent(PaymentsEvent.RecordWaiver) },
+                        enabled = sheet.waiverReason.isNotBlank() && !sheet.waiving,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else {
+                Text("HOW", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                ModeButtons(selected = sheet.mode, onSelect = { onEvent(PaymentsEvent.SetCollectMode(it)) })
+                OutlinedTextField(
+                    value = sheet.amountText,
+                    onValueChange = { onEvent(PaymentsEvent.SetCollectAmount(it)) },
+                    label = { Text("Amount received") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (sheet.mode != "CASH") {
+                    OutlinedTextField(
+                        value = sheet.reference,
+                        onValueChange = { onEvent(PaymentsEvent.SetCollectReference(it)) },
+                        label = { Text("Reference") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                AppPrimaryButton(
+                    if (sheet.saving) "Saving…" else "Collect and print receipt",
+                    onClick = { onEvent(PaymentsEvent.SaveCollect) },
+                    enabled = !sheet.saving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            sheet.error?.let { Text(it, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error) }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun AllocationSheet(sheet: AllocationSheetState, onEvent: (PaymentsEvent) -> Unit) {
+    ModalBottomSheet(onDismissRequest = { onEvent(PaymentsEvent.DismissAllocation) }) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Record a receipt", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+
+            if (sheet.partyId == null) {
+                Text("Who paid?", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (sheet.parties.isEmpty()) Text("No issued bills yet — nothing to receive against.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                sheet.parties.forEach { (id, name) ->
+                    Text(
+                        name,
+                        style = TransportTypeScale.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().clickable { onEvent(PaymentsEvent.SelectParty(id)) }.padding(vertical = 8.dp),
+                    )
+                }
+            } else {
+                Text(sheet.partyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                ModeButtons(selected = sheet.mode, onSelect = { onEvent(PaymentsEvent.SetMode(it)) })
+                OutlinedTextField(
+                    value = sheet.amountText,
+                    onValueChange = { onEvent(PaymentsEvent.SetAmount(it)) },
+                    label = { Text("Amount") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (sheet.mode != "CASH") {
+                    OutlinedTextField(
+                        value = sheet.reference,
+                        onValueChange = { onEvent(PaymentsEvent.SetReference(it)) },
+                        label = { Text("Reference") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Text("APPLY IT TO", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                sheet.bills.forEach { bill ->
+                    val appliedText = sheet.applied[bill.localId] ?: ""
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(bill.billNo ?: "(no number)", style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                "outstanding ${Money(bill.outstandingPaise).formatted()}",
+                                style = TransportTypeScale.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        OutlinedTextField(
+                            value = appliedText,
+                            onValueChange = { onEvent(PaymentsEvent.SetApplied(bill.localId, it)) },
+                            modifier = Modifier.width(120.dp),
+                            singleLine = true,
+                        )
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("UNAPPLIED", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Text(
+                        Money(sheet.unappliedPaise).formatted(),
+                        style = TransportTypeScale.dataMedium,
+                        color = if (sheet.unappliedPaise == 0L) Color(0xFF04281B) else Color(0xFF8A5A00),
+                    )
+                }
+                AppPrimaryButton(
+                    if (sheet.saving) "Saving…" else "Save receipt",
+                    onClick = { onEvent(PaymentsEvent.SaveAllocation) },
+                    enabled = sheet.canSave,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (sheet.unappliedPaise > 0) {
+                    Text(
+                        "Apply the whole amount, or park the rest as an on-account credit.",
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    com.example.transportapp.core.designsystem.component.AppTextButton(
+                        "Park the rest (${Money(sheet.unappliedPaise).formatted()})",
+                        onClick = { onEvent(PaymentsEvent.ParkTheRest) },
+                    )
+                }
+                sheet.error?.let { Text(it, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error) }
+            }
+        }
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
@@ -59,15 +61,24 @@ import com.example.transportapp.domain.transport.PaymentMode
 @Composable
 fun BookingFormScreen(
     onClose: () -> Unit,
-    onBookAndPrint: () -> Unit,
-    viewModel: BookingFormViewModel = viewModel()
+    onBooked: (String) -> Unit,
+    onSetRate: () -> Unit = {},
+    viewModel: BookingFormViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val bookedBiltyNo by viewModel.bookedBiltyNo.collectAsState()
+    LaunchedEffect(bookedBiltyNo) {
+        bookedBiltyNo?.let { no ->
+            onBooked(no)
+            viewModel.consumeBookedBiltyNo()
+        }
+    }
     BookingFormContent(
         state = state,
         onEvent = viewModel::onEvent,
         onClose = onClose,
-        onBookAndPrint = onBookAndPrint
+        onBookAndPrint = { viewModel.onEvent(BookingFormEvent.Submit) },
+        onSetRate = onSetRate
     )
 }
 
@@ -76,12 +87,21 @@ fun BookingFormContent(
     state: BookingFormUiState,
     onEvent: (BookingFormEvent) -> Unit,
     onClose: () -> Unit,
-    onBookAndPrint: () -> Unit
+    onBookAndPrint: () -> Unit,
+    onSetRate: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
-            BookingStickyBar(state, onBookAndPrint)
+            Column {
+                if (state.provisionalWarning != null) {
+                    ProvisionalBanner(state.provisionalWarning)
+                }
+                if (state.rateCardWarning != null) {
+                    RateCardBanner(state.rateCardWarning, onSetRate)
+                }
+                BookingStickyBar(state, onBookAndPrint)
+            }
         }
     ) { padding ->
         LazyColumn(
@@ -339,7 +359,7 @@ private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormE
             )
         }
         Text(
-            "Chargeable 780 kg · minimum 500 kg on this route",
+            state.chargeableCaption,
             style = TransportTypeScale.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp)
@@ -424,7 +444,7 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
         }, modifier = Modifier.padding(bottom = 12.dp))
         NestedCard(modifier = Modifier.fillMaxWidth()) {
             Column {
-                state.charges.forEachIndexed { index, charge ->
+                state.charges.forEach { charge ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -443,7 +463,7 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         if (charge.isRemovable) {
-                            IconButton(onClick = { onEvent(BookingFormEvent.RemoveCharge(index)) }) {
+                            IconButton(onClick = { onEvent(BookingFormEvent.RemoveCharge(charge.headCode)) }) {
                                 Icon(Icons.Rounded.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                             }
                         }
@@ -455,7 +475,7 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Subtotal Taxable", style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text("Taxable", style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                     Text(state.taxable.formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
                 Row(
@@ -467,14 +487,16 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                     Text(state.gstLabel, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                     Text(state.gst.formatted(), style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Rounding", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                    Text("+${state.rounding.formatted()}", style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (state.showRounding) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Rounding", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(state.roundingLabel, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -495,6 +517,47 @@ private fun BookingFooter(state: BookingFormUiState) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
         )
+    }
+}
+
+/** §9's mandated provisional-numbering banner — silent renumbering is the auditor's nightmare. */
+@Composable
+private fun ProvisionalBanner(message: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF7DFA6))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            message,
+            style = TransportTypeScale.bodySmall,
+            color = Color(0xFF4A3600),
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/** Design T5's fallback banner: the company default stepped in for a missing party rate. */
+@Composable
+private fun RateCardBanner(message: String, onSetRate: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF7DFA6))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            message,
+            style = TransportTypeScale.bodySmall,
+            color = Color(0xFF4A3600),
+            modifier = Modifier.weight(1f)
+        )
+        androidx.compose.material3.TextButton(onClick = onSetRate) {
+            Text("Set a rate", style = TransportTypeScale.labelLarge, color = Color(0xFF4A3600))
+        }
     }
 }
 

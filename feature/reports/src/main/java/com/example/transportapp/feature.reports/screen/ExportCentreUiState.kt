@@ -1,33 +1,43 @@
 package com.example.transportapp.feature.reports.screen
 
-import com.example.transportapp.core.ui.sample.ExportSheet
-import com.example.transportapp.core.ui.sample.ExportCentreSampleData
-import com.example.transportapp.core.ui.sample.RecentExport
+data class ExportSheetUi(
+    val name: String,
+    val count: Long?,
+)
+
+data class RecentExportUi(
+    val filename: String,
+    val builtAt: Long,
+    val sizeBytes: Long,
+    val isPack: Boolean,
+)
 
 data class ExportCentreUiState(
-    val title: String = ExportCentreSampleData.TITLE,
-    val buildHeading: String = ExportCentreSampleData.BUILD_HEADING,
-    val fy: String = ExportCentreSampleData.FY,
-    val quarters: List<String> = ExportCentreSampleData.quarters,
-    val selectedQuarter: String = ExportCentreSampleData.DEFAULT_QUARTER,
-    val includeHeading: String = ExportCentreSampleData.INCLUDE_HEADING,
-    val sheets: List<ExportSheet> = ExportCentreSampleData.sheets,
-    val includedIndices: Set<Int> = ExportCentreSampleData.sheets.indices.toSet(),
-    val uncheckAll: String = ExportCentreSampleData.UNCHECK_ALL,
-    val formatHeading: String = ExportCentreSampleData.FORMAT_HEADING,
-    val formats: List<String> = ExportCentreSampleData.formats,
-    val selectedFormat: String = ExportCentreSampleData.DEFAULT_FORMAT,
-    val formatNote: String = ExportCentreSampleData.FORMAT_NOTE,
-    val buildLabel: String = ExportCentreSampleData.BUILD_LABEL,
-    val buildTitle: String = ExportCentreSampleData.BUILD_TITLE,
-    val buildNote: String = ExportCentreSampleData.BUILD_NOTE,
-    val buildCancel: String = ExportCentreSampleData.BUILD_CANCEL,
-    val buildRowsNote: String = ExportCentreSampleData.BUILD_ROWS_NOTE,
-    val totalRows: Int = ExportCentreSampleData.totalRows,
-    val recentHeading: String = ExportCentreSampleData.RECENT_HEADING,
-    val recentExports: List<RecentExport> = ExportCentreSampleData.recentExports,
+    val title: String = "Exports",
+    val buildHeading: String = "BUILD A PACK",
+    val fy: String = "FY 2026-27",
+    val quarters: List<String> = listOf("FY 2026-27", "Q1 · Apr–Jun"),
+    val selectedQuarter: String = "FY 2026-27",
+    val includeHeading: String = "WHAT TO INCLUDE",
+    val sheets: List<ExportSheetUi> = emptyList(),
+    val includedIndices: Set<Int> = emptySet(),
+    val uncheckAll: String = "Uncheck all",
+    val formatHeading: String = "FORMAT",
+    val formats: List<String> = listOf("Excel (.xlsx)", "CSV (zip)", "Tally XML"),
+    val selectedFormat: String = "CSV (zip)",
+    val formatNote: String = "CSV (zip) keeps one file per sheet — Excel and Tally XML ship with the online tier.",
+    val buildLabel: String = "Build the pack",
+    val buildTitle: String = "Building your pack",
+    val buildNote: String = "Keep this screen open. Large packs take about a minute.",
+    val buildCancel: String = "Cancel",
+    val buildRowsNote: String = "",
+    val totalRows: Long = 0,
+    val recentHeading: String = "RECENT EXPORTS",
+    val recentExports: List<RecentExportUi> = emptyList(),
     val building: Boolean = false,
-    val progress: Int = 0
+    val progress: Int = 0,
+    val builtFile: String? = null,
+    val notice: String? = null,
 )
 
 sealed interface ExportCentreEvent {
@@ -37,4 +47,5 @@ sealed interface ExportCentreEvent {
     data object UncheckAll : ExportCentreEvent
     data object StartBuild : ExportCentreEvent
     data object CancelBuild : ExportCentreEvent
+    data object DismissNotice : ExportCentreEvent
 }

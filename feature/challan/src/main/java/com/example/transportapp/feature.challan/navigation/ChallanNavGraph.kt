@@ -12,8 +12,10 @@ fun NavGraphBuilder.challanNavGraph(navController: NavController) {
     composable(Routes.CHALLAN_BUILDER) {
         ChallanBuilderScreen(
             onBack = { navController.popBackStack() },
-            onCreate = { navController.navigate(Routes.CHALLAN_DETAIL) },
-            onOpenTrip = {}
+            onCreate = {},
+            onOpenTrip = { challanNo ->
+                if (challanNo.isNotEmpty()) navController.navigate(Routes.challanDetail(challanNo))
+            }
         )
     }
     composable(Routes.CHALLAN_DETAIL) {

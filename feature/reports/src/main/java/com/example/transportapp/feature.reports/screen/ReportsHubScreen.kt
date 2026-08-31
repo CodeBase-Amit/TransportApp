@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
@@ -37,7 +37,7 @@ import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 @Composable
-fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewModel: ReportsHubViewModel = viewModel()) {
+fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewModel: ReportsHubViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
     ReportsHubContent(
         state = state,
@@ -83,7 +83,7 @@ fun ReportsHubContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onReportClick(report.label) }
+                                .clickable { onReportClick(report.id) }
                                 .padding(vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

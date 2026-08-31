@@ -26,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
@@ -39,7 +39,7 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 fun StatementScreen(
     partyId: String,
     onBack: () -> Unit,
-    viewModel: StatementViewModel = viewModel()
+    viewModel: StatementViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     StatementContent(
@@ -56,15 +56,12 @@ fun StatementContent(
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        TransportTopAppBar(title = state.party, onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = { onEvent(StatementEvent.Download) }) { Icon(Icons.Rounded.FileDownload, contentDescription = "Download", tint = MaterialTheme.colorScheme.onSurface) }
-        })
+        TransportTopAppBar(title = state.party.ifEmpty { "Statement" }, onNavigationClick = onBack, trailingIcons = {})
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(state.partySubtitle, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(state.period, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             }
-            IconButton(onClick = { onEvent(StatementEvent.ChangePeriod) }) { Icon(Icons.Rounded.DateRange, contentDescription = state.changePeriod, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
 
         // Pinned opening row
@@ -123,7 +120,7 @@ fun StatementContent(
 
         // Sticky bar
         Box(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp)) {
-            AppOutlinedButton(state.sendStatement, onClick = { onEvent(StatementEvent.SendPdf) }, leadingIcon = Icons.Rounded.Share, modifier = Modifier.fillMaxWidth())
+            AppOutlinedButton("Send statement as PDF", onClick = { onEvent(StatementEvent.SendPdf) }, leadingIcon = Icons.Rounded.Share, modifier = Modifier.fillMaxWidth())
         }
     }
 }

@@ -24,7 +24,9 @@ data class ChargeLine(
     val amount: Money,
     val detail: String,
     val isRemovable: Boolean = false,
-    val isComputed: Boolean = false
+    val isComputed: Boolean = false,
+    /** The charge head this line came from, so removal can disable the right one. */
+    val headCode: String? = null,
 )
 
 enum class Risk { OWNER, CARRIER }

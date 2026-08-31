@@ -1,15 +1,43 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.transportapp.data.transport.masters.MastersRepository
+import com.example.transportapp.data.transport.session.SessionRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MasterEditorViewModel : ViewModel() {
+/**
+ * T19 — Master editor (Phase2.md S3). Save writes PARTY_E + an outbox row; Delete is
+ * refused with the §18.3 MASTER_IN_USE copy when bilties or rate rows reference the party.
+ */
+@HiltViewModel
+class MasterEditorViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val mastersRepository: MastersRepository,
+    private val sessionRepository: SessionRepository,
+) : ViewModel() {
+
+    private val masterType: String = savedStateHandle["type"] ?: "party"
+    private val masterId: String = savedStateHandle["id"] ?: "new"
 
     private val _uiState = MutableStateFlow(MasterEditorUiState())
     val uiState: StateFlow<MasterEditorUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val detail = if (masterId == "new") null else mastersRepository.resolveParty(masterId)
+            partyLocalId = detail?.localId
+            _uiState.update { if (detail == null && masterId != "new") MasterEditorUiState.from(null) else MasterEditorUiState.from(detail) }
+        }
+    }
 
     fun onEvent(event: MasterEditorEvent) {
         when (event) {
@@ -19,13 +47,60 @@ class MasterEditorViewModel : ViewModel() {
             is MasterEditorEvent.ChangeStreet -> _uiState.update { it.copy(street = event.value) }
             is MasterEditorEvent.ChangeStation -> _uiState.update { it.copy(station = event.value) }
             is MasterEditorEvent.ChangePincode -> _uiState.update { it.copy(pincode = event.value) }
-            is MasterEditorEvent.ChangeGstin -> _uiState.update { it.copy(gstin = event.value) }
+            is MasterEditorEvent.ChangeGstin -> _uiState.update { it.copy(gstin = event.value, taxStatus = if (event.value.isBlank()) "" else "Verified active taxpayer") }
             is MasterEditorEvent.ChangeRoute -> _uiState.update { it.copy(usualRoute = event.value) }
             is MasterEditorEvent.ChangeRateCard -> _uiState.update { it.copy(rateCard = event.value) }
             is MasterEditorEvent.SelectType -> _uiState.update { it.copy(type = event.value) }
             is MasterEditorEvent.SelectPayment -> _uiState.update { it.copy(payment = event.value) }
-            MasterEditorEvent.Save -> _uiState.update { it }
-            MasterEditorEvent.Delete -> _uiState.update { it }
+            MasterEditorEvent.Save -> viewModelScope.launch { save() }
+            MasterEditorEvent.Delete -> viewModelScope.launch { delete() }
         }
     }
+
+    private suspend fun save() {
+        val state = _uiState.value
+        _uiState.update { it.copy(error = null) }
+        val companyId = sessionRepository.session.first().companyId
+        val result = mastersRepository.createOrUpdateParty(
+            companyId = companyId,
+            localId = if (state.isNew) null else partyLocalId,
+            name = state.name,
+            phone = state.phone,
+            email = state.email,
+            street = state.street,
+            station = state.station,
+            pincode = state.pincode,
+            gstin = state.gstin,
+            type = when (state.type) {
+                "Consignor" -> "CONSIGNOR"
+                "Consignee" -> "CONSIGNEE"
+                else -> "BOTH"
+            },
+            usualRouteId = null,
+            usualPaymentMode = when (state.payment) {
+                "Paid" -> "PAID"
+                "To Pay" -> "TOPAY"
+                else -> "TBB"
+            },
+        )
+        when (result) {
+            is com.example.transportapp.core.common.Result.Success -> {
+                partyLocalId = result.value
+                _uiState.update { it.copy(justSaved = true, isNew = false) }
+            }
+            is com.example.transportapp.core.common.Result.Failure ->
+                _uiState.update { it.copy(error = result.message ?: result.code.name) }
+        }
+    }
+
+    private suspend fun delete() {
+        val id = partyLocalId ?: return
+        when (val result = mastersRepository.deleteParty(id)) {
+            is com.example.transportapp.core.common.Result.Success -> _uiState.update { it.copy(error = null, deleteMessage = "") }
+            is com.example.transportapp.core.common.Result.Failure ->
+                _uiState.update { it.copy(deleteMessage = result.message ?: result.code.name) }
+        }
+    }
+
+    private var partyLocalId: String? = null
 }

@@ -1,4 +1,4 @@
-package com.example.transportapp.feature.masters.screen
+﻿package com.example.transportapp.feature.masters.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
@@ -41,7 +41,7 @@ import com.example.transportapp.core.designsystem.theme.transportColors
 fun MastersHubScreen(
     onBack: () -> Unit,
     onMasterClick: (String) -> Unit,
-    viewModel: MastersHubViewModel = viewModel()
+    viewModel: MastersHubViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     MastersHubContent(

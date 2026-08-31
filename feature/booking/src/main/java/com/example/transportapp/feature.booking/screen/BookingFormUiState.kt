@@ -8,6 +8,10 @@ import com.example.transportapp.core.ui.sample.Party
 import com.example.transportapp.core.ui.sample.Risk
 import com.example.transportapp.domain.transport.PaymentMode
 
+/**
+ * T5 state. First-frame defaults keep the preview honest; the ViewModel overwrites every
+ * money field from the S4 engine within the first frame, per keystroke afterwards.
+ */
 data class BookingFormUiState(
     val reservedNumber: String = BookingFormSampleData.RESERVED_NUMBER,
     val consignor: Party? = BookingFormSampleData.deepakSteel,
@@ -17,6 +21,7 @@ data class BookingFormUiState(
     val actualWeightKg: String = BookingFormSampleData.ACTUAL_WEIGHT_KG,
     val rate: String = BookingFormSampleData.RATE,
     val rateNote: String = BookingFormSampleData.RATE_NOTE,
+    val chargeableCaption: String = "Chargeable 780 kg · minimum 500 kg on this route",
     val paymentMode: PaymentMode = PaymentMode.TOPAY,
     val risk: Risk = Risk.OWNER,
     val delivery: DeliveryType = DeliveryType.DOOR,
@@ -24,7 +29,8 @@ data class BookingFormUiState(
     val taxable: Money = BookingFormSampleData.TAXABLE,
     val gst: Money = BookingFormSampleData.GST,
     val gstLabel: String = BookingFormSampleData.GST_LABEL,
-    val rounding: Money = BookingFormSampleData.ROUNDING,
+    val showRounding: Boolean = true,
+    val roundingLabel: String = "+${BookingFormSampleData.ROUNDING.formatted()}",
     val grandTotal: Money = BookingFormSampleData.GRAND_TOTAL,
     val amountInWords: String = BookingFormSampleData.AMOUNT_IN_WORDS,
     val isSearchingConsignor: Boolean = false,
@@ -34,6 +40,7 @@ data class BookingFormUiState(
     val showMoreDetails: Boolean = false,
     val weightError: String? = null,
     val rateCardWarning: String? = null,
+    val provisionalWarning: String? = null,
     val bookedBy: String = BookingFormSampleData.BOOKED_BY,
     val isLoading: Boolean = false,
     val error: String? = null
@@ -52,6 +59,7 @@ sealed interface BookingFormEvent {
     data class ChangeRisk(val risk: Risk) : BookingFormEvent
     data class ChangeDelivery(val delivery: DeliveryType) : BookingFormEvent
     data object ToggleMoreDetails : BookingFormEvent
-    data class RemoveCharge(val index: Int) : BookingFormEvent
+    /** Removing a charge row disables that head; computed rows are never removable. */
+    data class RemoveCharge(val headCode: String?) : BookingFormEvent
     data object Submit : BookingFormEvent
 }
