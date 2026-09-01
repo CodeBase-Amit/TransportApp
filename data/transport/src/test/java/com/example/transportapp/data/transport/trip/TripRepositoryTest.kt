@@ -99,7 +99,7 @@ class TripRepositoryTest {
                 declared_value_paise = 0, freight_paise = 100, gst_paise = 5, total_paise = 105,
                 booked_at = 1, booked_by_name = "Seeder", expected_arrival = 2,
                 party_names = "Deepak Steel Traders; Nashik Hardware Mart",
-                freight_bill_id = null, amends_id = null,
+                freight_bill_id = null, amends_id = null, amendment_reason = null,
             ),
         )
         return id

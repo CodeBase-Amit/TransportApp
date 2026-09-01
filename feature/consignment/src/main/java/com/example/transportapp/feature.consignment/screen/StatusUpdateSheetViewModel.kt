@@ -25,9 +25,13 @@ class StatusUpdateSheetViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val statusRepository: StatusRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
     private val biltyNo: String = checkNotNull(savedStateHandle["biltyNo"])
+
+    /** The signature PNG's file ref, written by the sheet before SaveWithSignature arrives. */
+    private val pendingSignatureRef = MutableStateFlow<String?>(null)
 
     private val _uiState = MutableStateFlow(StatusUpdateSheetUiState(biltyNo = biltyNo))
     val uiState: StateFlow<StatusUpdateSheetUiState> = _uiState.asStateFlow()
@@ -72,7 +76,14 @@ class StatusUpdateSheetViewModel @Inject constructor(
             is StatusUpdateSheetEvent.SelectHoldReason -> _uiState.update { it.copy(holdReason = event.reason) }
             is StatusUpdateSheetEvent.ChangeRemark -> _uiState.update { it.copy(remark = event.value) }
             is StatusUpdateSheetEvent.ChangeLocation -> _uiState.update { it.copy(location = event.value) }
+            is StatusUpdateSheetEvent.ChangeConsigneeName -> _uiState.update { it.copy(consigneeName = event.value, error = null) }
+            is StatusUpdateSheetEvent.SetSignature -> _uiState.update { it.copy(hasSignature = event.hasInk) }
+            StatusUpdateSheetEvent.ClearSignature -> _uiState.update { it.copy(hasSignature = false, signatureClearSignal = it.signatureClearSignal + 1) }
             StatusUpdateSheetEvent.UseMyLocation -> _uiState.update { it.copy(location = "Current town") }
+            is StatusUpdateSheetEvent.SaveWithSignature -> {
+                pendingSignatureRef.value = event.fileRef
+                save()
+            }
             StatusUpdateSheetEvent.Save -> save()
         }
     }
@@ -87,6 +98,29 @@ class StatusUpdateSheetViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
+            // S15: a delivery captures the POD first — consignee name plus the signed pad,
+            // exported to a PNG in app files. The §7.1 gate then sees a real POD row.
+            if (selected.target == com.example.transportapp.domain.transport.ConsignmentStatus.DELIVERED && !state.hasSignature) {
+                _uiState.update { it.copy(isSaving = false, error = "Capture the consignee's signature before marking delivered") }
+                return@launch
+            }
+            if (selected.target == com.example.transportapp.domain.transport.ConsignmentStatus.DELIVERED) {
+                val signatureRef = pendingSignatureRef.value
+                    ?: return@launch.also { _uiState.update { s -> s.copy(isSaving = false, error = "Capture the consignee's signature before marking delivered") } }
+                val podResult = statusRepository.recordPod(
+                    biltyNo = biltyNo,
+                    consigneeName = state.consigneeName.ifBlank { "Consignee" },
+                    signatureRef = signatureRef,
+                    photoRef = null,
+                    remarks = state.remark.takeIf { it.isNotBlank() },
+                    now = System.currentTimeMillis(),
+                )
+                if (podResult.isFailure()) {
+                    val failure = podResult as com.example.transportapp.core.common.Result.Failure
+                    _uiState.update { it.copy(isSaving = false, error = failure.message ?: failure.code.name) }
+                    return@launch
+                }
+            }
             val result = statusRepository.append(
                 NewStatusEvent(
                     biltyNo = biltyNo,

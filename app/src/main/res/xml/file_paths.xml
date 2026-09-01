@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 3 S13: the two directories generated PDFs travel through. -->
+<paths>
+    <!-- Share hand-off copies live here briefly (AndroidPdfRenderer.sharePdf). -->
+    <cache-path name="pdfs" path="pdfs/" />
+    <!-- Saved exports (DocumentRepository's files/exports output). -->
+    <files-path name="exports" path="exports/" />
+</paths>

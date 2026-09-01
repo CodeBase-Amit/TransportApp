@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.transportapp.core.common.SeedIds
 import com.example.transportapp.core.ui.Routes
 import com.example.transportapp.feature.consignment.screen.CaseFileScreen
 import com.example.transportapp.feature.consignment.screen.RegisterScreen
@@ -28,8 +29,9 @@ fun NavGraphBuilder.consignmentNavGraph(navController: NavController) {
         CaseFileScreen(
             biltyNo = biltyNo,
             onBack = { navController.popBackStack() },
-            onPrint = {},
             onAddPhoto = {},
+            onAmend = { navController.navigate("booking_form?amends=" + android.net.Uri.encode(biltyNo)) },
+            onCancel = {},
             onHold = { navController.navigate(Routes.statusSheet(biltyNo)) },
             onRaiseBill = {},
             onFullHistory = {}

@@ -57,6 +57,7 @@ class MasterEditorViewModelTest {
         override suspend fun rateRowsForParty(partyId: String): List<RateRow> = emptyList()
         override suspend fun autoCharges(companyId: String): List<AutoCharge> = emptyList()
         override suspend fun saveRateRow(localId: String, ratePaise: Long): Result<Unit> = Result.success(Unit)
+        override suspend fun searchPartiesOnce(companyId: String, query: String) = emptyList<com.example.transportapp.domain.transport.masters.PartyListRow>()
     }
 
     private val sessionFlow = MutableStateFlow(

@@ -19,7 +19,10 @@ import com.example.transportapp.data.transport.outbox.OutboxWriter
 import com.example.transportapp.data.transport.rate.BookingCalcSettings
 import com.example.transportapp.data.transport.rate.RateCardRepository
 import com.example.transportapp.data.transport.session.SessionRepository
+import com.example.transportapp.domain.transport.ConsignmentStatus
 import com.example.transportapp.domain.transport.PaymentMode
+import com.example.transportapp.domain.transport.consignment.ConsignmentStateMachine
+import com.example.transportapp.data.transport.tracking.NewStatusEvent
 import com.example.transportapp.domain.transport.calc.CalculationInput
 import com.example.transportapp.domain.transport.calc.CalculationResult
 import com.example.transportapp.domain.transport.calc.ChargeCalculator
@@ -28,6 +31,14 @@ import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** One article row of a multi-article booking (S15): per-item goods and weight. */
+data class BookingItem(
+    val goodsId: String?,
+    val description: String,
+    val packages: Long,
+    val actualWeightG: Long,
+)
 
 /** The computed booking the T5 form hands over when the clerk taps "Book and print" (§3). */
 data class BookingDraft(
@@ -45,10 +56,24 @@ data class BookingDraft(
     val ewayBillNo: String?,
     val privateMark: String?,
     /**
-     * The form's §10.4 inputs. book() recomputes with the freshly resolved rate — a stale
+     * The form's §10.4 inputs. book() recomputes with the freshly resolved rate - a stale
      * form can never print (§8).
      */
     val calculationInput: CalculationInput,
+    /** Articles beyond the first (S15 multi-article); empty for the single-article case. */
+    val extraItems: List<BookingItem> = emptyList(),
+)
+
+/** What T5 prefills from when raising a §16.1 amendment (S15). */
+data class AmendmentPrefill(
+    val consignorId: String,
+    val consigneeId: String,
+    val routeId: String,
+    val goodsId: String?,
+    val goodsDescription: String,
+    val paymentMode: PaymentMode,
+    val packages: Long,
+    val actualWeightG: Long,
 )
 
 /** What booking produced: the stamped number, the case-file id. */
@@ -115,10 +140,24 @@ data class BiltySnapshotPayload(
  * The consignment aggregate (Phase2.md S5). `book` is the transactional heart: numbering,
  * the recomputed §10.4 charges, the consignment + item + charge lines + Booked event + the
  * first document snapshot, and the outbox rows all commit or nothing does (§3.4 #5, #8).
+ *
+ * S15 adds the §7.1 lifecycle tails: `amend` books a successor consignment linked by
+ * amends_id with its reason carried on the amendment row (§16.1), and `cancel` moves a
+ * Booked consignment to Cancelled behind a Manager gate with a §7.2-strength reason — the
+ * number is retained forever and never reused (§7.1).
  */
 interface ConsignmentRepository {
 
     suspend fun book(draft: BookingDraft): Result<BookingResult>
+
+    /** §16.1: the amendment is a fresh consignment that supersedes [originalLocalId]. */
+    suspend fun amend(originalLocalId: String, reason: String, draft: BookingDraft): Result<BookingResult>
+
+    /** Loads the original's scope and quantities so T5 can prefill the amendment (S15). */
+    suspend fun loadForAmendment(companyId: String, biltyNo: String): AmendmentPrefill?
+
+    /** §7.1: Manager-gated cancel with a ≥10-character reason; the number is retained. */
+    suspend fun cancel(biltyNo: String, reason: String): Result<Unit>
 
     suspend fun snapshotByBiltyNo(companyId: String, biltyNo: String): BiltySnapshot?
 }
@@ -132,13 +171,84 @@ class ConsignmentRepositoryImpl @Inject constructor(
     private val rateCardRepository: RateCardRepository,
     private val numberingRepository: com.example.transportapp.data.transport.numbering.NumberingRepository,
     private val outboxWriter: OutboxWriter,
+    private val statusRepository: com.example.transportapp.data.transport.tracking.StatusRepository,
 ) : ConsignmentRepository {
 
     /** Test seam: throws before the snapshot insert so the transaction's rollback is provable. */
     @Volatile
     var debugFailBeforeSnapshot: Boolean = false
 
-    override suspend fun book(draft: BookingDraft): Result<BookingResult> {
+    override suspend fun book(draft: BookingDraft): Result<BookingResult> =
+        bookInternal(draft, amendsId = null, amendmentReason = null)
+
+    override suspend fun amend(originalBiltyNo: String, reason: String, draft: BookingDraft): Result<BookingResult> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER" && session.role != "MANAGER") {
+            return Result.failure(ErrorCode.AUTH_NO_ACCESS, "Amending an issued bilty is a Manager's call — ask the office")
+        }
+        if (reason.trim().length < 10) {
+            return Result.failure(ErrorCode.CONSIGNMENT_IMMUTABLE, "An amendment needs a reason of at least ten characters")
+        }
+        val original = consignmentDao.getConsignmentByBiltyNo(session.companyId, originalBiltyNo)
+            ?: consignmentDao.getConsignmentByProvisionalNo(session.companyId, originalBiltyNo)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No bilty $originalBiltyNo on this device")
+        return bookInternal(draft, amendsId = original.local_id, amendmentReason = reason.trim())
+    }
+
+    override suspend fun loadForAmendment(companyId: String, biltyNo: String): AmendmentPrefill? {
+        val consignment = consignmentDao.getConsignmentByBiltyNo(companyId, biltyNo)
+            ?: consignmentDao.getConsignmentByProvisionalNo(companyId, biltyNo)
+            ?: return null
+        val items = consignmentDao.getItems(consignment.local_id)
+        return AmendmentPrefill(
+            consignorId = consignment.consignor_id,
+            consigneeId = consignment.consignee_id,
+            routeId = consignment.route_id,
+            goodsId = items.firstOrNull()?.goods_id,
+            goodsDescription = items.firstOrNull()?.description ?: "",
+            paymentMode = runCatching { PaymentMode.valueOf(consignment.payment_mode) }.getOrDefault(PaymentMode.TOPAY),
+            packages = consignment.packages,
+            actualWeightG = consignment.actual_weight_g,
+        )
+    }
+
+    override suspend fun cancel(biltyNo: String, reason: String): Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER" && session.role != "MANAGER") {
+            return Result.failure(ErrorCode.AUTH_NO_ACCESS, "Cancelling a bilty is a Manager's call — ask the office")
+        }
+        if (reason.trim().length < 10) {
+            return Result.failure(ErrorCode.CONSIGNMENT_IMMUTABLE, "A cancellation needs a reason of at least ten characters")
+        }
+        val consignment = consignmentDao.getConsignmentByBiltyNo(session.companyId, biltyNo)
+            ?: consignmentDao.getConsignmentByProvisionalNo(session.companyId, biltyNo)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No bilty $biltyNo on this device")
+        val from = runCatching { ConsignmentStatus.valueOf(consignment.status_projection) }.getOrDefault(ConsignmentStatus.BOOKED)
+        if (!ConsignmentStateMachine.canTransition(from, ConsignmentStatus.CANCELLED)) {
+            return Result.failure(
+                ErrorCode.CONSIGNMENT_IMMUTABLE,
+                "A bilty in status ${from.wording} cannot be cancelled — only a Booked one can",
+            )
+        }
+        // The CANCELLED event rides the append-only log: the projection advances with it,
+        // the outbox carries it, and the bilty number is retained forever (§7.1).
+        val event = NewStatusEvent(
+            biltyNo = biltyNo,
+            eventType = "CANCELLED",
+            remark = reason.trim(),
+            reasonCode = "MANAGER_CANCEL",
+        )
+        return when (val result = statusRepository.append(event, System.currentTimeMillis())) {
+            is com.example.transportapp.core.common.Result.Success -> Result.success(Unit)
+            is com.example.transportapp.core.common.Result.Failure -> Result.failure(result.code, result.message)
+        }
+    }
+
+    private suspend fun bookInternal(
+        draft: BookingDraft,
+        amendsId: String?,
+        amendmentReason: String?,
+    ): Result<BookingResult> {
         val session = sessionRepository.session.first()
         if (!session.isSignedIn) return Result.failure(ErrorCode.AUTH_NO_ACCESS, "No active session")
         val companyId = session.companyId
@@ -151,7 +261,12 @@ class ConsignmentRepositoryImpl @Inject constructor(
             goodsId = draft.goodsId,
         )
         val settings = rateCardRepository.bookingSettings(companyId, draft.routeId)
-        val calcInput = draft.calculationInput.copy(rate = resolvedRate)
+        // S15 multi-article: the rate walk prices the aggregate — Σ packages, Σ weight.
+        val calcInput = draft.calculationInput.copy(
+            rate = resolvedRate,
+            packages = draft.packages + draft.extraItems.sumOf { it.packages },
+            actualWeightG = draft.actualWeightG + draft.extraItems.sumOf { it.actualWeightG },
+        )
         val calculation = ChargeCalculator.calculate(calcInput)
 
         val series = database.numberingDao().getSeries(companyId, session.branchId, "BILTY")
@@ -198,8 +313,8 @@ class ConsignmentRepositoryImpl @Inject constructor(
                 place_of_supply_state = settings.defaultPlaceOfSupplyState,
                 eway_bill_no = draft.ewayBillNo,
                 private_mark = draft.privateMark,
-                packages = draft.packages,
-                actual_weight_g = draft.actualWeightG,
+                packages = calcInput.packages,
+                actual_weight_g = calcInput.actualWeightG,
                 chargeable_weight_g = calculation.chargeableWeightG,
                 declared_value_paise = draft.declaredValuePaise,
                 freight_paise = calculation.freightPaise ?: 0L,
@@ -210,24 +325,30 @@ class ConsignmentRepositoryImpl @Inject constructor(
                 expected_arrival = expectedArrival,
                 party_names = "${consignor?.name.orEmpty()}; ${consignee?.name.orEmpty()}",
                 freight_bill_id = null,
-                amends_id = null,
+                amends_id = amendsId,
+                amendment_reason = amendmentReason,
             )
 
-            // 3. Goods row and charge lines, frozen at booking (§16.1).
-            val item = ConsignmentItemEntity(
-                local_id = "cni-" + UUID.randomUUID().toString(),
-                server_id = null, updated_at_local = now, updated_at_server = null,
-                sync_state = SyncState.PENDING, deleted_at = null,
-                consignment_id = consignmentId,
-                goods_id = draft.goodsId,
-                description = draft.goodsDescription,
-                packages = draft.packages,
-                actual_weight_g = draft.actualWeightG,
-                chargeable_weight_g = calculation.chargeableWeightG,
-                rate_paise = resolvedRate?.candidate?.ratePaise,
-                basis = resolvedRate?.candidate?.basis?.name,
-                freight_paise = calculation.freightPaise ?: 0L,
-            )
+            // 3. Goods rows (one per article, S15) and charge lines, frozen at booking (§16.1).
+            //    The rate walk priced the aggregate; every article row carries the consignment's
+            //    chargeable weight so the register math reconciles either way.
+            val allItems = listOf(BookingItem(draft.goodsId, draft.goodsDescription, draft.packages, draft.actualWeightG)) + draft.extraItems
+            val items = allItems.map { article ->
+                ConsignmentItemEntity(
+                    local_id = "cni-" + UUID.randomUUID().toString(),
+                    server_id = null, updated_at_local = now, updated_at_server = null,
+                    sync_state = SyncState.PENDING, deleted_at = null,
+                    consignment_id = consignmentId,
+                    goods_id = article.goodsId,
+                    description = article.description,
+                    packages = article.packages,
+                    actual_weight_g = article.actualWeightG,
+                    chargeable_weight_g = calculation.chargeableWeightG,
+                    rate_paise = resolvedRate?.candidate?.ratePaise,
+                    basis = resolvedRate?.candidate?.basis?.name,
+                    freight_paise = calculation.freightPaise ?: 0L,
+                )
+            }
             val chargeLines = calculation.lines.mapIndexed { index, line ->
                 ChargeLineEntity(
                     local_id = "cl-" + UUID.randomUUID().toString(),
@@ -295,7 +416,7 @@ class ConsignmentRepositoryImpl @Inject constructor(
             )
 
             consignmentDao.upsertConsignment(consignment)
-            consignmentDao.upsertItem(item)
+            items.forEach { consignmentDao.upsertItem(it) }
             chargeLines.forEach { consignmentDao.upsertChargeLine(it) }
             consignmentDao.insertStatusEvent(event)
             consignmentDao.upsertSnapshot(snapshot)
@@ -515,6 +636,8 @@ class ConsignmentRepositoryImpl @Inject constructor(
         val payment_mode: String,
         val total_paise: Long,
         val booked_at: Long,
+        val amends_id: String? = null,
+        val amendment_reason: String? = null,
     ) {
         fun toJson(): String = JSONObject()
             .put("bilty_no", bilty_no ?: JSONObject.NULL)
@@ -523,6 +646,8 @@ class ConsignmentRepositoryImpl @Inject constructor(
             .put("payment_mode", payment_mode)
             .put("total_paise", total_paise)
             .put("booked_at", booked_at)
+            .put("amends_id", amends_id ?: JSONObject.NULL)
+            .put("amendment_reason", amendment_reason ?: JSONObject.NULL)
             .toString()
 
         companion object {
@@ -533,6 +658,8 @@ class ConsignmentRepositoryImpl @Inject constructor(
                 payment_mode = entity.payment_mode,
                 total_paise = entity.total_paise,
                 booked_at = entity.booked_at,
+                amends_id = entity.amends_id,
+                amendment_reason = entity.amendment_reason,
             )
         }
     }

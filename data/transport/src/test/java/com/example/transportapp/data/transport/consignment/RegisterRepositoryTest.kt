@@ -161,7 +161,7 @@ class RegisterRepositoryTest {
                     freight_paise = 100, gst_paise = 5, total_paise = 105,
                     booked_at = base + i, booked_by_name = "Seeder",
                     expected_arrival = base + i, party_names = "Deepak Steel Traders; Nashik Hardware Mart",
-                    freight_bill_id = null, amends_id = null,
+                    freight_bill_id = null, amends_id = null, amendment_reason = null,
                 ),
             )
         }

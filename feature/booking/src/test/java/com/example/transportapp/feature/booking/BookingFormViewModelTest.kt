@@ -61,6 +61,16 @@ class BookingFormViewModelTest {
         override suspend fun resolveBookingRate(companyId: String, partyId: String?, routeId: String?, goodsId: String?) = rate
         override suspend fun autoApplyHeads(companyId: String) = heads
         override suspend fun bookingSettings(companyId: String, routeId: String?) = settings
+        override suspend fun routeOptions(companyId: String) = listOf(
+            com.example.transportapp.data.transport.rate.RouteChoice(
+                id = SeedIds.ROUTE_INDORE_NASHIK,
+                label = "Indore → Nashik · 585 km · usually 2 days",
+                distanceKm = 585, transitDays = 2,
+            ),
+        )
+        override suspend fun goodsOptions(companyId: String) = listOf(
+            com.example.transportapp.data.transport.rate.GoodsChoice(SeedIds.GOODS_MS_PIPES, "MS pipes"),
+        )
 
         companion object {
             fun canonicalRate() = ResolvedRate(
@@ -110,6 +120,38 @@ class BookingFormViewModelTest {
         }
 
         override suspend fun snapshotByBiltyNo(companyId: String, biltyNo: String) = null
+        override suspend fun amend(originalLocalId: String, reason: String, draft: com.example.transportapp.data.transport.consignment.BookingDraft) = com.example.transportapp.core.common.Result.failure(com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "test")
+        override suspend fun cancel(biltyNo: String, reason: String) = com.example.transportapp.core.common.Result.success(Unit)
+        override suspend fun loadForAmendment(companyId: String, biltyNo: String) = null
+    }
+
+    private class FakeMastersRepository : com.example.transportapp.data.transport.masters.MastersRepository {
+        override suspend fun counts(companyId: String) = com.example.transportapp.domain.transport.masters.MasterCounts(0, 0, 0, 0, 0, 0, 0, 0, 0)
+        override fun observeParties(companyId: String, query: String, letter: String, duplicatesOnly: Boolean) = flowOf(emptyList<com.example.transportapp.domain.transport.masters.PartyListRow>())
+        override fun observeDuplicateCount(companyId: String) = flowOf(0)
+        override fun observeDuplicatePair(companyId: String) = flowOf(null)
+        override suspend fun resolveParty(idOrName: String) = null
+        override suspend fun partyDetail(localId: String) = null
+        override suspend fun searchPartiesOnce(companyId: String, query: String) = emptyList<com.example.transportapp.domain.transport.masters.PartyListRow>()
+        override suspend fun createOrUpdateParty(
+            companyId: String,
+            localId: String?,
+            name: String,
+            phone: String,
+            email: String?,
+            street: String?,
+            station: String?,
+            pincode: String?,
+            gstin: String?,
+            type: String,
+            usualRouteId: String?,
+            usualPaymentMode: String?,
+        ): com.example.transportapp.core.common.Result<String> = com.example.transportapp.core.common.Result.success("p-1")
+        override suspend fun deleteParty(localId: String) = com.example.transportapp.core.common.Result.success(Unit)
+        override suspend fun mergeParties(keepId: String, mergeId: String) = com.example.transportapp.core.common.Result.success(Unit)
+        override suspend fun rateRowsForParty(partyId: String) = emptyList<com.example.transportapp.domain.transport.masters.RateRow>()
+        override suspend fun autoCharges(companyId: String) = emptyList<com.example.transportapp.domain.transport.masters.AutoCharge>()
+        override suspend fun saveRateRow(localId: String, ratePaise: Long) = com.example.transportapp.core.common.Result.success(Unit)
     }
 
     private val rateRepo = FakeRateCardRepository()
@@ -126,7 +168,7 @@ class BookingFormViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = BookingFormViewModel(FakeSessionRepository(), rateRepo, numberingRepo, consignmentRepo)
+    private fun viewModel() = BookingFormViewModel(androidx.lifecycle.SavedStateHandle(), FakeSessionRepository(), rateRepo, numberingRepo, consignmentRepo, FakeMastersRepository())
 
     @Test
     fun `canonical row reproduces the 10-6 figures on first frame`() = runTest {

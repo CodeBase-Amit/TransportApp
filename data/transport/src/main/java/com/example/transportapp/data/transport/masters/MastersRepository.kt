@@ -49,6 +49,12 @@ interface MastersRepository {
 
     suspend fun partyDetail(localId: String): PartyDetail?
 
+    /**
+     * One-shot party search for the booking picker (S14): bounded LIKE per D7, name or
+     * phone substring, benchmarked at 5,000 parties inside the §8 120 ms budget.
+     */
+    suspend fun searchPartiesOnce(companyId: String, query: String): List<PartyListRow>
+
     suspend fun createOrUpdateParty(
         companyId: String,
         localId: String?,
@@ -144,6 +150,13 @@ class MastersRepositoryImpl @Inject constructor(
 
     override suspend fun partyDetail(localId: String): PartyDetail? =
         mastersDao.getParty(localId)?.toDetail(rateCardLabel(localId))
+
+    override suspend fun searchPartiesOnce(companyId: String, query: String): List<PartyListRow> {
+        if (query.isBlank()) return emptyList()
+        return mastersDao.searchParties(companyId, "%${query.trim()}%")
+            .first()
+            .map { it.toListRow(isDuplicate = false) }
+    }
 
     private suspend fun rateCardLabel(partyId: String): String? =
         if (mastersDao.countRateCardsForParty(partyId) > 0) "Deepak Steel Traders 2026-27" else null

@@ -30,7 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -51,7 +51,7 @@ import com.example.transportapp.core.ui.sample.SetupWizardSampleData
 fun SetupWizardScreen(
     onFinish: () -> Unit,
     onSkip: () -> Unit,
-    viewModel: SetupWizardViewModel = viewModel()
+    viewModel: SetupWizardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     SetupWizardContent(state = state, onEvent = viewModel::onEvent, onFinish = onFinish, onSkip = onSkip)

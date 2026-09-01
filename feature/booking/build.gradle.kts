@@ -22,14 +22,23 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests {
+            // Merges the ui-test-manifest activity into the test APK so createComposeRule()
+            // can launch ComponentActivity under Robolectric (Spec §12 UI tests).
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
     implementation(project(":data:transport"))
+    implementation(project(":core:common"))
+    implementation(project(":core:database"))
+    implementation(project(":core:datastore"))
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-    implementation(project(":core:common"))
     implementation(project(":domain:transport"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:ui"))
@@ -49,4 +58,11 @@ dependencies {
 dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Compose UI tests (Spec §12) run on Robolectric — emulator-free, CI-runnable.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -3,6 +3,7 @@ package com.example.transportapp.feature.billing.screen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.core.common.Result
+import com.example.transportapp.core.ui.ErrorCopy
 import com.example.transportapp.data.transport.billing.AllocationInput
 import com.example.transportapp.data.transport.billing.BillingRepository
 import com.example.transportapp.data.transport.session.SessionRepository
@@ -100,7 +101,7 @@ class PaymentsViewModel @Inject constructor(
                     // The waiver unblocks collection in place — no reopen needed.
                     it.copy(collectSheet = it.collectSheet?.copy(line = sheet.line.copy(waived = true), waiving = false))
                 }
-                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(error = result.message)) }
+                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(error = ErrorCopy.resolve(result))) }
             }
         }
     }
@@ -126,7 +127,7 @@ class PaymentsViewModel @Inject constructor(
             )
             when (result) {
                 is Result.Success -> _uiState.update { it.copy(collectSheet = null) }
-                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(saving = false, error = result.message)) }
+                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(saving = false, error = ErrorCopy.resolve(result))) }
             }
         }
     }
@@ -185,7 +186,7 @@ class PaymentsViewModel @Inject constructor(
             )
             when (result) {
                 is Result.Success -> _uiState.update { it.copy(allocationSheet = null) }
-                is Result.Failure -> _uiState.update { it.copy(allocationSheet = it.allocationSheet?.copy(saving = false, error = result.message)) }
+                is Result.Failure -> _uiState.update { it.copy(allocationSheet = it.allocationSheet?.copy(saving = false, error = ErrorCopy.resolve(result))) }
             }
         }
     }

@@ -3,6 +3,8 @@ package com.example.transportapp.data.transport.di
 import com.example.transportapp.data.transport.account.AccountDataRepository
 import com.example.transportapp.data.transport.company.CompanyRepository
 import com.example.transportapp.data.transport.company.CompanyRepositoryImpl
+import com.example.transportapp.data.transport.templates.TemplateRepository
+import com.example.transportapp.data.transport.templates.TemplateRepositoryImpl
 import com.example.transportapp.data.transport.dashboard.DashboardRepository
 import com.example.transportapp.data.transport.dashboard.DashboardRepositoryImpl
 import com.example.transportapp.data.transport.consignment.CaseFileRepository
@@ -13,6 +15,12 @@ import com.example.transportapp.data.transport.consignment.RegisterRepository
 import com.example.transportapp.data.transport.consignment.RegisterRepositoryImpl
 import com.example.transportapp.data.transport.billing.BillingRepository
 import com.example.transportapp.data.transport.billing.BillingRepositoryImpl
+import com.example.transportapp.data.transport.documents.PdfPort
+import com.example.transportapp.data.transport.documents.AndroidPdfPort
+import com.example.transportapp.data.transport.documents.PdfActions
+import com.example.transportapp.data.transport.documents.AndroidPdfActions
+import com.example.transportapp.data.transport.documents.DocumentRepository
+import com.example.transportapp.data.transport.documents.DocumentRepositoryImpl
 import com.example.transportapp.data.transport.masters.MastersRepository
 import com.example.transportapp.data.transport.masters.MastersRepositoryImpl
 import com.example.transportapp.data.transport.reports.ReportsRepository
@@ -89,4 +97,20 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindReportsRepository(impl: ReportsRepositoryImpl): ReportsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTemplateRepository(impl: TemplateRepositoryImpl): TemplateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPdfPort(impl: AndroidPdfPort): PdfPort
+
+    @Binds
+    @Singleton
+    abstract fun bindPdfActions(impl: AndroidPdfActions): PdfActions
+
+    @Binds
+    @Singleton
+    abstract fun bindDocumentRepository(impl: DocumentRepositoryImpl): DocumentRepository
 }

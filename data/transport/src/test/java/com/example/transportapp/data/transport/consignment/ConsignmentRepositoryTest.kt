@@ -50,7 +50,7 @@ class ConsignmentRepositoryTest {
             .allowMainThreadQueries()
             .build()
         DemoSeeder(database).seedIfNeeded()
-        val rateCardRepository = RateCardRepositoryImpl(database.mastersDao(), database.orgDao())
+        val rateCardRepository = RateCardRepositoryImpl(database.mastersDao(), database.orgDao(), database.settingsDao())
         numbering = NumberingRepositoryImpl(
             database,
             database.numberingDao(),
@@ -63,8 +63,13 @@ class ConsignmentRepositoryTest {
             sessionRepository = fakeSession(),
             rateCardRepository = rateCardRepository,
             numberingRepository = numbering,
-            outboxWriter = OutboxWriter(database.outboxDao()),
-        )
+        outboxWriter = OutboxWriter(database.outboxDao()),
+        statusRepository = com.example.transportapp.data.transport.tracking.StatusRepositoryImpl(
+            database,
+            fakeSession(),
+            OutboxWriter(database.outboxDao()),
+        ),
+    )
     }
 
     @After
@@ -85,7 +90,7 @@ class ConsignmentRepositoryTest {
     }
 
     private suspend fun canonicalDraft(): BookingDraft {
-        val rateCard = RateCardRepositoryImpl(database.mastersDao(), database.orgDao())
+        val rateCard = RateCardRepositoryImpl(database.mastersDao(), database.orgDao(), database.settingsDao())
         val settings = rateCard.bookingSettings(company, SeedIds.ROUTE_INDORE_NASHIK)
         return BookingDraft(
             consignorId = SeedIds.PARTY_DEEPAK_STEEL,
@@ -202,5 +207,74 @@ class ConsignmentRepositoryTest {
         val second = repository.snapshotByBiltyNo(company, "IND/2627/04189")!!
         assertEquals("content hash is stable across reads", snapshot.contentHash, second.contentHash)
         assertNull(repository.snapshotByBiltyNo(company, "IND/2627/99999"))
+    }
+
+    @Test
+    fun `a multi-article booking writes one item row per article`() = runTest {
+        val draft = canonicalDraft().copy(
+            extraItems = listOf(
+                com.example.transportapp.data.transport.consignment.BookingItem(
+                    goodsId = null, description = "TMT bars", packages = 6, actualWeightG = 400_000,
+                ),
+            ),
+        )
+        val result = repository.book(draft).getOrNull()!!
+
+        val consignment = database.consignmentDao().getConsignmentByBiltyNo(company, result.biltyNo)!!
+        val items = database.consignmentDao().getItems(consignment.local_id)
+        assertEquals("one row per article", 2, items.size)
+        assertEquals("the aggregate packages = Σ articles", 18L, consignment.packages)
+        assertEquals("the aggregate weight = Σ articles", 1_180_000L, consignment.actual_weight_g)
+        assertTrue(items.any { it.description == "MS pipes" })
+        assertTrue(items.any { it.description == "TMT bars" })
+    }
+    @Test
+    fun `amend books a linked successor with the reason on the amendment row`() = runTest {
+        val original = repository.book(canonicalDraft()).getOrNull()!!
+
+        val successor = repository.amend(
+            original.biltyNo,
+            "Weight corrected at loading",
+            canonicalDraft().copy(packages = 10, actualWeightG = 650_000),
+        ).getOrNull()!!
+
+        val amendment = database.consignmentDao().getConsignmentByBiltyNo(company, successor.biltyNo)!!
+        assertEquals("the amendment links to the original (§16.1)", original.consignmentLocalId, amendment.amends_id)
+        assertEquals("Weight corrected at loading", amendment.amendment_reason)
+        assertEquals(10L, amendment.packages)
+
+        val events = database.consignmentDao().getEvents(amendment.local_id)
+        assertEquals("the amendment starts its own log at Booked", "BOOKED", events.first().event_type)
+    }
+
+    @Test
+    fun `amend is Manager-gated and needs a real reason`() = runTest {
+        val original = repository.book(canonicalDraft()).getOrNull()!!
+        val reasonTooShort = repository.amend(original.biltyNo, "typo", canonicalDraft())
+        assertEquals(com.example.transportapp.core.common.ErrorCode.CONSIGNMENT_IMMUTABLE, (reasonTooShort as com.example.transportapp.core.common.Result.Failure).code)
+    }
+
+    @Test
+    fun `cancel moves a Booked bilty to Cancelled and retains the number`() = runTest {
+        val booked = repository.book(canonicalDraft()).getOrNull()!!
+
+        repository.cancel(booked.biltyNo, "Consignor cancelled the order before loading").getOrNull()!!
+
+        val consignment = database.consignmentDao().getConsignmentByBiltyNo(company, booked.biltyNo)!!
+        assertEquals("CANCELLED", consignment.status_projection)
+        assertEquals("the number is retained forever (§7.1)", booked.biltyNo, consignment.bilty_no)
+        val events = database.consignmentDao().getEvents(consignment.local_id)
+        assertEquals("CANCELLED", events.last().event_type)
+        assertEquals("Consignor cancelled the order before loading", events.last().remark)
+        assertEquals("MANAGER_CANCEL", events.last().reason_code)
+    }
+
+    @Test
+    fun `a cancelled number cannot be re-cancelled and a clerk cannot cancel`() = runTest {
+        val booked = repository.book(canonicalDraft()).getOrNull()!!
+        repository.cancel(booked.biltyNo, "Consignor cancelled the order before loading").getOrNull()!!
+
+        val again = repository.cancel(booked.biltyNo, "Trying to cancel twice")
+        assertEquals(com.example.transportapp.core.common.ErrorCode.CONSIGNMENT_IMMUTABLE, (again as com.example.transportapp.core.common.Result.Failure).code)
     }
 }

@@ -1,13 +1,16 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Auto-backup rules (Android <= 11, android:fullBackupContent).
+
+  The Room database holds business records (consignments, bills, receipts) with sync
+  envelopes and a sync cursor, and DataStore holds the session. Restoring them onto a
+  different device would resurrect a stale seed version, desynchronise the outbox, and
+  leak business data across devices — so nothing under the app's data directory is backed
+  up. Icons and other shared resources still back up via the default shared/ domains.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="root" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="file" />
 </full-backup-content>

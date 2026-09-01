@@ -27,7 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.PaymentStamp
@@ -42,7 +42,7 @@ import kotlinx.coroutines.flow.collect
 fun CarouselScreen(
     onGetStarted: () -> Unit,
     onSkip: () -> Unit,
-    viewModel: CarouselViewModel = viewModel()
+    viewModel: CarouselViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     CarouselContent(state = state, onEvent = viewModel::onEvent, onGetStarted = onGetStarted, onSkip = onSkip)

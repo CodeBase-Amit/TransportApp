@@ -1,0 +1,6 @@
+<?xml version="1.0" multiple="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App-level colours only. The transport palette lives in core/designsystem
+         theme/Color.kt (Design.md §A4) — template purples/teals removed (Phase 3.0). -->
+    <color name="ic_launcher_background">#0E4D38</color>
+</resources>

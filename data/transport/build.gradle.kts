@@ -26,6 +26,8 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(project(":export-engine"))
+    implementation(project(":doc-engine"))
+    implementation(project(":pdf-android"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.paging.runtime)

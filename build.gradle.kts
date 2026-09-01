@@ -20,7 +20,7 @@ tasks.register("checkPureModules") {
     doLast {
         val offenders = mutableListOf<String>()
 
-        val pureModules = listOf("core/common", "domain/transport", "export-engine")
+        val pureModules = listOf("core/common", "domain/transport", "export-engine", "doc-engine")
         pureModules.forEach { mod ->
             java.io.File(rootDirPath, "$mod/src").takeIf { it.exists() }?.walkTopDown()
                 ?.filter { it.isFile && it.extension == "kt" }?.forEach { f ->

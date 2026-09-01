@@ -9,6 +9,7 @@ import com.example.transportapp.core.ui.sample.BiltySampleData
 import com.example.transportapp.data.transport.consignment.ConsignmentRepository
 import com.example.transportapp.data.transport.consignment.BiltySnapshotPayload
 import com.example.transportapp.data.transport.session.SessionRepository
+import com.example.transportapp.core.ui.PrintStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -81,12 +82,16 @@ class BiltyPreviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val consignmentRepository: ConsignmentRepository,
+    private val documentRepository: com.example.transportapp.data.transport.documents.DocumentRepository,
 ) : ViewModel() {
 
     private val biltyNo: String = checkNotNull(savedStateHandle["biltyNo"])
 
     private val _uiState = MutableStateFlow(BiltyPreviewUiState(biltyNo = biltyNo))
     val uiState: StateFlow<BiltyPreviewUiState> = _uiState.asStateFlow()
+
+    private val _printStatus = MutableStateFlow<PrintStatus>(PrintStatus.Idle)
+    val printStatus: StateFlow<PrintStatus> = _printStatus.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -107,5 +112,47 @@ class BiltyPreviewViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Print the four-copy document: the §8 copy labels paginate one paginated HTML through
+     * the pinned template (S13). The system print dialog takes the rendered bytes (§9.8's
+     * byte path); rendering errors surface through [PrintStatus].
+     */
+    fun print() {
+        if (_printStatus.value is PrintStatus.Rendering) return
+        _printStatus.value = PrintStatus.Rendering("Rendering the four copies…")
+        viewModelScope.launch {
+            val labels = documentRepository.copyLabels(biltyNo)
+            when (val result = documentRepository.renderBilty(biltyNo, labels)) {
+                is com.example.transportapp.core.common.Result.Success -> {
+                    _printStatus.value = PrintStatus.Idle
+                    documentRepository.print(result.value)
+                }
+                is com.example.transportapp.core.common.Result.Failure ->
+                    _printStatus.value = PrintStatus.Error(result.message ?: "The document could not be printed")
+            }
+        }
+    }
+
+    /** Share the same rendered document through a content URI — the file name is the doc No. */
+    fun share() {
+        if (_printStatus.value is PrintStatus.Rendering) return
+        _printStatus.value = PrintStatus.Rendering("Preparing to share…")
+        viewModelScope.launch {
+            val labels = documentRepository.copyLabels(biltyNo)
+            when (val result = documentRepository.renderBilty(biltyNo, labels)) {
+                is com.example.transportapp.core.common.Result.Success -> {
+                    _printStatus.value = PrintStatus.Idle
+                    documentRepository.share(result.value, "Share bilty ${result.value.fileName}")
+                }
+                is com.example.transportapp.core.common.Result.Failure ->
+                    _printStatus.value = PrintStatus.Error(result.message ?: "The document could not be shared")
+            }
+        }
+    }
+
+    fun dismissPrintStatus() {
+        _printStatus.value = PrintStatus.Idle
     }
 }

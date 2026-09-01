@@ -30,8 +30,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -72,6 +76,8 @@ fun StatusUpdateSheetContent(
 ) {
     val isHold = state.isHold
     val primary = state.selected
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var signaturePath by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.graphics.Path?>(null) }
 
     Column(
         modifier = Modifier
@@ -198,8 +204,31 @@ fun StatusUpdateSheetContent(
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        // S15 POD capture: a delivered save requires the consignee's name and a signed pad.
+        if (state.isDelivery) {
+            Spacer(Modifier.height(24.dp))
+            GroupHeading("Proof of delivery", modifier = Modifier.padding(bottom = 8.dp))
+            TransportTextField(
+                value = state.consigneeName,
+                onValueChange = { onEvent(StatusUpdateSheetEvent.ChangeConsigneeName(it)) },
+                label = "Received by (consignee name)"
+            )
+            Spacer(Modifier.height(12.dp))
+            androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+                com.example.transportapp.core.designsystem.component.SignaturePad(
+                    modifier = Modifier.fillMaxSize(),
+                    clearSignal = state.signatureClearSignal,
+                    onPathChange = { signaturePath = it },
+                )
+            }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                androidx.compose.material3.TextButton(onClick = { onEvent(StatusUpdateSheetEvent.ClearSignature) }) {
+                    Text("Clear signature", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
 
+        Spacer(Modifier.height(24.dp))
         if (isHold) {
             Text(
                 "The office and the consignor are notified. This can't be undone, only followed by another event.",
@@ -222,7 +251,29 @@ fun StatusUpdateSheetContent(
 
         AppPrimaryButton(
             if (isHold) "Hold this consignment" else "Save update",
-            onClick = { onEvent(StatusUpdateSheetEvent.Save) },
+            onClick = {
+                if (state.isDelivery) {
+                    // S15: export the signed pad to a PNG first; the save carries its ref.
+                    val path = signaturePath ?: return@AppPrimaryButton
+                    val file = java.io.File(context.filesDir, "signatures").apply { mkdirs() }.resolve(
+                        "sig-${biltyNo.replace("/", "-")}-${System.currentTimeMillis()}.png"
+                    )
+                    val bitmap = android.graphics.Bitmap.createBitmap(640, 320, android.graphics.Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bitmap)
+                    canvas.drawColor(android.graphics.Color.WHITE)
+                    canvas.save(); canvas.scale(2f, 2f)
+                    val androidPath = android.graphics.Path()
+                    path.asAndroidPath()
+                    val paint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK; style = android.graphics.Paint.Style.STROKE; strokeWidth = 6f; isAntiAlias = true }
+                    canvas.drawPath(androidPath, paint)
+                    canvas.restore()
+                    file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+                    bitmap.recycle()
+                    onEvent(StatusUpdateSheetEvent.SaveWithSignature("signatures/${file.name}"))
+                } else {
+                    onEvent(StatusUpdateSheetEvent.Save)
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         )
         Text(

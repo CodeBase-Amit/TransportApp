@@ -31,7 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.GroupHeading
@@ -48,7 +48,7 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 @Composable
 fun CompanyProfileScreen(
     onBack: () -> Unit,
-    viewModel: CompanyProfileViewModel = viewModel()
+    viewModel: CompanyProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     CompanyProfileContent(

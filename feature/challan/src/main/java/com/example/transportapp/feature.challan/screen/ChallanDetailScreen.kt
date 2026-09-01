@@ -52,7 +52,6 @@ import com.example.transportapp.domain.transport.ConsignmentStatus
 @Composable
 fun ChallanDetailScreen(
     onBack: () -> Unit,
-    onDispatch: () -> Unit,
     onCloseTrip: () -> Unit,
     viewModel: ChallanDetailViewModel = hiltViewModel()
 ) {
@@ -61,7 +60,6 @@ fun ChallanDetailScreen(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack,
-        onDispatch = onDispatch,
         onCloseTrip = onCloseTrip
     )
 }
@@ -71,7 +69,6 @@ fun ChallanDetailContent(
     state: ChallanDetailUiState,
     onEvent: (ChallanDetailEvent) -> Unit,
     onBack: () -> Unit,
-    onDispatch: () -> Unit,
     onCloseTrip: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -149,7 +146,7 @@ fun ChallanDetailContent(
             if (state.isDispatched) {
                 ChallanAction(Icons.Rounded.TaskAlt, "Close trip", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.CloseTrip) })
             } else {
-                ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.Dispatch); onDispatch() })
+                ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.Dispatch) })
             }
         }
     }
@@ -285,7 +282,6 @@ private fun ChallanDetailPreview() {
             state = ChallanDetailUiState(),
             onEvent = {},
             onBack = {},
-            onDispatch = {},
             onCloseTrip = {}
         )
     }

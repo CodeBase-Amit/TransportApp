@@ -1,5 +1,6 @@
 package com.example.transportapp
 
+import android.content.pm.ApplicationInfo
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -18,9 +19,14 @@ import com.example.transportapp.feature.templates.navigation.templatesNavGraph
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
+    // Debug builds open on the dev screen map (every screen one tap away, Spec.md §1);
+    // release builds start the real journey at T0. (ApplicationInfo rather than
+    // BuildConfig.DEBUG — the buildConfig build feature is off in AGP 9.)
+    val isDebuggable = navController.context.applicationInfo.flags and
+        ApplicationInfo.FLAG_DEBUGGABLE != 0
     NavHost(
         navController = navController,
-        startDestination = Routes.SCREEN_INDEX
+        startDestination = if (isDebuggable) Routes.SCREEN_INDEX else Routes.SPLASH
     ) {
         // Dev / verification screen map — reachable from the Dashboard
         composable(Routes.SCREEN_INDEX) {

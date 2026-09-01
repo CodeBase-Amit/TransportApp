@@ -5,13 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.transportapp.data.transport.account.AccountDataRepository
 import com.example.transportapp.data.transport.session.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
@@ -19,15 +17,13 @@ import javax.inject.Inject
 /**
  * T31 — Account and data (§B31): storage facts, the real OUTBOX queue read as sentences,
  * and sign-out. The destructive leave/delete blocks stay visual until the online tier.
+ * All data comes from [AccountDataRepository] — a ViewModel never touches files (Spec §14).
  */
 @HiltViewModel
 class AccountDataViewModel @Inject constructor(
     private val accountDataRepository: AccountDataRepository,
     private val sessionRepository: SessionRepository,
-    @ApplicationContext appContext: android.content.Context,
 ) : ViewModel() {
-
-    private val dbFile: File = appContext.getDatabasePath("transport.db")
 
     private val _uiState = MutableStateFlow(AccountDataUiState())
     val uiState: StateFlow<AccountDataUiState> = _uiState.asStateFlow()
@@ -41,12 +37,10 @@ class AccountDataViewModel @Inject constructor(
     private fun refresh() {
         viewModelScope.launch {
             val data = accountDataRepository.phoneData()
-            val walBytes = File(dbFile.parentFile, dbFile.name + "-wal").takeIf { it.exists() }?.length() ?: 0L
-            val dbBytes = dbFile.length() + walBytes
             _uiState.update {
                 it.copy(
                     records = data.records.toString(),
-                    space = "${dbBytes / (1024 * 1024) + 1} MB",
+                    space = "${data.dbBytes / (1024 * 1024) + 1} MB",
                     waiting = if (data.queue.isEmpty()) "EVERYTHING IS SYNCED" else "WAITING TO SYNC · ${data.queue.size}",
                     syncQueue = data.queue.take(3).map { row ->
                         SyncQueueRowUi(

@@ -208,4 +208,49 @@ class StatusRepositoryTest {
 
         assertEquals("delivered and returned rows never count", 0, repository.countOverdue(company, branchId = null, now = 0))
     }
+    @Test
+    fun `the signature capture satisfies the delivered gate and rides the outbox`() = runTest {
+        // 04187: At hub → Arrived → Delivered needs a POD row for a non-manager.
+        statusRepositoryAppend(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "ARRIVED"))
+        repository.recordPod(
+            biltyNo = "IND/2627/04187",
+            consigneeName = "Nashik Hardware Mart",
+            signatureRef = "signatures/sig-04187-test.png",
+            photoRef = null,
+            remarks = null,
+            now = now + 1,
+        )
+        val pod = database.consignmentDao().getPod(
+            database.consignmentDao().getConsignmentByBiltyNo(company, "IND/2627/04187")!!.local_id,
+        )!!
+        assertEquals("the signed pad's file ref is stored", "signatures/sig-04187-test.png", pod.signature_ref)
+
+        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "DELIVERY_CLERK"), OutboxWriter(database.outboxDao()))
+        val delivered = clerkRepo.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "DELIVERED"), now + 2)
+        assertTrue("a clerk with a captured POD can deliver", delivered.isSuccess())
+    }
+
+    @Test
+    fun `an attachment enqueues its outbox row`() = runTest {
+        val before = database.outboxDao().getPendingCount()
+        repository.addAttachment(
+            biltyNo = "IND/2627/04187",
+            kind = "GOODS",
+            fileRef = "attachments/att-demo.jpg",
+            sizeBytes = 1024,
+            caption = "Packed state at loading",
+            now = now,
+        )
+        val rows = database.consignmentDao().getAttachments(
+            database.consignmentDao().getConsignmentByBiltyNo(company, "IND/2627/04187")!!.local_id,
+        )
+        assertEquals(1, rows.size)
+        assertEquals("attachments/att-demo.jpg", rows.first().file_ref)
+        assertEquals("the attachment is queued for upload", before + 1, database.outboxDao().getPendingCount())
+    }
+
+    /** The test's repository is owned by setUp; appends go through the OWNER instance. */
+    private suspend fun statusRepositoryAppend(event: NewStatusEvent) {
+        repository.append(event, now)
+    }
 }

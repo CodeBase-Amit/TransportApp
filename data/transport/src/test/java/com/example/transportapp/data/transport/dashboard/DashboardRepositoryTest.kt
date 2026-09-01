@@ -190,7 +190,7 @@ class DashboardRepositoryTest {
                 booked_at = now - bookedDaysAgo * DashboardRepositoryImpl.DAY_MS, booked_by_name = "Seeder",
                 expected_arrival = now - bookedDaysAgo * DashboardRepositoryImpl.DAY_MS + 2 * DashboardRepositoryImpl.DAY_MS,
                 party_names = "Deepak Steel Traders; Nashik Hardware Mart",
-                freight_bill_id = null, amends_id = null,
+                freight_bill_id = null, amends_id = null, amendment_reason = null,
             ),
         )
         return id

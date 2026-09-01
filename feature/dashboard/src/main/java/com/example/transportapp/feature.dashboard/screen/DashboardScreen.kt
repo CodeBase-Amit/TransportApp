@@ -57,6 +57,7 @@ fun DashboardScreen(
     onRegister: () -> Unit,
     onVehicles: () -> Unit,
     onOpenScreenMap: () -> Unit = {},
+    showScreenMap: Boolean = false,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -67,6 +68,7 @@ fun DashboardScreen(
         onRegister = onRegister,
         onVehicles = onVehicles,
         onOpenScreenMap = onOpenScreenMap,
+        showScreenMap = showScreenMap,
     )
 }
 
@@ -77,7 +79,8 @@ fun DashboardContent(
     onNewBilty: () -> Unit,
     onRegister: () -> Unit,
     onVehicles: () -> Unit,
-    onOpenScreenMap: () -> Unit
+    onOpenScreenMap: () -> Unit,
+    showScreenMap: Boolean = false
 ) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -95,7 +98,9 @@ fun DashboardContent(
                     Text(state.branchName, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = {}) { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                IconButton(onClick = onOpenScreenMap) { Icon(Icons.Rounded.Person, contentDescription = "Screen map", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (showScreenMap) {
+                    IconButton(onClick = onOpenScreenMap) { Icon(Icons.Rounded.Person, contentDescription = "Screen map", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
             }
 
             Text(

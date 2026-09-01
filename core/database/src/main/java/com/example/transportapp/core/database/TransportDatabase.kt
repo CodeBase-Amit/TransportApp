@@ -54,7 +54,8 @@ import com.example.transportapp.core.database.seed.SeedVersionEntity
  * Phase 2 database (TransportApp.md §16.2). v1 = outbox skeleton (S1);
  * v2 = org tables (S2); v3 = the nine master tables + PARTY_FTS (S3);
  * v4 = charge-head/rate-card columns (S4); v5 = numbering + consignment aggregate (S5);
- * v6 = trip aggregate (S7); v7 = attachments + POD (S8); v8 = money (S9).
+ * v6 = trip aggregate (S7); v7 = attachments + POD (S8); v8 = money (S9); v9 = TEMPLATE_E (S11);
+ * v10 = COMPANY_SETTING_E (S14); v11 = CONSIGNMENT_E.amendment_reason (S15).
  */
 @Database(
     entities = [
@@ -91,10 +92,12 @@ import com.example.transportapp.core.database.seed.SeedVersionEntity
         CreditNoteEntity::class,
         ReceiptEntity::class,
         ReceiptAllocationEntity::class,
+        com.example.transportapp.core.database.entity.TemplateEntity::class,
+        com.example.transportapp.core.database.entity.CompanySettingEntity::class,
         PartyFtsEntity::class,
         ConsignmentFtsEntity::class,
     ],
-    version = 8,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -111,6 +114,8 @@ abstract class TransportDatabase : RoomDatabase() {
     abstract fun billingDao(): BillingDao
     abstract fun dashboardDao(): com.example.transportapp.core.database.dao.DashboardDao
     abstract fun reportsDao(): com.example.transportapp.core.database.dao.ReportsDao
+    abstract fun templateDao(): com.example.transportapp.core.database.dao.TemplateDao
+    abstract fun settingsDao(): com.example.transportapp.core.database.dao.SettingsDao
 
     companion object {
         /** Must match the Room database name called out in the spec; do not rename casually. */
@@ -877,6 +882,70 @@ abstract class TransportDatabase : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+        /**
+         * S9 → S11: TEMPLATE_E (Phase 3 S11) — templates as data, versions as rows.
+         * SQL mirrors the entity schema exactly (D14).
+         */
+        val MIGRATION_8_9: Migration = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS TEMPLATE_E (
+                        local_id TEXT NOT NULL, server_id TEXT, updated_at_local INTEGER NOT NULL, updated_at_server INTEGER, sync_state TEXT NOT NULL, deleted_at INTEGER, company_id TEXT NOT NULL,
+                        template_key TEXT NOT NULL,
+                        version INTEGER NOT NULL,
+                        is_active INTEGER NOT NULL,
+                        schema_version INTEGER NOT NULL,
+                        content_json TEXT NOT NULL,
+                        content_hash TEXT NOT NULL,
+                        visibility TEXT NOT NULL,
+                        created_by_name TEXT NOT NULL,
+                        PRIMARY KEY(local_id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_TEMPLATE_E_company_id` ON TEMPLATE_E (`company_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_TEMPLATE_E_company_id_template_key_version` ON TEMPLATE_E (`company_id`, `template_key`, `version`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_TEMPLATE_E_company_id_is_active` ON TEMPLATE_E (`company_id`, `is_active`)")
+            }
+        }
+
+        /**
+         * S11 → S14: COMPANY_SETTING_E (Phase 3 S14) — dated company calculation settings.
+         * SQL mirrors the entity schema exactly (D14).
+         */
+        val MIGRATION_9_10: Migration = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS COMPANY_SETTING_E (
+                        local_id TEXT NOT NULL, server_id TEXT, updated_at_local INTEGER NOT NULL, updated_at_server INTEGER, sync_state TEXT NOT NULL, deleted_at INTEGER, company_id TEXT NOT NULL,
+                        effective_from INTEGER NOT NULL,
+                        gst_rate_bp INTEGER NOT NULL,
+                        weight_step_g INTEGER NOT NULL,
+                        volumetric_divisor_g INTEGER,
+                        gst_treatment TEXT NOT NULL,
+                        rounding TEXT NOT NULL,
+                        created_by_name TEXT NOT NULL,
+                        PRIMARY KEY(local_id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_COMPANY_SETTING_E_company_id` ON COMPANY_SETTING_E (`company_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_COMPANY_SETTING_E_company_id_effective_from` ON COMPANY_SETTING_E (`company_id`, `effective_from`)")
+            }
+        }
+
+        /**
+         * S14 → S15: CONSIGNMENT_E gains amendment_reason (§16.1 — an amendment is another
+         * consignment row with its reason carried on the amendment itself).
+         */
+        val MIGRATION_10_11: Migration = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE CONSIGNMENT_E ADD COLUMN amendment_reason TEXT")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
     }
 }

@@ -289,7 +289,7 @@ class BillingRepositoryTest {
                 declared_value_paise = 0, freight_paise = 100_000, gst_paise = 5_000, total_paise = 105_000,
                 booked_at = now - 10L * BillingRepositoryImpl.DAY_MS, booked_by_name = "Seeder",
                 expected_arrival = now, party_names = "Deepak Steel Traders; Nashik Hardware Mart",
-                freight_bill_id = null, amends_id = null,
+                freight_bill_id = null, amends_id = null, amendment_reason = null,
             ),
         )
         return id

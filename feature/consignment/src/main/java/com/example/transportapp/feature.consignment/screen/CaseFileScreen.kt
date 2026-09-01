@@ -23,8 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.ArrowRightAlt
+import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.LocalShipping
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Payments
@@ -34,11 +36,15 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +61,7 @@ import com.example.transportapp.core.designsystem.component.NestedCard
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.component.StepState
 import com.example.transportapp.core.designsystem.component.SummaryStrip
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
@@ -64,40 +71,99 @@ import com.example.transportapp.core.ui.sample.CaseEvent
 fun CaseFileScreen(
     biltyNo: String,
     onBack: () -> Unit,
-    onPrint: () -> Unit,
     onAddPhoto: () -> Unit,
+    onAmend: () -> Unit,
+    onCancel: () -> Unit,
     onHold: () -> Unit,
     onRaiseBill: () -> Unit,
     onFullHistory: () -> Unit,
     viewModel: CaseFileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val printStatus by viewModel.printStatus.collectAsState()
+    val canManage by viewModel.canManage.collectAsState()
+    var showCancelDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     androidx.lifecycle.compose.LifecycleResumeEffect(biltyNo) {
         viewModel.refresh()
         onPauseOrDispose { }
     }
+    if (showCancelDialog) {
+        CancelBiltyDialog(
+            onDismiss = { showCancelDialog = false },
+            onConfirm = { reason ->
+                showCancelDialog = false
+                viewModel.cancelBilty(reason)
+            },
+        )
+    }
     CaseFileContent(
         state = state,
         biltyNo = biltyNo,
+        printStatus = printStatus,
         onBack = onBack,
-        onPrint = onPrint,
-        onAddPhoto = onAddPhoto,
+        onPrint = viewModel::printBilty,
+        onDismissPrintStatus = viewModel::dismissPrintStatus,
+        onAddPhoto = viewModel::addPhoto,
         onHold = onHold,
         onRaiseBill = onRaiseBill,
-        onFullHistory = onFullHistory
+        onFullHistory = onFullHistory,
+        canManage = canManage,
+        onAmend = onAmend,
+        onCancel = { showCancelDialog = true },
     )
+}
+
+/** §7.1: cancel needs a §7.2-strength reason — captured before the manager commits. */
+@Composable
+private fun CancelBiltyDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var reason by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { androidx.compose.material3.Text("Cancel this bilty?", style = TransportTypeScale.titleLarge) },
+        text = {
+            Column {
+                androidx.compose.material3.Text(
+                    "Only a Booked bilty can be cancelled. The number is retained and never reused.",
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TransportTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = "Reason (at least 10 characters)",
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onConfirm(reason) },
+                enabled = reason.trim().length >= 10,
+            ) { androidx.compose.material3.Text("Cancel bilty", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Keep it") }
+        },
+    )
+}
+private fun CancelReasonBridge(reason: String) {
 }
 
 @Composable
 fun CaseFileContent(
     state: CaseFileUiState,
     biltyNo: String,
+    printStatus: com.example.transportapp.core.ui.PrintStatus,
     onBack: () -> Unit,
     onPrint: () -> Unit,
+    onDismissPrintStatus: () -> Unit,
     onAddPhoto: () -> Unit,
     onHold: () -> Unit,
     onRaiseBill: () -> Unit,
-    onFullHistory: () -> Unit
+    onFullHistory: () -> Unit,
+    canManage: Boolean = true,
+    onAmend: () -> Unit = {},
+    onCancel: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // Top app bar
@@ -116,13 +182,28 @@ fun CaseFileContent(
             modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)
         )
 
+        // S13: the reprint status line — a beat of work, never a spinner without a way out.
+        when (val status = printStatus) {
+            is com.example.transportapp.core.ui.PrintStatus.Rendering -> LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding)
+            )
+            is com.example.transportapp.core.ui.PrintStatus.Error -> Row(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissPrintStatus).padding(horizontal = Dimens.screenPadding, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(status.message, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                Text("Dismiss", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            com.example.transportapp.core.ui.PrintStatus.Idle -> Unit
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = Dimens.screenPadding, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
         ) {
             item { DocketHeaderCard(state, state.biltyNo.ifEmpty { biltyNo }) }
-            item { CaseFileActions(onPrint, onAddPhoto, onHold, onRaiseBill) }
+            item { CaseFileActions(onPrint, onAddPhoto, onHold, onRaiseBill, canManage, onAmend, onCancel) }
             item { WhereItIs(state, onFullHistory) }
             item { DocumentsSection(state) }
             item { MoneySection(state) }
@@ -160,7 +241,15 @@ private fun DocketHeaderCard(state: CaseFileUiState, biltyNo: String) {
 }
 
 @Composable
-private fun CaseFileActions(onPrint: () -> Unit, onAddPhoto: () -> Unit, onHold: () -> Unit, onRaiseBill: () -> Unit) {
+private fun CaseFileActions(
+    onPrint: () -> Unit,
+    onAddPhoto: () -> Unit,
+    onHold: () -> Unit,
+    onRaiseBill: () -> Unit,
+    canManage: Boolean,
+    onAmend: () -> Unit,
+    onCancel: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -171,6 +260,11 @@ private fun CaseFileActions(onPrint: () -> Unit, onAddPhoto: () -> Unit, onHold:
         CaseFileActionPill(Icons.Rounded.AddPhotoAlternate, "Add photo", onAddPhoto)
         CaseFileActionPill(Icons.Rounded.LocalShipping, "Hold", onHold)
         CaseFileActionPill(Icons.Rounded.ReceiptLong, "Raise bill", onRaiseBill)
+        // §17.4.1: amend/cancel are Manager-and-above actions (S15) — hidden, not greyed.
+        if (canManage) {
+            CaseFileActionPill(Icons.Rounded.Edit, "Amend", onAmend)
+            CaseFileActionPill(Icons.Rounded.Cancel, "Cancel", onCancel)
+        }
     }
 }
 

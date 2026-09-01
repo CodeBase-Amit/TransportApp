@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.ErrorBanner
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
@@ -41,7 +41,7 @@ fun SignInScreen(
     onSignedIn: () -> Unit,
     onTerms: () -> Unit,
     onPrivacy: () -> Unit,
-    viewModel: SignInViewModel = viewModel()
+    viewModel: SignInViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     SignInContent(state = state, onEvent = viewModel::onEvent, onSignedIn = onSignedIn, onTerms = onTerms, onPrivacy = onPrivacy)

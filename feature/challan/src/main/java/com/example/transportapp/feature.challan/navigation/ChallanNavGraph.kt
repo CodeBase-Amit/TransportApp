@@ -21,7 +21,6 @@ fun NavGraphBuilder.challanNavGraph(navController: NavController) {
     composable(Routes.CHALLAN_DETAIL) {
         ChallanDetailScreen(
             onBack = { navController.popBackStack() },
-            onDispatch = {},
             onCloseTrip = { navController.popBackStack() }
         )
     }

@@ -18,8 +18,10 @@
             <option value="$PROJECT_DIR$/core/ui" />
             <option value="$PROJECT_DIR$/data" />
             <option value="$PROJECT_DIR$/data/transport" />
+            <option value="$PROJECT_DIR$/doc-engine" />
             <option value="$PROJECT_DIR$/domain" />
             <option value="$PROJECT_DIR$/domain/transport" />
+            <option value="$PROJECT_DIR$/export-engine" />
             <option value="$PROJECT_DIR$/feature" />
             <option value="$PROJECT_DIR$/feature/auth" />
             <option value="$PROJECT_DIR$/feature/billing" />
@@ -31,6 +33,7 @@
             <option value="$PROJECT_DIR$/feature/reports" />
             <option value="$PROJECT_DIR$/feature/settings" />
             <option value="$PROJECT_DIR$/feature/templates" />
+            <option value="$PROJECT_DIR$/pdf-android" />
             <option value="$PROJECT_DIR$/sync-android" />
           </set>
         </option>

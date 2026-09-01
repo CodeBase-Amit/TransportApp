@@ -40,6 +40,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // The headless print drive (S13) attaches its WebView to a real window — the
+    // repository layer carries only the Application context, so the resumed activity
+    // registers itself for the renderer to pick up.
+    override fun onResume() {
+        super.onResume()
+        com.example.transportapp.pdf.CurrentActivity.register(this)
+    }
+
+    override fun onPause() {
+        com.example.transportapp.pdf.CurrentActivity.unregister(this)
+        super.onPause()
+    }
 }
 
 @Preview

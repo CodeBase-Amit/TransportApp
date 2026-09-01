@@ -19,7 +19,7 @@ object Routes {
 
     // Main
     const val DASHBOARD = "dashboard"                   // T4
-    const val BOOKING_FORM = "booking_form"             // T5
+    const val BOOKING_FORM = "booking_form?amends={amends}"             // T5
     const val BILTY_PREVIEW = "bilty_preview/{biltyNo}" // T6
     const val REGISTER = "register"                     // T7
     const val CASE_FILE = "case_file/{biltyNo}"         // T8

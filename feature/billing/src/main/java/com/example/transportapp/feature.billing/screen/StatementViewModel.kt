@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.common.Result
+import com.example.transportapp.core.ui.ErrorCopy
 import com.example.transportapp.data.transport.billing.BillingRepository
 import com.example.transportapp.data.transport.billing.Statement
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,7 +49,7 @@ class StatementViewModel @Inject constructor(
             val result = billingRepository.statement(partyId, fyStart.timeInMillis, now.timeInMillis, now.timeInMillis)
             when (result) {
                 is Result.Success -> _uiState.update { it.toLoaded(result.value) }
-                is Result.Failure -> _uiState.update { it.copy(loading = false, error = result.message) }
+                is Result.Failure -> _uiState.update { it.copy(loading = false, error = ErrorCopy.resolve(result)) }
             }
         }
     }

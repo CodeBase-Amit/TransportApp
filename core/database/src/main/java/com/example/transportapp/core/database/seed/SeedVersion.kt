@@ -21,9 +21,11 @@ data class SeedVersionEntity(
          *  station states and the company-default rate row (S4); v4 = numbering series +
          *  initial bilty lease + the register-fixture consignments 04183–04188 (S5); v5 =
          *  the Held/Returned event types corrected (S6); v6 = money fixtures — the unbilled
-         *  TBB pool, issued bills FB/IND/2627/00298+00311 and receipts 00126–00128 (S9).
-         *  Bump to re-seed on launch. */
-        const val CURRENT = 6
+         *  TBB pool, issued bills FB/IND/2627/00298+00311 and receipts 00126–00128 (S9);
+         *  v7 = the default BILTY template, engine-parsable and keyed to the DOC_SNAPSHOT
+         *  payload keys (S11); v8 = the dated company calculation setting — 5% GST, the
+         *  volumetric divisor live at 6000 (S14). Bump to re-seed on launch. */
+        const val CURRENT = 8
     }
 }
 

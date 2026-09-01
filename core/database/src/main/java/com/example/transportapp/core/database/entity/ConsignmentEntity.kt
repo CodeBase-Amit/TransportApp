@@ -76,5 +76,8 @@ data class ConsignmentEntity(
     /** "Consignor name; consignee name" — the CONSIGNMENT_FTS denorm. */
     val party_names: String,
     val freight_bill_id: String?,
+    /** §16.1: an amendment is another consignment row linked to the original. */
     val amends_id: String?,
+    /** §16.1: why the amendment exists — carried on the amendment row itself. */
+    val amendment_reason: String?,
 )

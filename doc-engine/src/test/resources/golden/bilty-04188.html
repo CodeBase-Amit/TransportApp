@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>CONSIGNMENT NOTE</title><style>@page { size: A4 portrait; margin: 10mm; }
+:root { --primary: #0E4D38; --on-primary: #FFFFFF; }
+body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #111; }
+.sheet { width: 190mm; position: relative; page-break-after: always; }
+.sheet:last-child { page-break-after: auto; }
+.watermark { position: absolute; top: 40%; left: 10%; font-size: 60pt; color: rgba(160,0,0,0.15); transform: rotate(-18deg); font-weight: bold; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.2mm solid var(--primary); padding-bottom: 2mm; }
+.shopname { font-size: 16pt; font-weight: bold; color: var(--primary); }
+.shopcontact { text-align: right; font-size: 8pt; color: #333; }
+.copyline { text-align: right; font-size: 8pt; color: #555; }
+.title { text-align: center; font-size: 12pt; font-weight: bold; letter-spacing: 2px; margin: 3mm 0; }
+table { border-collapse: collapse; width: 100%; }
+table.pairs td { padding: 1mm 2mm; font-size: 9pt; }
+table.pairs td.label { color: #555; width: 30%; }
+.customer, .meta, .footer { border: 0.3mm solid var(--primary); margin: 2mm 0; padding: 1mm; }
+.customer td.value, .meta td.value { font-weight: bold; }
+table.goods th { background: var(--primary); color: var(--on-primary); font-size: 8pt; padding: 1.5mm; border: 0.3mm solid var(--primary); }
+table.goods td { border: 0.3mm solid var(--primary); padding: 1.5mm; font-size: 9pt; min-height: 6mm; }
+table.goods td.num, table.totals td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.totals { width: 60%; margin-left: auto; margin-top: 2mm; }
+table.totals td { padding: 1mm 2mm; font-size: 9pt; border-bottom: 0.2mm solid #ccc; }
+table.totals tr:last-child td { font-weight: bold; font-size: 11pt; border-top: 0.4mm solid var(--primary); border-bottom: none; }
+.notes { font-size: 8pt; color: #444; margin-top: 3mm; white-space: pre-wrap; }
+</style></head><body>
+<div class="sheet">
+<div class="header"><div class="shopname">SHIVSHAKTI ROADLINES</div><div class="shopcontact"><div>94250 61183</div><div>Plot 14, Transport Nagar, Indore 452003</div><div>Tax ID: 23AABCS4521M1Z9</div></div></div>
+<div class="titleblock"><div class="title">CONSIGNMENT NOTE</div></div>
+<div class="meta"><table class="pairs"><tr><td class="label">GR No</td><td class="value">IND/2627/04188</td></tr><tr><td class="label">Date</td><td class="value">25.08.2026</td></tr><tr><td class="label">From</td><td class="value">INDORE</td></tr><tr><td class="label">To</td><td class="value">NASHIK</td></tr><tr><td class="label">Payment</td><td class="value">TO PAY</td></tr></table></div>
+<div class="customer"><table class="pairs"><tr><td class="label">Consignor</td><td class="value">Deepak Steel Traders</td></tr><tr><td class="label">Address</td><td class="value">Plot 14, Transport Nagar, Indore, 452003</td></tr><tr><td class="label">Consignee</td><td class="value">Nashik Hardware Mart</td></tr><tr><td class="label">Address</td><td class="value">MIDC Ambad, Nashik</td></tr></table></div>
+<table class="goods"><thead><tr><th style="width:40mm">Goods</th><th style="width:14mm">Pkgs</th><th style="width:20mm">Weight</th><th style="width:18mm">Rate</th><th style="width:24mm">Freight</th></tr></thead><tbody><tr><td>MS PIPES</td><td class="num">12</td><td class="num">780 kg</td><td class="num">4.50</td><td class="num">3,510.00</td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+<table class="totals"><tr><td class="label">Hamali</td><td class="num">96.00</td></tr><tr><td class="label">Door delivery</td><td class="num">150.00</td></tr><tr><td class="label">Taxable</td><td class="num">3,756.00</td></tr><tr><td class="label">GST 5%</td><td class="num">187.80</td></tr><tr><td class="label">Rounding</td><td class="num">0.20</td></tr><tr><td class="label">Grand Total</td><td class="num">3,944.00</td></tr></table>
+<div class="footer"><table class="pairs"><tr><td class="label">Amount in words</td><td class="value">Rupees three thousand nine hundred forty four only</td></tr><tr><td class="label">Terms</td><td class="value">At owner&#39;s risk · Door delivery · Private mark DST-114 · E-way bill 281047556392</td></tr></table></div>
+</div>
+
+</body></html>

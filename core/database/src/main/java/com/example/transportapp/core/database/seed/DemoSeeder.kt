@@ -8,6 +8,7 @@ import com.example.transportapp.core.database.entity.BranchEntity
 import com.example.transportapp.core.database.entity.ChargeHeadEntity
 import com.example.transportapp.core.database.entity.ChargeLineEntity
 import com.example.transportapp.core.database.entity.CompanyEntity
+import com.example.transportapp.core.database.entity.CompanySettingEntity
 import com.example.transportapp.core.database.entity.ConsignmentEntity
 import com.example.transportapp.core.database.entity.ConsignmentItemEntity
 import com.example.transportapp.core.database.entity.DocSnapshotEntity
@@ -23,6 +24,7 @@ import com.example.transportapp.core.database.entity.ReceiptEntity
 import com.example.transportapp.core.database.entity.RouteEntity
 import com.example.transportapp.core.database.entity.StationEntity
 import com.example.transportapp.core.database.entity.StatusEventEntity
+import com.example.transportapp.core.database.entity.TemplateEntity
 import com.example.transportapp.core.database.entity.VehicleEntity
 import org.json.JSONObject
 import javax.inject.Inject
@@ -55,6 +57,8 @@ class DemoSeeder @Inject constructor(
             seedNumbering(now)
             seedConsignments(now)
             seedMoney(now)
+            seedTemplates(now)
+            seedSettings(now)
             database.seedVersionDao().upsert(SeedVersionEntity(version = SeedVersionEntity.SeedVersion.CURRENT, seeded_at = now))
         }
     }
@@ -617,6 +621,7 @@ class DemoSeeder @Inject constructor(
                     expected_arrival = bookedAt + 2L * 24 * 60 * 60 * 1000,
                     party_names = "$consignorName; ${row.consigneeName}",
                     freight_bill_id = null, amends_id = null,
+                    amendment_reason = null,
                 ),
             )
             dao.upsertItem(
@@ -747,6 +752,7 @@ class DemoSeeder @Inject constructor(
                     expected_arrival = bookedAt + 2 * day,
                     party_names = "Deepak Steel Traders; $consigneeName",
                     freight_bill_id = null, amends_id = null,
+                    amendment_reason = null,
                 ),
             )
             dao.upsertItem(
@@ -883,6 +889,110 @@ class DemoSeeder @Inject constructor(
             payload_json = payloadJson,
             content_hash = fnv1a(payloadJson).toString(16),
             copy_count = 4,
+        )
+    }
+
+    /**
+     * The default BILTY template (Phase 3 S11, §9.15) as one row of TEMPLATE_E. Its section
+     * field keys are exactly the keys the DOC_SNAPSHOT payloads already carry (docNo, date,
+     * consignorName, …, grandTotal, amountInWords, footer), so the seeded 04188 snapshot
+     * renders through the S12 renderer with zero data changes. Versions are rows: this row
+     * is version 1 and active; the counter-guard pattern applies — a re-seed never
+     * duplicates a version the unique index already holds.
+     */
+    private suspend fun seedTemplates(now: Long) {
+        val dao = database.templateDao()
+        val company = SeedIds.COMPANY_SHIVSHAKTI
+
+        // Keep the JSON block stable and readable; the engine (S12) reads strictly by key.
+        val contentJson = """
+        {
+          "schemaVersion": 1,
+          "id": "tpl-bilty-default",
+          "name": "Default Bilty",
+          "version": 1,
+          "paper": { "size": "A4", "marginMm": 10, "orientation": "portrait" },
+          "theme": { "primaryColor": "#0E4D38", "textOnPrimary": "#FFFFFF", "fontFamily": "sans" },
+          "business": {
+            "shopName": "SHIVSHAKTI ROADLINES",
+            "address": "Plot 14, Transport Nagar, Indore 452003",
+            "mobile": "94250 61183",
+            "taxId": "23AABCS4521M1Z9"
+          },
+          "sections": [
+            { "type": "header" },
+            { "type": "title", "title": "CONSIGNMENT NOTE" },
+            { "type": "meta", "fields": [
+              { "key": "docNo", "label": "GR No", "required": true },
+              { "key": "date", "label": "Date" },
+              { "key": "fromStation", "label": "From" },
+              { "key": "toStation", "label": "To" },
+              { "key": "stamp", "label": "Payment" }
+            ] },
+            { "type": "customer", "fields": [
+              { "key": "consignorName", "label": "Consignor", "required": true },
+              { "key": "consignorAddress", "label": "Address" },
+              { "key": "consigneeName", "label": "Consignee", "required": true },
+              { "key": "consigneeAddress", "label": "Address" }
+            ] },
+            { "type": "items", "minRows": 6, "columns": [
+              { "key": "goodsDescription", "label": "Goods", "widthMm": 40 },
+              { "key": "packages", "label": "Pkgs", "widthMm": 14 },
+              { "key": "actualWeight", "label": "Weight", "widthMm": 20 },
+              { "key": "rate", "label": "Rate", "widthMm": 18 },
+              { "key": "freight", "label": "Freight", "widthMm": 24 }
+            ] },
+            { "type": "totals", "fields": [
+              { "key": "hamali", "label": "Hamali" },
+              { "key": "doorDelivery", "label": "Door delivery" },
+              { "key": "taxable", "label": "Taxable" },
+              { "key": "gst", "label": "GST 5%" },
+              { "key": "rounding", "label": "Rounding" },
+              { "key": "grandTotal", "label": "Grand Total" }
+            ] },
+            { "type": "footer", "fields": [
+              { "key": "amountInWords", "label": "Amount in words" },
+              { "key": "footer", "label": "Terms" }
+            ] }
+          ]
+        }
+        """.trimIndent()
+
+        val entity = TemplateEntity(
+            local_id = "seed-template-bilty-v1", server_id = null, updated_at_local = now, updated_at_server = null,
+            sync_state = SyncState.SYNCED, deleted_at = null, company_id = company,
+            template_key = "tpl-bilty-default", version = 1, is_active = true,
+            schema_version = 1, content_json = contentJson,
+            content_hash = fnv1a(contentJson).toString(16),
+            visibility = "BUILT-IN", created_by_name = "Engine",
+        )
+        // Versions are rows and (company, key, version) is unique: never write over a
+        // version the device already holds — a re-seed must not churn template identity.
+        if (dao.getTemplateVersion(company, entity.template_key, entity.version) == null) {
+            dao.upsertTemplate(entity)
+        }
+    }
+
+    /**
+     * The dated company calculation setting (Phase 3 S14, §10.5): GST at the §10.5 demo's
+     * 5%, and the volumetric divisor LIVE at the §10.1 standard 6000 — the engine's
+     * volumetric branch was implemented and tested in S4 but unreachable while the
+     * hard-coded setting disabled it (the audit's D1). Effective from 90 days before the
+     * seed moment so a second, newer row can be inserted in the demo to show the dated
+     * freeze (already-booked bilties keep their figures). Insert-once per company.
+     */
+    private suspend fun seedSettings(now: Long) {
+        val dao = database.settingsDao()
+        val company = SeedIds.COMPANY_SHIVSHAKTI
+        if (dao.countSettings(company) > 0) return
+        dao.upsertSetting(
+            CompanySettingEntity(
+                local_id = "seed-setting-v1", server_id = null, updated_at_local = now, updated_at_server = null,
+                sync_state = SyncState.SYNCED, deleted_at = null, company_id = company,
+                effective_from = now - 90L * 24 * 60 * 60 * 1000,
+                gst_rate_bp = 500, weight_step_g = 1000, volumetric_divisor_g = 6000,
+                gst_treatment = "FORWARD", rounding = "NEAREST_RUPEE", created_by_name = "Engine",
+            ),
         )
     }
 

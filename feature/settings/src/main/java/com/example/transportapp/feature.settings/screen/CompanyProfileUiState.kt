@@ -32,7 +32,8 @@ data class CompanyProfileUiState(
     val saveAndUpdate: String = CompanyProfileSampleData.SAVE_AND_UPDATE,
     val deleteTitle: String = CompanyProfileSampleData.DELETE_TITLE,
     val deleteBody: String = CompanyProfileSampleData.DELETE_BODY,
-    val logoNote: String = CompanyProfileSampleData.LOGO_NOTE
+    val logoNote: String = CompanyProfileSampleData.LOGO_NOTE,
+    val saved: Boolean = false,
 )
 
 sealed interface CompanyProfileEvent {

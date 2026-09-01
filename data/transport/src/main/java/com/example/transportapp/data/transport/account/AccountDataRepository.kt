@@ -1,8 +1,13 @@
 package com.example.transportapp.data.transport.account
 
+import android.content.Context
 import com.example.transportapp.core.database.TransportDatabase
 import com.example.transportapp.data.transport.session.SessionRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,11 +31,12 @@ data class QueueEntry(
  */
 @Singleton
 class AccountDataRepository @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val database: TransportDatabase,
     private val sessionRepository: SessionRepository,
 ) {
 
-    suspend fun phoneData(): PhoneData {
+    suspend fun phoneData(): PhoneData = withContext(Dispatchers.IO) {
         val s = sessionRepository.session.first()
         val dao = database.consignmentDao()
         val consignments = dao.countConsignments(s.companyId)
@@ -43,7 +49,15 @@ class AccountDataRepository @Inject constructor(
                 pending = row.state.name == "PENDING",
             )
         }
-        return PhoneData(records = consignments + bills + parties, dbBytes = 0, queue = queue)
+        PhoneData(records = consignments + bills + parties, dbBytes = storageBytes(), queue = queue)
+    }
+
+    /** Database file plus its WAL/SHM sidecars — the real on-disk footprint. */
+    private fun storageBytes(): Long {
+        val dbFile = appContext.getDatabasePath("transport.db")
+        return sequenceOf(dbFile, File(dbFile.parentFile, dbFile.name + "-wal"), File(dbFile.parentFile, dbFile.name + "-shm"))
+            .filter { it.exists() }
+            .sumOf { it.length() }
     }
 
     private fun describe(entityType: String, op: String): String = when (entityType) {

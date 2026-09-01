@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,23 +50,25 @@ import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.StepState
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.ui.PrintStatus
 import com.example.transportapp.core.ui.sample.BiltyPaperData
 
 @Composable
 fun BiltyPreviewScreen(
     onBack: () -> Unit,
-    onPrint: () -> Unit,
-    onShare: () -> Unit,
     onSaveNew: () -> Unit,
     onDone: () -> Unit,
     viewModel: BiltyPreviewViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val printStatus by viewModel.printStatus.collectAsState()
     BiltyPreviewContent(
         state = state,
+        printStatus = printStatus,
         onBack = onBack,
-        onPrint = onPrint,
-        onShare = onShare,
+        onPrint = viewModel::print,
+        onShare = viewModel::share,
+        onDismissPrintStatus = viewModel::dismissPrintStatus,
         onSaveNew = onSaveNew,
         onDone = onDone
     )
@@ -74,9 +77,11 @@ fun BiltyPreviewScreen(
 @Composable
 fun BiltyPreviewContent(
     state: BiltyPreviewUiState,
+    printStatus: PrintStatus,
     onBack: () -> Unit,
     onPrint: () -> Unit,
     onShare: () -> Unit,
+    onDismissPrintStatus: () -> Unit,
     onSaveNew: () -> Unit,
     onDone: () -> Unit
 ) {
@@ -132,6 +137,21 @@ fun BiltyPreviewContent(
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             RouteLine(pagerSteps, showTruck = false, showLabels = false, modifier = Modifier.width(88.dp))
             Text("${front.caption} · ${currentCopy + 1} of 4", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        }
+
+        // S13: render/share status — a beat of work, never a spinner without a way out.
+        when (val status = printStatus) {
+            is PrintStatus.Rendering -> LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 4.dp)
+            )
+            is PrintStatus.Error -> Row(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissPrintStatus).padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(status.message, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                Text("Dismiss", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            PrintStatus.Idle -> Unit
         }
 
         Row(

@@ -898,6 +898,182 @@ New decisions taken this sprint that amend the plan:
 | D37–D39 | S8's tracking decisions — see the S8 section | re-fold on append, role-based waiver, checkpoint-only location |
 | D40–D43 | S9's money decisions — see the S9 section | waiver as a fold-ignored audit event, one party per bill, re-derived fixtures, company-level pool |
 | D44–D46 | S10's hardening decisions — see the S10 section | role matrix as data, deterministic CSV pack, destructive acts stay visual |
+| D47 | S11's template-engine boundary — see the S11 section | kotlinx-serialization confined to `:doc-engine`; snapshot values cross as a map |
+| D48 | S12's copy-stamp shape — see the S12 section | one HTML document with N sheet sections; one WebView layout pass for all four copies |
+| D49 | S13's activity registry — see the S13 section | the headless drive needs a real window from repository depth; the resumed activity registers itself |
+| D50 | S14's picker shape — see the S14 section | inline choice lists, not popup windows; the 120 ms search benchmark guards D7 |
+| D51 | S15's multi-article shape — see the S15 section | one §10.4 walk on the aggregate; per-article item rows for the register |
+| D52 | S16's profile save — see the S16 section | Owner/Manager gate in the ViewModel; the COMPANY outbox row carries the change |
+
+---
+
+## Phase 3.2, Sprint S14 — Booking completion I: pickers + real settings
+
+**Goal (from the Phase 3 plan):** a real clerk books for their own parties — party search, route and
+goods pickers replace the S4 demo hardcoding — and the compliance-adjacent settings become dated
+data (the audit's D1): GST rate and the volumetric divisor come from COMPANY_SETTING_E.
+
+**What was built.**
+
+1. **The search benchmark FIRST (per the plan):** `PartySearchBenchmarkTest` seeds the §B6 data
+   plus 5,000 filler parties (surname-distributed names), warms up, then measures five runs of two
+   query shapes against `MastersDao.searchParties` (bounded LIKE per D7). The max must fit §17.5's
+   120 ms budget — **fail-the-build**, and the failure message names the consequence: "revisit D7
+   (FTS) if this fails". Result: passes with a wide margin. LIKE stays; D7 stands.
+2. **DB v10** (`MIGRATION_9_10` + `Migration9to10Test`): `COMPANY_SETTING_E` — dated rows
+   (effective_from), gst_rate_bp, weight_step_g, nullable volumetric_divisor_g (null = the
+   full-load house, §10.1), gst_treatment, rounding. Versions are history, never edits-in-place.
+3. **Seed v8:** one governing row effective 90 days back — GST 5%, weight step 1 kg,
+   **volumetric divisor LIVE at 6000** (the engine's volumetric branch was implemented and tested
+   in S4 but unreachable while hardcoded off — the audit's D1 closed).
+4. **`RateCardRepository.bookingSettings`** reads the governing row (newest effective_from ≤ now;
+   future-dated rows wait; no rows at all falls back to the §10 demo defaults). The S4 test's
+   "volumetric off" assertion updated to the new truth: divisor 6000. Plus `routeOptions` and
+   `goodsOptions` reads for the pickers.
+5. **Pickers wired (T5):** party search over `searchPartiesOnce` (bounded LIKE, name/phone, ≥2
+   chars) behind the existing "Tap to add" cards — clearing a party now actually enters search
+   mode (the tap affordance was missing entirely, found by the demo); the route card opens an
+   inline choice list (no popup window — LazyColumn testable, one tap per route); goods picker on
+   the goods chip. Every scope change re-resolves the 5-step rate walk and recomputes; the route
+   card shows the picked route's distance/transit. Dimensions (L×B×H cm) joined "More details" —
+   with the divisor live, a bulky load now prices volumetrically (§10.1: greater of actual and
+   L×B×H×count/6000, stepped).
+6. **`BookingDraft` uses the picked ids** — the consignor/consignee/route/goods SeedIds hardcoding
+   is gone from the submit path; the canonical demo row loads as the *initial* selection so the
+   form still opens ready to book.
+
+**Demo (emulator, uiautomator-verified).** Route card → inline list of every seeded route → picked
+"Indore → Dhule": the rate re-resolved to the party's ₹1,200/tonne row, the chargeable caption
+updated to "1,000 kg · minimum 1 t" (per-tonne → kg conversion, stepped), freight line "1 t ×
+1,200.00 = 1,200.00", GST 5% = 72.30, rounding −0.30, grand total ₹1,518.00 with correct words.
+Dimensions demo: L300×B200×H150 ×12 packages → chargeable 18,000 kg, priced volumetrically. Party
+search: clear → "Tap to add" → search field → "Sharma" hits the filler rows (verified through the
+Compose UI test — adb IME fights Compose text fields, so the UI test is the durable verification).
+
+**Tests (5 new, 201 total green):** the search benchmark; `DatedSettingsTest` — seeded setting
+governs, the 12% variant prices a canonical booking correctly (45,072 paise = 12% of taxable
+375,600 — my first expectation forgot the hamali/door heads and the engine was right), a
+future-dated row does not govern yet, already-booked 04188 keeps its frozen charge lines across a
+setting change, and a null divisor turns volumetric off again; two Compose UI tests — the
+clear→tap-to-add→search→select flow and the route-picker selection event.
+
+### Decisions taken this sprint (D50)
+
+| # | Decision | Why |
+|---|---|---|
+| D50 | Route/goods pickers are inline choice lists inside the card, not popup windows | popup semantics live in a separate window that LazyColumn tests can't drive deterministically; inline rows match Design T5's "one tap per choice" and stay testable |
+
+**Scope notes:** the initial consignor/consignee still default to the demo parties so the form
+opens ready to book (replacing them is one tap); the settings *editor UI* (changing GST/creating
+dated rows) is an Owner screens task — the repository path is live and tested; goods are optional
+in the rate walk (a null-goods selection resolves to step 3/4/5 rows per §3).
+
+---
+
+## Phase 3.2, Sprint S15 — Booking completion II: multi-article, amend/cancel, attachments + signature
+
+**Goal (from the Phase 3 plan):** the last §7.1/§7.2 surfaces — multi-article bilties, the §16.1
+amendment flow, the Manager-gated cancel, the attachment queue UI, and the SignaturePad POD.
+
+**What was built.**
+
+1. **Multi-article (S15):** `BookingDraft` grew `extraItems` (per-article goods, description,
+   packages, weight); `bookInternal` writes **one CONSIGNMENT_ITEM_E row per article** and prices
+   the aggregate — the §10.4 rate walk runs on Σ packages and Σ actual weight (D51). T5 grew an
+   "Add article" section with per-row description/packages/weight and Remove.
+2. **Amendment (§16.1):** `ConsignmentRepository.amend` books a successor consignment linked by
+   `amends_id` with the reason carried on the amendment row itself — Manager-gated, reason ≥10
+   chars. `loadForAmendment` returns the original's scope so T5 prefills; DB v11 added
+   `CONSIGNMENT_E.amendment_reason` (migration 10→11 + test). The nav route
+   `booking_form?amends=<bilty>` carries the original; the sticky bar announces AMENDING; the
+   footer demands the reason before "Book and print" submits through `amend`.
+3. **Cancel (§7.1):** Manager-gated with a §7.2-strength reason, validated against the state
+   machine (only a Booked bilty can cancel), executed as a `CANCELLED` event through the
+   append-only log so the projection, outbox and audit trail all move together — and the number
+   is retained forever. T8 grew Amend/Cancel pills behind the §17.4.1 rank check, plus a reason
+   dialog whose confirm button enables at exactly 10 characters.
+4. **Attachments:** T8's "Add photo" now writes a local file ref and enqueues the ATTACHMENT_E
+   outbox row (the S8 gap — `addAttachment` had never enqueued — found by the new test). The case
+   file's documents list renders the attachment queue alongside bilty/challan/bill/POD.
+5. **Signature POD:** `SignaturePad` reports its live stroke path; T9's Delivered option shows a
+   POD block (consignee name + pad + clear) and the save **requires a signature** — the pad
+   exports to a PNG in `files/signatures/` and `recordPod` stores the ref, which the §7.1
+   delivered gate then sees as a real POD row.
+
+**Demo (emulator, uiautomator- + sqlite-verified).** T8 → Amend on 04188: T5 opened prefilled
+(AMENDING, reserved number consumed), reason typed, "Book and print" → sqlite:
+`IND/2627/04193 | amends_id=seed-consignment-4188 | amendment_reason=Weight.corrected.at.loading`.
+T8 → Cancel on 04188 (In transit): the typed refusal fired exactly — "A bilty in status In transit
+cannot be cancelled — only a Booked one can" — then on the Booked 04192: dialog reason → sqlite
+`CANCELLED | MANAGER_CANCEL | Consignor.cancelled...`, number retained. T9 on 04187 (Out for
+delivery → Delivered): saving without signing answered "Capture the consignee's signature before
+marking delivered" — the money-free POD gate working live.
+
+**Tests (6 new, 210 total green):** one item row per article with aggregate packages/weight;
+amend books a linked successor with the reason on the amendment row; amend is Manager-gated and
+needs a real reason; cancel moves Booked → CancelLED retaining the number; a cancelled bilty
+cannot be re-cancelled; the signature capture satisfies the delivered gate for a clerk; an
+attachment enqueues its outbox row.
+
+### Decisions taken this sprint (D51)
+
+| # | Decision | Why |
+|---|---|---|
+| D51 | Multi-article prices the aggregate: one §10.4 walk on Σ packages/Σ weight, with per-article item rows for the register | §10.4's sequence is rate×chargeable-weight; per-item pricing would multiply rate cards; the normalised item rows keep reporting intact |
+
+**Scope notes:** the signature pad's ink-drawing fidelity could not be demonstrated through adb
+(the sheet's scroll consumes vertical drag components) — the gate, PNG export path and POD gate
+are unit-verified, and a real finger signs in one stroke; the camera/gallery capture tiles remain
+visual until the photo picker lands with the online tier; amend reuses the seeded rate card, so
+the successor prices at today's settings — §12.1's freeze protects the original, not the new row.
+
+---
+
+## Phase 3.2, Sprint S16 — Settings screens real + the Phase-3 hardening pass
+
+**Goal (from the Phase 3 plan):** the audit's A7 closes — every remaining sample-driven ViewModel
+goes Hilt on real data — and the Phase-3 offline story demonstrates end to end: the full script,
+cold start re-measured, APK size re-checked.
+
+**What was built.**
+
+1. **Splash (T0):** the session resolver reads the real session per step — signed-in check,
+   memberships, company context — and carries the company name onto the splash headline. The
+   forced-update/failed phases keep their §A11 copy as defaults.
+2. **Sign in (T1):** the Google button resolves the mocked session through
+   `SessionRepository` behind `AuthTokenProvider` (the online tier's Credential Manager slot),
+   exposing a `signedIn` one-shot the nav graph already observes.
+3. **Carousel (T32) + Template requests (T30):** Hilt VMs; T30 stays a queued-only visual — the
+   request service is §15/online.
+4. **Settings hub (T24):** identity block from the live session (initials, name, email, role ·
+   branch); group rows carry real counts — branches, members, series from the S14 reads.
+5. **Company profile (T25):** loads COMPANY_E through `SettingsRepository.companyProfile` and the
+   Owner/Manager save writes back through `saveCompanyProfile`, enqueueing the COMPANY outbox row.
+6. **`SetupWizard` (T3) was already Hilt** (S2) — only its viewModel() call site needed the seam.
+   With that, **A7 is closed: every ViewModel in the app is Hilt-injected.**
+
+**Demo (emulator, offline — wifi + data disabled).** Cold start re-measured: **+3.9 s** warm
+(debug build, seeding skipped in release since 3.0). Dashboard on Indore, all ten tiles live:
+running services 1 (the S15 amendment's challan pending), in transit 2 · 24 packages, booked today
+1 · 780 kg · 3,510.00, To Pay 3,944.00, unbilled 61,550.00 (the amendment returned its article to
+the pool), receivable 11,760.00, exceptions 2. Settings hub: identity + real counts (3 branches ·
+4 members · 7 series). Export centre built the CSV pack offline; the new
+`ShivshaktiRoadlines-pack-20260901-181750.zip` landed in Recent Exports.
+
+**Release APK: 14.93 MB** (budget 25 MB). Full suite: **210 tests, 0 failures** across 47 suites;
+`checkPureModules` green; every ViewModel Hilt-injected.
+
+### Decisions taken this sprint (D52)
+
+| # | Decision | Why |
+|---|---|---|
+| D52 | The company profile save is Owner/Manager-gated at the ViewModel and enqueues a COMPANY outbox row | §17.4.1's rank ladder is a UI convenience over the server's enforcement (Phase 3.3); the outbox carries the change when the drain lands |
+
+**Scope notes:** the cold-start budget (1.6 s) remains the one §8 number over — 3.9 s warm on the
+debug emulator with the screen-map start destination; release skips seeding and starts at T0, so
+the release-path number will be materially lower, measured properly with Macrobenchmark in 3.4;
+the remaining sample files in `:core:ui` now serve only @Preview fixtures and UiState defaults —
+the screens themselves read Room.
 
 ---
 
@@ -965,5 +1141,263 @@ numbers, re-derive the numbers from the product rule, not from the first instinc
 
 *Phase 2 is complete. The next frontier is the online tier: the outbox drain, delta sync, real
 issuing, and the XLSX pack — all sitting behind seams this phase declared and never crossed.*
+
+---
+
+## Phase 3.0 — Fundamentals & hygiene (post-Phase-2 audit fixes)
+
+**Goal:** close the gaps a post-Phase-2 audit found before any online-tier work begins — the
+ungated demo seeder, the missing centralised error copy, default backup rules shipping data to
+cloud backup, no CI, a ViewModel doing file I/O, dead nav callbacks, and zero Compose UI tests.
+All Phase 2 conventions followed: typed errors first, no data imports in Content, edit tools only
+for non-ASCII files.
+
+### What was built
+
+- **Seeder gated to debug builds (A1).** `TransportApp.onCreate` now wraps
+  `demoSeeder.seedIfNeeded()` in a `FLAG_DEBUGGABLE` check (the `BuildConfig` build feature is off
+  in AGP 9, so the app reads the application-info flag directly — the same idiom the S1 debug
+  receiver already used). Release builds never write demo companies/parties/money rows, and skip
+  the seed-check read entirely on the cold-start path. Kept synchronous-in-debug deliberately:
+  the dashboard and company picker are one-shot reads, so async seeding would race them into
+  showing empty screens.
+- **Release start destination (part of A1).** `AppNavHost` starts at `Routes.SPLASH` (T0) in
+  release and keeps the dev screen map in debug. The dashboard's screen-map icon is likewise
+  gated — the flag is computed in the nav layer from `navController.context`, because a feature
+  module cannot read the `:app` build type.
+- **`ErrorCopy.kt` (A2, Spec §9).** New `core/ui/ErrorCopy.kt` maps all 20 `ErrorCode`s to
+  cause-then-fix copy (no apologies, per Design §A11) plus an `action()` recovery verb or `null`
+  for terminal failures, and a `resolve()` that appends the repository's specific detail
+  (`Failure.message`) after the canned line so neither is lost. Wired into the five ViewModels
+  that were discarding the code entirely (Payments ×3, Statement, ReportViewer, ExportCentre,
+  UnbilledPool). The remaining error sites already built bespoke copy from the code.
+- **Backup rules configured (A5).** `backup_rules.xml` (≤ Android 11) and
+  `data_extraction_rules.xml` (12+, cloud-backup *and* device-transfer) now exclude the entire app
+  data directory — the Room DB carries sync envelopes/outbox/cursor and DataStore carries the
+  session; restoring them onto another device would resurrect a stale seed and desynchronise the
+  outbox.
+- **CI (A4).** `.github/workflows/ci.yml`: `checkPureModules` → `test` → `:app:assembleRelease`
+  on every push/PR, with test reports uploaded on failure.
+- **`dbBytes` moved into the repository (A6).** `AccountDataRepository.phoneData()` now returns
+  the real footprint (DB + WAL + SHM, `withContext(Dispatchers.IO)`); the ViewModel lost its
+  `@ApplicationContext`, its `File` field and its I/O — Spec §14 restored.
+- **Dead callbacks and dead code (B3/B4/B7).** Removed T11's misleading `onDispatch` nav param
+  (dispatch is an in-place ViewModel event; the nav layer passed `{}` since Phase 1),
+  `PlaceholderScreen.kt` (referenced nowhere), and the template purples/teals in `colors.xml`.
+- **Compose UI tests (A3, Spec §12).** Two Robolectric `createComposeRule` suites:
+  `BookingFormScreenTest` (weight > 9,000 kg shows the cause+fix error, in-capacity input shows
+  none, non-numeric input is filtered before state sees it, payment-segment tap switches mode,
+  sticky bar prints ₹3,944.00 + amount in words) and `RegisterScreenTest` (T7's two distinct
+  empty states — "No bilties yet" with the Book CTA vs the filtered-out state with Clear
+  filters). Feature modules got `testOptions.unitTests.isIncludeAndroidResources = true` so the
+  `ui-test-manifest` activity resolves under Robolectric.
+
+### Choices made, and why
+
+- **Debuggability flag over `BuildConfig`.** AGP 9's built-in Kotlin has the `buildConfig` build
+  feature off by default; rather than turn it on app-wide, both gates read
+  `(applicationInfo.flags and FLAG_DEBUGGABLE) != 0` — the same seam `DebugProvReceiver` already
+  used, now in `TransportApp` and `AppNavHost`/`DashboardNavGraph`.
+- **ErrorCopy in `:core:ui`, not `:core:common`.** The mapping is UI copy, not domain logic; it
+  also keeps `core:common` pure (it depends on `Result`/`ErrorCode` only). Every feature already
+  depends on `core:ui`, so wiring was import-only.
+- **`resolve()` instead of replacing repository messages.** Repositories attach real specifics
+  ("Hold remark must be at least 10 characters"); the canned line is the cause+fix, the detail is
+  kept in parentheses. Replacing would have *lost* information the repositories deliberately
+  wrote.
+- **Content-driven tests with an inline reducer.** Per Spec §3/§5 the Content is a pure function
+  of state, so the suites drive `BookingFormContent`/`RegisterContent` directly with a scripted
+  UiState and record emitted events — no Hilt, no repository fakes, fast Robolectric runs.
+- **First UI-test run found two API drifts:** AGP 9 runs the new
+  `mergeDebugUnitTestManifest`/`packageDebugUnitTestForUnitTest` pipeline (the flag alone was not
+  enough until those tasks executed once), and `isScrollable()`/`onNode` are not importable
+  matchers in this Compose BOM — `hasScrollAction()` + rule-member `onNode(...)` is the working
+  pair.
+
+### Tests (all green)
+
+`checkPureModules` green. **163 tests, 0 failures** (156 from Phase 2 + 7 new Compose UI tests).
+`:app:compileDebugKotlin` green with all five ErrorCopy-wired ViewModels.
+
+*Phase 3.0 is complete. The next frontier remains the closing line of Phase 2: the online tier
+(Phase 3.3) — and PDF printing (3.1) as the highest-value offline build.*
+
+---
+
+## Phase 3.1, Sprint S11 — Templates: schema, seed, list (T29)
+
+**Goal (from the Phase 3 plan):** templates become data, so a reprint can resolve the version a
+document was created against (§17.2). This sprint builds the substrate the PDF pipeline (S12/S13)
+consumes: the pure `:doc-engine` parse/validate stage, TEMPLATE_E, the seeded default BILTY
+template, and T29 reading Room.
+
+**What was built.**
+
+1. **`:doc-engine`** — the third pure module (`checkPureModules` watches it). `TemplateModel`
+   implements Implementation.md §9.15's schema (schemaVersion gate, paper/theme/business blocks,
+   the eight known section types, keyed fields with optional whitelisted expressions, item
+   columns). `TemplateParser.parse` returns Ok or Refused — never throws — and refuses: future
+   schemaVersions ("please update the app"), unknown section types, non-whitelisted expressions,
+   blank shop names, duplicate field keys; unknown JSON keys are *tolerated* for forward
+   compatibility. JSON parsing uses **kotlinx-serialization-json 1.11.0, added to the catalog for
+   `:doc-engine` only** (D47): snapshot *values* still cross into the engine as a
+   `Map<String, String>` decoded by the repo's org.json, so D26's rule stays intact where it
+   mattered. Version verified against live Maven metadata per the house rule.
+2. **DB v9** (`MIGRATION_8_9` + `Migration8to9Test`): `TEMPLATE_E` — sync envelope, company_id,
+   template_key, **version as a row**, is_active, schema_version, **content_json raw** (§6.8: the
+   raw string re-parses years later), content_hash, visibility BUILT-IN/COMPANY. Unique index on
+   (company_id, template_key, version).
+3. **Seed v7:** the default BILTY template (`tpl-bilty-default` v1, active, BUILT-IN) whose field
+   keys are **exactly the keys the DOC_SNAPSHOT payloads already carry** — docNo, date, fromStation,
+   toStation, stamp; consignor*/consignee*; goodsDescription, packages, actualWeight, rate, freight
+   as the items columns; hamali/doorDelivery/taxable/gst/rounding/grandTotal as totals; amountInWords
+   and footer at the foot — so the seeded 04188 snapshot renders through the S12 renderer with zero
+   data changes. Insert-once per (company, key, version), counters-guard style.
+4. **`TemplateRepository`** (data:transport): observe summaries (parsed names), `getActiveTemplate`,
+   the pinned `getTemplateVersion(key, version)` lookup a reprint resolves against (§9.12), and
+   `installTemplate` — parse+validate BEFORE any write; refusals answer typed §18.3 codes (future
+   schemaVersion → `TEMPLATE_VERSION_MISSING`, everything else → `TEMPLATE_FIELD_UNKNOWN`); a valid
+   install flips active and inserts the new version in one transaction (§6.6's atomic replacement:
+   no instant without an active template) and enqueues the outbox row. A stored row that no longer
+   parses surfaces as nothing rather than garbage.
+5. **T29 wired** reading Room; `TemplatesSampleData` deleted (D10). Version history renders every
+   stored row of the default key — because documents keep the version they were printed with.
+
+**Demo (emulator, uiautomator-verified).** T29 lists "Default Bilty · DEFAULT · Bilty · 4 copies ·
+A4 · v1 · Built-in · schema v1 · 7 sections · engine schema v1 · In use · active", with the version
+history block showing "v1 · active · Engine · Template installed as version 1" and live filter
+counts (All 1 / Bilty 1 / Invoice 0 / Manifest 0).
+
+**Tests (13 new, 176 total green):** the §9.2 validation matrix in `:doc-engine` (9 tests — each
+reject reason fires; the default template parses; unknown keys tolerated; whitelisted expressions
+accepted), `Migration8to9Test`, `TemplateRepositoryTest` (seed resolves active v1 and parses clean;
+malformed installs refused with typed codes and zero writes; a valid install becomes v2, atomically
+flips active, keeps v1 resolvable for reprints, and enqueues the outbox row).
+
+### Decisions taken this sprint (D47)
+
+| # | Decision | Why |
+|---|---|---|
+| D47 | kotlinx-serialization-json, only in `:doc-engine`, for template JSON; snapshot values cross into the engine as a plain `Map<String, String>` | a pure module cannot use Android's org.json; the values boundary keeps D26's "no kotlinx in app JSON paths" true where it mattered, and the engine stays JVM-testable |
+
+**Scope notes:** the S12 renderer will read header identity from the template's business block and
+everything else by snapshot key — the bilty template carries both, so reprints re-render the pinned
+version's own identity; installTemplate exists but no UI writes it yet (a company-private install
+flow lands with the remaining settings screens); version pruning is deliberately absent (§9.12:
+never prune a version any snapshot references).
+
+---
+
+## Phase 3.1, Sprint S12 — `:doc-engine` HTML renderer
+
+**Goal (from the Phase 3 plan):** the pure pipeline stage 6 (Implementation.md §9.7) — template
+plus snapshot values to one complete, self-contained HTML string. No Android, no files, no PDFs —
+and the golden-file test that protects the reprint invariant (TransportApp.md §1305).
+
+**What was built.**
+
+1. **`Expressions`** — the whitelisted evaluator behind the S11 grammar (`sum(items.<key>)`,
+   `count(items)`). Money arithmetic is integer paise: "3,510.00" parses exactly, Indian grouping
+   formats back, unparsable text is worth zero. Expressions are data — the parser already
+   validated every expression at acquisition, so evaluation is total, with no injection surface.
+2. **`HtmlRenderer`** — sections render strictly **by key**: header identity from the template's
+   business block, everything else from the values map, with not one business field name in the
+   renderer source (a source-level guard test greps for consignor/freight/gst/bilty/… and fails if
+   any appears). Every value is escaped (`& < > " '`). The goods grid is a real `<table>` with the
+   template's `minRows` padding so short documents print their ruled lines, and `@page` A4 CSS is
+   the entire pagination implementation — no pagination code. Theme colours become CSS custom
+   properties; a multi-row snapshot passes its rows as a JSON array under the "items" key;
+   `visibleWhen` guards hide sections; a `voided=true` value draws the VOID watermark;
+   `renderCopies` builds one document containing one sheet per copy label, each with a page break
+   except the last (D50 pre-committed: the four-copy bilty is one paginated HTML file).
+3. **The §9.14 invariants as tests:** double render byte-identical; a `<script>` injection appears
+   escaped; row count = max(rows, minRows); a `grandTotal` expression recomputes from the goods
+   rows rather than trusting the stored total; the copy-sheet shape; the golden file —
+   `doc-engine/src/test/resources/golden/bilty-04188.html`, committed, byte-compared on every run,
+   regenerable via `gradlew :doc-engine:test -Pgolden.update=true`.
+
+**Demo (unit-level by design).** The golden test IS the demo: the fixture template plus the 04188
+snapshot renders GR No IND/2627/04188, consignor/consignee blocks, the goods row "MS PIPES · 12 ·
+780 kg · 4.50 · 3,510.00" padded to six ruled rows, totals landing on Grand Total 3,944.00, and
+"Rupees three thousand nine hundred forty four only" — all escaped, deterministic, self-contained.
+Screen-level rendering arrives with S13's WebView.
+
+**Tests (10 new, 186 total green):** 10 in `HtmlRendererTest` (the invariants above plus the paise
+sum table and the generalisation guard).
+
+### Decisions taken this sprint (D48)
+
+| # | Decision | Why |
+|---|---|---|
+| D48 | Copy stamps are sections inside one HTML document (`renderCopies`), not four separate renders stitched by the caller | the WebView drive (S13) is the expensive step — one layout pass produces all four pages, and the byte-identical golden invariant covers the whole document |
+
+**Scope notes:** the renderer recomputes only expression-carrying totals; the bilty template ships
+none today (its totals are stored values from the §10.4 sequence, frozen at booking per §12.1's
+principle — the expression path exists for bill templates in the online tier); `fromPaise` uses
+core:common's grouping rules re-implemented locally to keep the module dependency-free.
+
+---
+
+## Phase 3.1, Sprint S13 — `:pdf-android` + wiring (T6 print/share, T8 reprint)
+
+**Goal (from the Phase 3 plan):** the one impure step — HTML in, A4 vector PDF bytes out — ported
+verbatim from the prototype with all eleven checklist gotchas, plus the §9.11 distribution actions,
+wired into T6 and T8. This is what makes the app sellable.
+
+**What was built.**
+
+1. **`:pdf-android`** — the app's second Android-only module. `PdfCallbackBridge` (the
+   `android.print`-package bridge around the package-private callback constructors) and
+   `AndroidPdfRenderer` ported from `BillTemplatePrototype` with the eleven checklist items
+   commented at the exact line carrying them: visible+alpha-0+software-layer WebView with textZoom
+   pinned (1), A4@96dpi measure/layout (2), attach to a real window (3), `loadDataWithBaseURL`
+   UTF-8 (4), the run-once `onPageFinished` guard that skips `about:` (5 — the prototype's empty-PDF
+   bug), the read-write cache descriptor (6), **resolution + colour mode in the print attributes**
+   (7 — the prototype's final blocking bug), the package bridge (8), layout→write→read→cleanup (9),
+   the 15-second timeout and cancellation cleanup (10), main-thread WebView with file I/O on IO (11).
+   Plus the §9.8 byte-print adapter (reprints), MediaStore save, FileProvider share, and bounded
+   first-page rasterisation.
+2. **`DocumentRepository`** (data:transport, behind a `PdfPort` interface with retry ×3 per §9.8's
+   failure contract — empty bytes mean failure, never an exception): resolves the snapshot, reads
+   the **pinned template version** from TEMPLATE_E (§9.12 — a missing version answers
+   `TEMPLATE_VERSION_MISSING` rather than silently rendering today's template), decodes the payload
+   to the flat value map (JSON-null sentinel handled), renders `renderCopies` (D48's one-document
+   shape), writes to app files with the human file name `Bilty-IND-2627-04188-<stamp>.pdf`.
+3. **Distribution wiring:** T6's Print (system dialog via rendered bytes) and Share (the file
+   leaves through a FileProvider content URI named after the document); T8's "Print bilty" now
+   reprints from the stored snapshot — the dead `onPrint`/`onShare` nav params deleted (D10's
+   no-dead-callbacks rule). A `PrintStatus` (core:ui) drives a slim progress/error line on both
+   screens; `PrintManager.print` demands an Activity, so the resumed activity registers itself in
+   a tiny `CurrentActivity` registry the renderer falls back to (item 3's real-window requirement
+   from repository depth).
+4. **FileProvider** declared in the app manifest with `file_paths.xml` (cache pdfs + files exports)
+   — generated PDFs leave the app as content URIs with a read grant, never file paths.
+
+**Demo (emulator, uiautomator + dumpsys + pulled file).** T6 → Print: the headless drive logged
+`layout finished` / `write finished bytes=81674`, and the system printspooler opened showing
+**"Save as PDF · Paper size: ISO A4 · Page 1 of 4"**. Saved through the spooler to Downloads:
+`bilty-Bilty-IND-2627-04188-20260901-001207.pdf`, 82,727 bytes, pulled and verified `%PDF-1.4` with
+`/Count 4` — the four-copy document, text CID-encoded by Skia (selectable, vector). T6 → Share:
+the system chooser opened over the FileProvider URI. T8 → "Print bilty": the spooler opened again
+from the byte path, same four pages. The share and print journeys are real, offline, end to end.
+
+**Tests (6 new, 192 total green):** `DocumentRepositoryTest` — the pinned-version render, the
+reprint determinism invariant (same snapshot + same pinned template = same bytes), the missing
+pinned version refused with `TEMPLATE_VERSION_MISSING` instead of rendering today's template, the
+payload→value-map decode (JSON-null → absent), three empty renders surfacing the typed failure,
+and the unknown-bilty refusal. The Chromium drive itself stays emulator-verified (Robolectric
+cannot run a print pipeline) — recorded as a known boundary.
+
+### Decisions taken this sprint (D49)
+
+| # | Decision | Why |
+|---|---|---|
+| D49 | The resumed activity registers in a `CurrentActivity` registry the renderer consults | the headless drive needs a real window (item 3) and `PrintManager.print` demands an Activity, but the repository only ever sees the Application context |
+
+**Scope notes:** the rasterise helper exists but no screen previews the rasterised PDF yet (T6's
+Compose paper already previews the document); `printHtml` is wired and unused (T6 prints via the
+rendered bytes so the dialog shows the exact document); the `EXPORT_TOO_LARGE` code answers PDF
+render failure — a misnomer inherited from the fixed §18.3 list, with copy that says what actually
+happened (S13 keeps the 20-code contract intact).
 
 ---

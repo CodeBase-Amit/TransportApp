@@ -127,7 +127,10 @@ class CaseFileRepositoryImpl @Inject constructor(
             CaseDocument("freight_bill", "Freight bill", null, if (consignment.freight_bill_id == null) "Not raised yet" else null, actionable = consignment.freight_bill_id == null),
             CaseDocument("pod", "POD", null, if (status == ConsignmentStatus.DELIVERED) "Captured" else "Pending delivery", actionable = false),
         )
-
+        // S15: the attachment queue rides with the documents — the upload envelope is the queue.
+        val attachments = consignmentDao.getAttachments(consignment.local_id).map {
+            CaseDocument("attachment", "Attachment · ${it.kind.lowercase().replace('_', ' ')}", null, it.caption ?: "queued for upload", actionable = false)
+        }
         val bookedText = "booked ${formatDateTime(consignment.booked_at)} by ${consignment.booked_by_name}"
         val recordLines = listOf(
             "Booked at $branchName by ${consignment.booked_by_name} · last change ${syncText(consignment.updated_at_local, consignment.sync_state.name, now)}",
@@ -146,7 +149,7 @@ class CaseFileRepositoryImpl @Inject constructor(
             chargeableKg = chargeableKg,
             expectedText = formatDate(consignment.expected_arrival),
             events = timeline,
-            documents = documents,
+            documents = documents + attachments,
             money = money,
             toPayCallout = toPayCallout,
             recordLines = recordLines,

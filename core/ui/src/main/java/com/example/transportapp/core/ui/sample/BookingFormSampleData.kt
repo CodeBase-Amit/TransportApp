@@ -1,8 +1,11 @@
 package com.example.transportapp.core.ui.sample
 
 import com.example.transportapp.core.common.Money
+import com.example.transportapp.core.common.SeedIds
 
 data class Party(
+    /** The PARTY_E local id once selected from the real picker; null in previews. */
+    val id: String? = null,
     val name: String,
     val phone: String,
     val station: String,
@@ -41,6 +44,7 @@ object BookingFormSampleData {
     const val RESERVED_NUMBER = "IND/2627/04189"
 
     const val GOODS = "MS pipes"
+    const val ROUTE_LABEL = "Indore → Nashik · 585 km · usually 2 days"
     const val PACKAGES = "12"
     const val ACTUAL_WEIGHT_KG = "780"
     const val RATE = "4.50 / kg"
@@ -56,15 +60,17 @@ object BookingFormSampleData {
     const val BOOKED_BY = "Mahesh Patidar · Indore · 25 Aug 2026, 11:42 AM"
 
     val deepakSteel = Party(
+        id = SeedIds.PARTY_DEEPAK_STEEL,
         name = "Deepak Steel Traders",
         phone = "+91 94250 61183",
         station = "Indore",
         gstin = "23AACDS8812K1Z4",
         biltyCount = 41,
-        usualRoute = "Indore → Nashik"
+        usualRoute = "Indore  Nashik"
     )
 
     val nashikHardware = Party(
+        id = SeedIds.PARTY_NASHIK_HARDWARE,
         name = "Nashik Hardware Mart",
         phone = "+91 98600 27419",
         station = "Nashik",

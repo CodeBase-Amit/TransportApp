@@ -2,6 +2,7 @@ package com.example.transportapp.feature.billing.screen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.transportapp.core.ui.ErrorCopy
 import com.example.transportapp.data.transport.billing.BillingRepository
 import com.example.transportapp.data.transport.billing.PoolFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -142,8 +143,8 @@ class UnbilledPoolViewModel @Inject constructor(
                     notes = null,
                     now = System.currentTimeMillis(),
                 )
-                firstBillId = firstBillId ?: result.getOrNull()?.localId
-                val maybeFailure = (result as? com.example.transportapp.core.common.Result.Failure)?.message
+                    firstBillId = firstBillId ?: result.getOrNull()?.localId
+                val maybeFailure = (result as? com.example.transportapp.core.common.Result.Failure)?.let { ErrorCopy.resolve(it) }
                 if (failure == null) failure = maybeFailure
             }
             _uiState.update { it.copy(building = false, error = failure) }

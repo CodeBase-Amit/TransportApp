@@ -25,6 +25,8 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +36,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.NestedCard
 import com.example.transportapp.core.designsystem.component.PaymentStamp
@@ -62,7 +68,7 @@ import com.example.transportapp.domain.transport.PaymentMode
 fun BookingFormScreen(
     onClose: () -> Unit,
     onBooked: (String) -> Unit,
-    onSetRate: () -> Unit = {},
+    onSetRate: (() -> Unit)? = null,
     viewModel: BookingFormViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -78,7 +84,7 @@ fun BookingFormScreen(
         onEvent = viewModel::onEvent,
         onClose = onClose,
         onBookAndPrint = { viewModel.onEvent(BookingFormEvent.Submit) },
-        onSetRate = onSetRate
+        onSetRate = onSetRate ?: {},
     )
 }
 
@@ -117,11 +123,12 @@ fun BookingFormContent(
         ) {
             item { BookingTopBar(state, onClose) }
             item { PartiesSection(state, onEvent) }
-            item { RouteSection(state) }
+            item { RouteSection(state, onEvent) }
             item { GoodsWeightSection(state, onEvent) }
+            item { ArticlesSection(state, onEvent) }
             item { TermsSection(state, onEvent) }
             item { ChargesSection(state, onEvent) }
-            item { BookingFooter(state) }
+            item { BookingFooter(state, onEvent) }
         }
     }
 }
@@ -169,7 +176,8 @@ private fun PartiesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                 SelectedPartyCard(
                     icon = Icons.Rounded.Upload,
                     party = state.consignor,
-                    onClear = { onEvent(BookingFormEvent.ClearConsignor) }
+                    onClear = { onEvent(BookingFormEvent.ClearConsignor) },
+                    onAdd = { onEvent(BookingFormEvent.StartConsignorSearch) },
                 )
             }
             // Consignee
@@ -184,7 +192,8 @@ private fun PartiesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
                 SelectedPartyCard(
                     icon = Icons.Rounded.Download,
                     party = state.consignee,
-                    onClear = { onEvent(BookingFormEvent.ClearConsignee) }
+                    onClear = { onEvent(BookingFormEvent.ClearConsignee) },
+                    onAdd = { onEvent(BookingFormEvent.StartConsigneeSearch) },
                 )
             }
         }
@@ -195,11 +204,12 @@ private fun PartiesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
 private fun SelectedPartyCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     party: Party?,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    onAdd: () -> Unit = {},
 ) {
     NestedCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = null
+        onClick = if (party == null) onAdd else null
     ) {
         Row(
             modifier = Modifier
@@ -276,43 +286,59 @@ private fun PartySearchField(
 }
 
 @Composable
-private fun RouteSection(state: BookingFormUiState) {
+private fun RouteSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
         GroupHeading("ROUTE", modifier = Modifier.padding(bottom = 12.dp))
         NestedCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(56.dp)
+                    .clickable { onEvent(BookingFormEvent.ToggleRoutePicker) },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Indore", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Icon(Icons.Rounded.ArrowRightAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp).size(20.dp))
-                Text("Nashik", style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.weight(1f))
-                Text(
-                    "585 km · usually 2 days · arrives 27 Aug",
-                    style = TransportTypeScale.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 4.dp)
-                )
+                val parts = state.routeLabel.split(" · ")
+                Text(parts.getOrElse(0) { state.routeLabel }, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                if (parts.getOrElse(0) { "" }.contains("→")) {
+                    Icon(Icons.Rounded.ArrowRightAlt, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp).size(20.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    if (parts.size > 1) {
+                        parts.drop(1).forEach { segment ->
+                            Text(segment, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        Text("Tap to pick a route", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Icon(Icons.Rounded.ExpandMore, contentDescription = "Pick route", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
-        }
-        Row(
-            modifier = Modifier.padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Also used:", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(8.dp))
-            Text("Indore → Bhopal", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.width(12.dp))
-            Text("Indore → Pune", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            // Inline route list (S14): the §B6 picker is a visible choice list, not a popup —
+            // every route row is one tap away, no second window.
+            if (state.showRoutePicker) {
+                Column {
+                    state.routeOptions.forEach { (id, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onEvent(BookingFormEvent.SelectRoute(id))
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
+    var goodsMenu by remember { mutableStateOf(false) }
     Column {
         GroupHeading("GOODS", modifier = Modifier.padding(bottom = 12.dp))
         Row(
@@ -324,9 +350,24 @@ private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormE
             Box(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(percent = 100))
+                    .clickable { goodsMenu = true }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Text("MS pipes", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(state.goods, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Icon(Icons.Rounded.ExpandMore, contentDescription = "Pick goods", tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(16.dp))
+                }
+            }
+            DropdownMenu(expanded = goodsMenu, onDismissRequest = { goodsMenu = false }) {
+                state.goodsOptions.forEach { (id, name) ->
+                    DropdownMenuItem(
+                        text = { Text(name, style = TransportTypeScale.bodyMedium) },
+                        onClick = {
+                            goodsMenu = false
+                            onEvent(BookingFormEvent.SelectGoods(id))
+                        },
+                    )
+                }
             }
             Spacer(Modifier.width(8.dp))
             Text(
@@ -391,6 +432,74 @@ private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormE
         if (state.showMoreDetails) {
             TransportTextField(value = "", onValueChange = {}, label = "Goods value", modifier = Modifier.padding(bottom = 12.dp))
             TransportTextField(value = "", onValueChange = {}, label = "E-way bill number", modifier = Modifier.padding(bottom = 12.dp))
+            // §10.1 volumetric: L×B×H in cm — the dated setting's divisor (6000) governs.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                TransportTextField(
+                    value = state.lengthCm,
+                    onValueChange = { onEvent(BookingFormEvent.ChangeLengthCm(it)) },
+                    label = "Length (cm)",
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    monospace = true
+                )
+                TransportTextField(
+                    value = state.breadthCm,
+                    onValueChange = { onEvent(BookingFormEvent.ChangeBreadthCm(it)) },
+                    label = "Breadth (cm)",
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    monospace = true
+                )
+                TransportTextField(
+                    value = state.heightCm,
+                    onValueChange = { onEvent(BookingFormEvent.ChangeHeightCm(it)) },
+                    label = "Height (cm)",
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    monospace = true
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticlesSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+            GroupHeading("MORE ARTICLES · ${state.extraItems.size}", modifier = Modifier.weight(1f))
+            AppTextButton("Add article", onClick = { onEvent(BookingFormEvent.AddArticle) })
+        }
+        state.extraItems.forEachIndexed { index, row ->
+            ContentCard(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                TransportTextField(
+                    value = row.description,
+                    onValueChange = { onEvent(BookingFormEvent.ChangeArticleDescription(index, it)) },
+                    label = "Article ${index + 2} description",
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    TransportTextField(
+                        value = row.packages,
+                        onValueChange = { onEvent(BookingFormEvent.ChangeArticlePackages(index, it)) },
+                        label = "Packages",
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        monospace = true
+                    )
+                    TransportTextField(
+                        value = row.weightKg,
+                        onValueChange = { onEvent(BookingFormEvent.ChangeArticleWeight(index, it)) },
+                        label = "Actual weight",
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        monospace = true
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    AppTextButton("Remove", onClick = { onEvent(BookingFormEvent.RemoveArticle(index)) }, color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }
@@ -504,8 +613,16 @@ private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent
 }
 
 @Composable
-private fun BookingFooter(state: BookingFormUiState) {
+private fun BookingFooter(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
+        if (state.amending != null) {
+            TransportTextField(
+                value = state.amendReason,
+                onValueChange = { onEvent(BookingFormEvent.ChangeAmendReason(it)) },
+                label = "Amendment reason · required, at least 10 characters",
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+        }
         Text(
             "Booked by ${state.bookedBy}",
             style = TransportTypeScale.bodySmall,
@@ -563,6 +680,7 @@ private fun RateCardBanner(message: String, onSetRate: () -> Unit) {
 
 @Composable
 private fun BookingStickyBar(state: BookingFormUiState, onBookAndPrint: () -> Unit) {
+    // §7.1 amendment mode (S15): the reason is required before the successor is booked.
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -571,6 +689,13 @@ private fun BookingStickyBar(state: BookingFormUiState, onBookAndPrint: () -> Un
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            if (state.amending != null) {
+                Text(
+                    "AMENDING ${state.amending}",
+                    style = TransportTypeScale.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Text("GRAND TOTAL", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
                 "₹${state.grandTotal.formatted()}",

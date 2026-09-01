@@ -238,6 +238,21 @@ class StatusRepositoryImpl @Inject constructor(
                 size_bytes = sizeBytes, caption = caption,
             ),
         )
+        // The upload envelope is the queue (§16.2): the attachment commits with its outbox
+        // row so the drain carries the file reference when online.
+        outboxWriter.enqueue(
+            op = OutboxOp.INSERT,
+            entityType = OutboxEntityType.ATTACHMENT,
+            entityLocalId = consignment.local_id,
+            payloadJson = JSONObject()
+                .put("consignment_id", consignment.local_id)
+                .put("kind", kind)
+                .put("file_ref", fileRef)
+                .put("size_bytes", sizeBytes)
+                .put("caption", caption ?: JSONObject.NULL)
+                .toString(),
+            now = now,
+        )
         return Result.success(Unit)
     }
 

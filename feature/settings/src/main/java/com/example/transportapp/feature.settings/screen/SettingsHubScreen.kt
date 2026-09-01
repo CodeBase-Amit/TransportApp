@@ -48,7 +48,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
@@ -63,7 +63,7 @@ fun SettingsHubScreen(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onRowClick: (String) -> Unit,
-    viewModel: SettingsHubViewModel = viewModel()
+    viewModel: SettingsHubViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     SettingsHubContent(

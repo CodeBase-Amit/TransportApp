@@ -24,15 +24,19 @@ import com.example.transportapp.core.designsystem.theme.PaperColors
  * Finger signature pad (Design.md §C1 T33). A paper-coloured signing area with a baseline
  * hairline; strokes are captured as a [Path]. Used for the POD signature.
  *
- * The canvas clears itself whenever [clearSignal] changes.
+ * The canvas clears itself whenever [clearSignal] changes. [onPathChange] reports the live
+ * stroke so the caller can export it (S15: rendered to a PNG for POD_E.signature_ref).
  */
 @Composable
 fun SignaturePad(
     modifier: Modifier = Modifier,
     clearSignal: Int = 0,
-    strokeColor: Color = PaperColors.paperInk
+    strokeColor: Color = PaperColors.paperInk,
+    onPathChange: (Path?) -> Unit = {},
 ) {
     var path by remember(clearSignal) { mutableStateOf(Path()) }
+
+    androidx.compose.runtime.LaunchedEffect(path) { onPathChange(path.takeIf { !it.isEmpty }) }
 
     Canvas(
         modifier = modifier

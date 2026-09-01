@@ -62,4 +62,10 @@ object DatabaseModule {
 
     @Provides
     fun provideReportsDao(database: TransportDatabase): com.example.transportapp.core.database.dao.ReportsDao = database.reportsDao()
+
+    @Provides
+    fun provideTemplateDao(database: TransportDatabase): com.example.transportapp.core.database.dao.TemplateDao = database.templateDao()
+
+    @Provides
+    fun provideSettingsDao(database: TransportDatabase): com.example.transportapp.core.database.dao.SettingsDao = database.settingsDao()
 }

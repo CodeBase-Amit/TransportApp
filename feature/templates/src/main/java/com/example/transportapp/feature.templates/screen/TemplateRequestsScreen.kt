@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
@@ -51,7 +51,7 @@ import com.example.transportapp.core.ui.sample.TemplateRequest
 @Composable
 fun TemplateRequestsScreen(
     onBack: () -> Unit,
-    viewModel: TemplateRequestsViewModel = viewModel()
+    viewModel: TemplateRequestsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     TemplateRequestsContent(

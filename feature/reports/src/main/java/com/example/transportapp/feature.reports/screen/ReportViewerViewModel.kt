@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.core.common.Result
 import com.example.transportapp.core.common.formatIndianGrouping
+import com.example.transportapp.core.ui.ErrorCopy
 import com.example.transportapp.data.transport.reports.ReportsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,7 +82,7 @@ class ReportViewerViewModel @Inject constructor(
             val result = reportsRepository.buildCsvExport("freight-register", csv, now)
             when (result) {
                 is Result.Success -> _uiState.update { it.copy(notice = "Saved ${result.value.name}") }
-                is Result.Failure -> _uiState.update { it.copy(notice = result.message) }
+                is Result.Failure -> _uiState.update { it.copy(notice = ErrorCopy.resolve(result)) }
             }
         }
     }

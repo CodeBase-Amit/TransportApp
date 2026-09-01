@@ -36,7 +36,7 @@ class RateCardRepositoryTest {
             .allowMainThreadQueries()
             .build()
         DemoSeeder(database).seedIfNeeded()
-        repository = RateCardRepositoryImpl(database.mastersDao(), database.orgDao())
+        repository = RateCardRepositoryImpl(database.mastersDao(), database.orgDao(), database.settingsDao())
     }
 
     @After
@@ -127,7 +127,9 @@ class RateCardRepositoryTest {
     fun `booking settings carry the 10-5 inputs`() = runTest {
         val settings = repository.bookingSettings(company, routeId = SeedIds.ROUTE_INDORE_NASHIK)
         assertEquals(1000L, settings.weightStepG)
-        assertNull("full-load house: volumetric off", settings.volumetricDivisor)
+        // S14: the volumetric divisor is LIVE at the §10.1 standard 6000 (seed v8) — the
+        // engine's volumetric branch was tested in S4 but unreachable while hardcoded off.
+        assertEquals(6000L, settings.volumetricDivisor)
         assertEquals(GstTreatment.FORWARD, settings.gstTreatment)
         assertEquals(500, settings.gstRateBp)
         assertEquals(RoundingRule.NEAREST_RUPEE, settings.rounding)

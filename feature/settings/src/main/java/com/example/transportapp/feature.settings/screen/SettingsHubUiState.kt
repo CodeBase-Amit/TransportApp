@@ -1,17 +1,29 @@
 package com.example.transportapp.feature.settings.screen
 
-import com.example.transportapp.core.ui.sample.SettingsGroup
-import com.example.transportapp.core.ui.sample.SettingsHubSampleData
+/** One T24 row (Phase 3 S16): identity and counts come from the live session/org data. */
+data class SettingsRow(
+    val icon: String,
+    val label: String,
+    val value: String? = null,
+    val locked: Boolean = false,
+    val gate: String? = null,
+    val syncIcon: Boolean = false
+)
+
+data class SettingsGroup(
+    val heading: String,
+    val rows: List<SettingsRow>
+)
 
 data class SettingsHubUiState(
-    val title: String = SettingsHubSampleData.TITLE,
-    val identityInitials: String = SettingsHubSampleData.IDENTITY_INITIALS,
-    val identityName: String = SettingsHubSampleData.IDENTITY_NAME,
-    val identityEmail: String = SettingsHubSampleData.IDENTITY_EMAIL,
-    val identityRole: String = SettingsHubSampleData.IDENTITY_ROLE,
-    val signOutLabel: String = SettingsHubSampleData.SIGN_OUT_LABEL,
-    val signOutNote: String = SettingsHubSampleData.SIGN_OUT_NOTE,
-    val groups: List<SettingsGroup> = SettingsHubSampleData.groups
+    val title: String = "Settings",
+    val identityInitials: String = "…",
+    val identityName: String = "",
+    val identityEmail: String = "",
+    val identityRole: String = "",
+    val signOutLabel: String = "Sign out of TransportApp",
+    val signOutNote: String = "Data on this device will be kept",
+    val groups: List<SettingsGroup> = emptyList()
 )
 
 sealed interface SettingsHubEvent {
