@@ -155,7 +155,7 @@ TransportApp2 Architecture Stack
 
 ---
 
-## 6. Comprehensive Roadmap to Complete the Application
+## 6. Comprehensive Development & Production Roadmap
 
 ```
 Phase 2.5: Code Cleanup & Stabilization
@@ -165,10 +165,10 @@ Phase 2.5: Code Cleanup & Stabilization
   └── 4. Add unit test suites for all 7 missing feature modules
 
 Phase 3: Real Authentication & Data Persistence
-  ├── 1. Google Identity / Credential Manager Integration
+  ├── 1. Google Identity / Credential Manager & Mobile OTP Integration
   ├── 2. Encrypted DataStore for Auth tokens & tenant context
   ├── 3. Process death state restoration via SavedStateHandle
-  └── 4. Externalize strings to strings.xml (Hindi / English)
+  └── 4. Externalize strings to strings.xml (Hindi / English / Gujarati)
 
 Phase 4: Cloud Sync & Backend Integration
   ├── 1. Implement HTTP REST / gRPC API Client (Ktor / Retrofit)
@@ -180,11 +180,6 @@ Phase 5: Hardware & Peripheral Integration
   ├── 1. ESC/POS Bluetooth Thermal Printing (2-inch / 3-inch roll)
   ├── 2. Camera document scanner with auto-cropping for PODs & E-way bills
   └── 3. Offline PDF background caching & printing pipeline
-
-Phase 6: Production Hardening & Release
-  ├── 1. ProGuard / R8 optimization & Room schema export checks
-  ├── 2. End-to-End UI Automation Tests (Compose Test Rules)
-  └── 3. Firebase Crashlytics & offline telemetry
 ```
 
 ---
@@ -196,3 +191,57 @@ Phase 6: Production Hardening & Release
 3. **Step 3 — Arithmetic Precision Fix**: Refactor `MinQty.parse` in `RateResolver.kt` to use integer arithmetic without `Double`.
 4. **Step 4 — Complete Feature Unit Tests**: Write ViewModel unit tests for `billing`, `challan`, `dashboard`, `reports`, `settings`, `templates`, and `auth`.
 5. **Step 5 — Phase 3 Online & Sync Integration**: Implement the real network synchronization layer in `:sync-android`.
+
+---
+
+## 8. Not Required Currently in Development/Production, but Required for Final Store Release
+
+The following tasks are **not required during ongoing feature development and production feature implementation**, but must be completed right before publishing the app to the **Google Play Store**:
+
+### 📦 1. Build Shrinking & Code Optimization (R8 / ProGuard)
+* **Not needed now**: Obfuscation and shrinking slow down debug builds and make stack traces harder to read during active development.
+* **Release Requirement**:
+  - Enable `isMinifyEnabled = true` and `isShrinkResources = true` in `app/build.gradle.kts`.
+  - Maintain keep-rules in `proguard-rules.pro` for Room entities, Hilt workers, Kotlinx Serialization DTOs, and FTS tables.
+
+### 🔑 2. Production Keystore & App Signing
+* **Not needed now**: Debug keystore is used automatically during development.
+* **Release Requirement**:
+  - Generate a secure production upload keystore (`.jks` / `.keystore`).
+  - Configure `key.properties` (never committed to git) to sign release builds.
+  - Enable Google Play App Signing in Google Play Console.
+
+### 📦 3. Android App Bundle (.aab) Generation & Versioning
+* **Not needed now**: Debug APKs (`./gradlew :app:assembleDebug`) are sufficient for local testing.
+* **Release Requirement**:
+  - Update `applicationId` from `com.example.transportapp` to your official package name (e.g. `com.company.transportapp`).
+  - Set production `versionCode` (e.g. `10001`) and `versionName` (e.g. `"1.0.0"`).
+  - Generate release bundle: `./gradlew :app:bundleRelease`.
+
+### 🎨 4. Play Store Graphic Assets & Branding
+* **Not needed now**: Placeholder icons and debug banners are fine during development.
+* **Release Requirement**:
+  - High-res App Icon (512 × 512 px PNG).
+  - Feature Graphic (1024 × 500 px PNG/JPEG).
+  - Screenshots: Minimum 4 phone screenshots (16:9 or 18:9) + 7" and 10" tablet screenshots showing docket entry, bilty preview, and challan builder.
+
+### ⚖️ 5. Legal, Policy & Play Console Data Safety Declarations
+* **Not needed now**: App is tested locally and internally.
+* **Release Requirement**:
+  - Host a live, publicly accessible **Privacy Policy** URL.
+  - Complete the **Play Console Data Safety Form** (declaring collection of financial data, photos/PODs, contact info).
+  - Target SDK Compliance: Ensure `targetSdk` satisfies latest Google Play requirements (Target SDK 34+ / 35+).
+  - In-app Account Deletion link/flow verification.
+
+### 🧪 6. Google Play Testing Tracks & Rollout
+* **Not needed now**: Local emulator and direct ADB installs are used.
+* **Release Requirement**:
+  - **Internal Testing**: Share `.aab` with core team members.
+  - **Closed Testing (20 Testers for 14 Days)**: Mandatory for personal developer accounts prior to production release.
+  - **Production Release**: Staged rollout (e.g. 10% → 25% → 50% → 100%).
+
+### 📊 7. Production Crash Reporting & Telemetry
+* **Not needed now**: Android Studio Logcat is used for error tracing.
+* **Release Requirement**:
+  - Integrate Firebase Crashlytics / Sentry to capture unhandled exceptions on field devices.
+  - Configure Timber to strip all `Log.d` and `Log.v` statements in release builds.

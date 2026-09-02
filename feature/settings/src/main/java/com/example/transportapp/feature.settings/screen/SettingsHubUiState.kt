@@ -28,5 +28,4 @@ data class SettingsHubUiState(
 
 sealed interface SettingsHubEvent {
     data object SignOut : SettingsHubEvent
-    data class RowClick(val label: String) : SettingsHubEvent
 }

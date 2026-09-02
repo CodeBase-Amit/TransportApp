@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.lifecycle.SavedStateHandle
 import com.example.transportapp.domain.transport.masters.PartyDetail
 
 data class MasterEditorUiState(
@@ -65,6 +66,24 @@ data class MasterEditorUiState(
                 isLoading = false,
             )
         }
+
+        /** S19: re-open a half-edited draft from the process-death snapshot. */
+        fun fromDraft(h: SavedStateHandle) = MasterEditorUiState(
+            title = if (h.get<String>("me_local_id") == null) "New party" else "Edit party",
+            isNew = h.get<String>("me_local_id") == null,
+            name = h.get<String>("me_name") ?: "",
+            email = h.get<String>("me_email") ?: "",
+            phone = h.get<String>("me_phone") ?: "",
+            street = h.get<String>("me_street") ?: "",
+            station = h.get<String>("me_station") ?: "",
+            pincode = h.get<String>("me_pincode") ?: "",
+            gstin = h.get<String>("me_gstin") ?: "",
+            taxStatus = if (h.get<String>("me_gstin").isNullOrBlank()) "" else "Verified active taxpayer",
+            usualRoute = h.get<String>("me_route") ?: "",
+            type = h.get<String>("me_type") ?: "Both",
+            payment = h.get<String>("me_payment") ?: "TBB",
+            isLoading = false,
+        )
     }
 }
 

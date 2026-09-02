@@ -2,6 +2,7 @@ package com.example.transportapp.data.transport.trip
 
 import androidx.room.withTransaction
 import com.example.transportapp.core.common.ErrorCode
+import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.common.Result
 import com.example.transportapp.core.database.TransportDatabase
 import com.example.transportapp.core.database.dao.TripDao
@@ -82,8 +83,18 @@ data class TripDetail(
     val legs: List<TripLeg>,
     val dispatchedAt: Long?,
     val closedAt: Long?,
+    /** S19 — §11 money position. */
+    val freightPaise: Long = 0,
+    val costsPaise: Long = 0,
+    val costs: List<TripCostUi> = emptyList(),
 ) {
     data class TripLeg(val displayNo: String, val consigneeName: String, val toStation: String, val paymentMode: String?, val weightKg: Long)
+
+    /** S19 — the §11 money position: freight earned vs hire + recorded costs. */
+    data class TripCostUi(val head: String, val amount: String, val mode: String, val remark: String)
+
+    /** §11 margin: freight − (hire + costs). */
+    val marginPaise: Long get() = freightPaise - hirePaise - costsPaise
 }
 
 /** One row of the §11.4 vehicle board. */
@@ -342,6 +353,10 @@ class TripRepositoryImpl @Inject constructor(
         val via = trip.via_stations?.split(',')?.mapNotNull { database.mastersDao().getStation(it)?.name } ?: emptyList()
         val legs = tripDao.getLegRows(tripId = trip.local_id)
         val loadKg = legs.sumOf { it.weight_kg }
+        // §11 money position (S19): freight earned on the legs vs hire + recorded costs.
+        val freightPaise = tripDao.getLegsFreightPaise(trip.local_id)
+        val costRows = tripDao.getCosts(trip.local_id)
+        val costsPaise = costRows.sumOf { it.amount_paise }
         return TripDetail(
             tripLocalId = trip.local_id,
             challanNo = trip.challan_no,
@@ -364,6 +379,9 @@ class TripRepositoryImpl @Inject constructor(
             legs = legs.map { TripDetail.TripLeg(it.display_no, it.consignee_name, it.to_station, it.payment_mode, it.weight_kg) },
             dispatchedAt = trip.dispatched_at,
             closedAt = trip.closed_at,
+            freightPaise = freightPaise,
+            costsPaise = costsPaise,
+            costs = costRows.map { TripDetail.TripCostUi(it.head.lowercase().replaceFirstChar { c -> c.uppercase() }, Money(it.amount_paise).formatted(), it.payment_mode, it.remark) },
         )
     }
 

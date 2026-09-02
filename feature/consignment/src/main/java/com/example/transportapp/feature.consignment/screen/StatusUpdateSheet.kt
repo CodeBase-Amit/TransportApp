@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidPath
@@ -78,6 +79,21 @@ fun StatusUpdateSheetContent(
     val primary = state.selected
     val context = androidx.compose.ui.platform.LocalContext.current
     var signaturePath by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.graphics.Path?>(null) }
+
+    // S19 — the real capture paths: Gallery via the system Photo Picker, Camera via
+    // TakePicture onto a FileProvider uri. Both funnel into PhotoPicked for import.
+    val cameraUris = remember { mutableStateMapOf<android.net.Uri, java.io.File>() }
+    val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture()
+    ) { ok ->
+        if (ok) {
+            val source = cameraUris.entries.firstOrNull { it.value.exists() }?.key
+            if (source != null) onEvent(StatusUpdateSheetEvent.PhotoPicked(source))
+        }
+    }
+    val galleryLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { onEvent(StatusUpdateSheetEvent.PhotoPicked(it)) } }
 
     Column(
         modifier = Modifier
@@ -194,13 +210,23 @@ fun StatusUpdateSheetContent(
         Spacer(Modifier.height(24.dp))
         GroupHeading("Photo · Optional", modifier = Modifier.padding(bottom = 8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CaptureTile(Icons.Rounded.PhotoCamera, "Camera")
-            CaptureTile(Icons.Rounded.PhotoLibrary, "Gallery")
+            CaptureTile(Icons.Rounded.PhotoCamera, "Camera", enabled = !state.photoAttached, onClick = {
+                // TakePicture writes to a FileProvider uri in cache; the importer copies it
+                // into app files on the save path.
+                val dir = java.io.File(context.cacheDir, "pod").apply { mkdirs() }
+                val file = java.io.File(dir, "pod-${System.currentTimeMillis()}.jpg")
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                cameraUris[uri] = file
+                cameraLauncher.launch(uri)
+            })
+            CaptureTile(Icons.Rounded.PhotoLibrary, "Gallery", enabled = !state.photoAttached, onClick = {
+                galleryLauncher.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+            })
             Text(
-                "Stored on this phone and uploaded when there's signal.",
+                if (state.photoAttached) "Photo attached — it rides the POD." else "Stored on this phone and uploaded when there's signal.",
                 style = TransportTypeScale.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp)
+                color = if (state.photoAttached) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp).weight(1f)
             )
         }
 
@@ -319,16 +345,17 @@ private fun StatusChip(
 }
 
 @Composable
-private fun CaptureTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+private fun CaptureTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .size(88.dp)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Text(label, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(icon, contentDescription = label, tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+        Text(label, style = TransportTypeScale.labelMedium, color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline)
     }
 }

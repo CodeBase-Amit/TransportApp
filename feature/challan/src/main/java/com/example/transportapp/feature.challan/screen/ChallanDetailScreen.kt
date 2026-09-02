@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowRightAlt
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.LocalShipping
@@ -43,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
@@ -56,12 +58,56 @@ fun ChallanDetailScreen(
     viewModel: ChallanDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val costDraft by viewModel.costDraft.collectAsState()
     ChallanDetailContent(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack,
         onCloseTrip = onCloseTrip
     )
+    // S19: the §11 add-cost dialog — head chips, rupee amount, mandatory remark.
+    if (state.costOpen) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.onEvent(ChallanDetailEvent.DismissAddCost) },
+            title = { Text("Add a trip cost", style = TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Diesel", "Toll", "Repair", "Other").forEach { head ->
+                            com.example.transportapp.core.designsystem.component.FilterChip(
+                                label = head,
+                                selected = costDraft.head == head,
+                                onClick = { viewModel.onEvent(ChallanDetailEvent.ChangeCostHead(head)) }
+                            )
+                        }
+                    }
+                    TransportTextField(
+                        value = costDraft.amount,
+                        onValueChange = { viewModel.onEvent(ChallanDetailEvent.ChangeCostAmount(it)) },
+                        label = "Amount (₹)",
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    TransportTextField(
+                        value = costDraft.remark,
+                        onValueChange = { viewModel.onEvent(ChallanDetailEvent.ChangeCostRemark(it)) },
+                        label = "Remark · required",
+                        singleLine = false,
+                        maxLines = 2,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = costDraft.valid,
+                    onClick = { viewModel.onEvent(ChallanDetailEvent.SaveCost) }
+                ) { Text("Record cost", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.onEvent(ChallanDetailEvent.DismissAddCost) }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -76,7 +122,7 @@ fun ChallanDetailContent(
             modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.MoreVert, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate back", tint = MaterialTheme.colorScheme.onSurface) }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { onEvent(ChallanDetailEvent.Print) }) { Icon(Icons.Rounded.Print, contentDescription = "Print", tint = MaterialTheme.colorScheme.onSurface) }
             IconButton(onClick = { onEvent(ChallanDetailEvent.More) }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
@@ -92,6 +138,47 @@ fun ChallanDetailContent(
                 Column {
                     GroupHeading(state.vehicleAndDriverHeading, modifier = Modifier.padding(bottom = 8.dp))
                     VehicleAndDriver(state)
+                }
+            }
+            // S19 — the §11 money position: freight earned vs hire + recorded costs, with
+            // the provisional margin the owner watches (TransportApp.md §11).
+            item {
+                Column {
+                    GroupHeading(
+                        state.moneyHeading,
+                        trailing = {
+                            if (state.isOwnerOrManager && !state.isClosed) {
+                                Text(state.addCostLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .clickable { onEvent(ChallanDetailEvent.StartAddCost) })
+                            }
+                        }
+                    )
+                    ContentCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        MoneyRow("Freight on this trip", state.freightLine)
+                        MoneyRow("Lorry hire", state.hireLine)
+                        MoneyRow("Other costs", state.costsLine)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(state.marginLabel.uppercase(), style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                state.margin,
+                                style = TransportTypeScale.dataLarge,
+                                fontFamily = com.example.transportapp.core.designsystem.theme.PlexMonoFamily,
+                                color = if (state.margin.startsWith("-")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        state.costs.forEach { cost ->
+                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(cost.head, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                Text(cost.remark, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(2f), maxLines = 1)
+                                Text(cost.amount, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
                 }
             }
             item {
@@ -149,6 +236,18 @@ fun ChallanDetailContent(
                 ChallanAction(Icons.Rounded.LocalShipping, "Dispatch", isPrimary = true, onClick = { onEvent(ChallanDetailEvent.Dispatch) })
             }
         }
+    }
+}
+
+@Composable
+private fun MoneyRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(value, style = TransportTypeScale.dataMedium, fontFamily = com.example.transportapp.core.designsystem.theme.PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

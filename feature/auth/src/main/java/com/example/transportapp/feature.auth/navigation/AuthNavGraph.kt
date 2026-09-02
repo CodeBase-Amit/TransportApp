@@ -8,13 +8,17 @@ import com.example.transportapp.feature.auth.screen.CarouselScreen
 import com.example.transportapp.feature.auth.screen.CompanyPickerScreen
 import com.example.transportapp.feature.auth.screen.ProfileScreen
 import com.example.transportapp.feature.auth.screen.SetupWizardScreen
+import com.example.transportapp.feature.auth.screen.SplashDestination
 import com.example.transportapp.feature.auth.screen.SignInScreen
 import com.example.transportapp.feature.auth.screen.SplashScreen
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     composable(Routes.SPLASH) {
         SplashScreen(
-            onResolved = { navController.navigate(Routes.COMPANY_PICKER) { popUpTo(Routes.SPLASH) { inclusive = true } } }
+            onResolved = { destination ->
+                val target = if (destination == SplashDestination.SIGN_IN) Routes.SIGN_IN else Routes.COMPANY_PICKER
+                navController.navigate(target) { popUpTo(Routes.SPLASH) { inclusive = true } }
+            }
         )
     }
     composable(Routes.CAROUSEL) {
@@ -34,7 +38,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
         CompanyPickerScreen(
             onCompanySelected = { navController.navigate(Routes.DASHBOARD) { popUpTo(Routes.COMPANY_PICKER) { inclusive = true } } },
             onRegisterCompany = { navController.navigate(Routes.SETUP_WIZARD) },
-            onSignOut = { navController.popBackStack() }
+            onSignOut = { navController.navigate(Routes.SPLASH) { popUpTo(0) { inclusive = true } } }
         )
     }
     composable(Routes.SETUP_WIZARD) {

@@ -904,6 +904,10 @@ New decisions taken this sprint that amend the plan:
 | D50 | S14's picker shape — see the S14 section | inline choice lists, not popup windows; the 120 ms search benchmark guards D7 |
 | D51 | S15's multi-article shape — see the S15 section | one §10.4 walk on the aggregate; per-article item rows for the register |
 | D52 | S16's profile save — see the S16 section | Owner/Manager gate in the ViewModel; the COMPANY outbox row carries the change |
+| D53 | S17's app shell — see the S17 section | hamburger drawer (tabs + Business + Admin groups) replaces the screen map as the navigation spine; tabs use saveState/restoreState; screen map survives as a debug-only T31 long-press |
+| D54 | S18's session state machine — see the S18 section | SIGNED_OUT is a real state (flag in DataStore); DEMO fallback is debug-only; mock sign-in writes identity; the Splash routes T1 vs T2 by it |
+| D55 | S19's draft persistence — see the S19 section | every keystroke writes through to SavedStateHandle; parties persist as ids and re-hydrate from masters; drafts cleared on commit |
+| D56 | S19's photo seam — see the S19 section | the repository owns the import (downscale → app files → ATTACHMENT_E + outbox); an unreadable provider answers PHOTO_QUALITY, never a half row |
 
 ---
 
@@ -1401,3 +1405,202 @@ render failure — a misnomer inherited from the fixed §18.3 list, with copy th
 happened (S13 keeps the 20-code contract intact).
 
 ---
+
+## Phase 3.5, Sprint S17 — Real-app navigation & UI consistency
+
+**Goal (from the "Ready for Use" plan):** remove the dev screen map as the navigation spine and
+give the app a real shell a clerk can live in — hamburger drawer into every hub, the three §6.2
+bottom-nav tabs with state-preserving switching, natural entry points for every orphaned route
+(Settings, Masters, Reports, Exports, Unbilled pool, Payments had no path from any real screen),
+plus the wrong-symbol sweep (a `MoreVert` glyph acting as the back arrow, an outlined icon
+pretending to be active, a person icon labelled "Screen map", a dead Search button).
+
+### What was built
+
+- **`AppNavDrawer` (`:core:ui`, new).** Modal drawer with the company header (initials, name,
+  branch) and three groups: Work (Home / Register / Vehicles), BUSINESS (Reports / Masters /
+  Exports), ADMIN (Settings / Account & data). `DrawerDestination` enum; the nav layer owns
+  routing. Every top-level screen (T4, T7, T12) wraps itself in it; the hamburger lives in the
+  app bar's leading slot.
+- **Tab semantics (`navigateTab`, `:core:ui`, new).** `popUpTo(0) { saveState = true }` +
+  `launchSingleTop` + `restoreState` — tabs never stack, tab state survives switching, re-tapping
+  the active tab does nothing. Applied to all three tabs' selections from every tab.
+- **Dashboard (T4).** App bar: hamburger + identity + person→Settings. The dead Search icon and
+  the screen-map person icon are gone. The exception strip now opens the bilty's case file
+  (`DashException.biltyNo`), and tiles with destinations navigate: Unbilled freight → T13,
+  Vehicles idle → T12, Exceptions → T7 (§6.6 edges).
+- **Register (T7).** Back arrow → hamburger (it is a tab root, not a pushed screen). Active
+  Register icon fixed to the filled (AutoMirrored) variant. Drawer + identity in state.
+- **Vehicle board (T12).** Got the design-mandated bottom navigation it never had, plus the
+  drawer; the New-challan FAB moved above the bar (96dp, matching T4/T7).
+- **Settings hub (T24) fully wired.** Every row routes: Company profile / Branches / Members /
+  Numbering / Templates / Template requests / Version→Account & data. Sign-out shows a confirm
+  dialog; confirming calls `SessionRepository.signOut()` and the `signedOut` one-shot rewinds to
+  T0 Splash (`popUpTo(0)`) — the resolver then lands on the company picker, the correct T0→T2 edge.
+- **Screen map demoted (D53).** `AppNavHost` starts at Splash in debug *and* release. The map's
+  route stays registered but is reachable only via a long-press on T31's diagnostics card, gated
+  on `FLAG_DEBUGGABLE` in the nav graph — invisible to release users.
+- **Icon fixes.** Challan detail's back button was a `MoreVert` glyph — now `ArrowBack`;
+  `TransportTopAppBar` gained `navigationIconDesc` so the hamburger reads "Open menu" to TalkBack
+  instead of "Navigate back".
+- **`SettingsHubEvent.RowClick` removed** — row routing is the nav graph's callback, matching the
+  one-shot-effects-are-callbacks rule (§3).
+
+### Emulator walk (§6.6 edges)
+
+Splash → picker (natural start, no map) → open company → dashboard live tiles → hamburger: drawer
+shows all three groups → Reports hub opens → back → drawer → Settings → Branches row opens → back
+→ Sign out: dialog → confirm → rewound to the picker. The debug long-press → screen map could not
+be reproduced by adb synthetic input (the documented gesture-fidelity limitation) and is verified
+by the Compose test below instead.
+
+**Tests (2 new, 212 total green):** `SettingsNavigationTest` (the module's first) — hub row
+routing by label, and the T31 long-press→screen-map gesture via Robolectric's
+`performTouchInput`. `RegisterScreenTest` updated to the new signature. Full `test` +
+`checkPureModules` + `:app:compileDebugKotlin` green; `:app:installDebug` verified on
+emulator-5554.
+
+### Decisions taken this sprint (D53)
+
+| # | Decision | Why |
+|---|---|---|
+| D53 | The hamburger drawer is the navigation spine; tabs keep `saveState`/`restoreState`; the screen map survives only as a debug-only T31 long-press | the screen map was load-bearing — Settings, Masters, Reports, Exports, Unbilled pool and Payments were unreachable without it; a drawer matches §6.6 (T4 → all hub graphs) without violating Design.md's three-destination bottom bar, and dev verification keeps its tool |
+
+**Scope notes:** Register's Filter/Export trailing icons remain visual placeholders (wire in the
+operations sprint); the account-data delete/leave flows stay visual (§17.4 needs the server); the
+company/branch switcher in the drawer header is display-only until T2 gains an in-session path.
+
+---
+
+## Phase 3.5, Sprint S18 — First-run integrity: a clean install can now actually start a company
+
+**Goal (from the "Ready for Use" plan):** walk the *release* variant on a clean install —
+Splash → sign-in → setup wizard → dashboard — and fix everything that breaks. Everything broke.
+The release path had never been walked: the wizard's Finish was wired to the nav callback
+instead of the ViewModel (registration never ran), no wizard field wrote its value back (it
+would have registered the demo furniture), sign-out couldn't sign out (the store fell back to
+the demo identity), and a registered company would have had no numbering series (booking would
+fail at minute one).
+
+### What was built
+
+- **Wizard dead wires fixed.** `Finish` now routes through `SetupWizardEvent.Finish`; all 13
+  fields write back via `SetupField.EditField` (GSTIN/branch code uppercased, head office
+  seeds the branch address). Blank company name / branch code is refused with on-screen copy.
+  The done frame renders the *user's* company name; the bilty-number preview updates live
+  (`BWD/2627/00001` as you type the code).
+- **Numbering provisioned at registration.** `NumberingRepository.ensureSeries` creates the
+  branch's BILTY series (prefix/code + financial-year part, 5 digits, FINANCIAL_YEARLY) inside
+  the finish flow — the first booking has a real series to lease from.
+- **Session state machine (D54).** `SessionStore` now has three states: explicitly signed out
+  (a DataStore flag — sign-out finally sticks in *every* build), fresh store (debug falls back
+  to the demo identity so the seeded dataset opens; release starts signed out via
+  FLAG_DEBUGGABLE), or stored identity/company context. `SessionRepository.signIn()` is the new
+  mock-sign-in seam (Credential Manager replaces its body in 3.3); `SignInViewModel` writes
+  through it.
+- **Splash routes by §6.6.** The resolver now emits a destination: no session → T1 Sign-in, a
+  session → T2 picker. (Found and fixed en route: the per-step state update *replaced* the
+  UiState, silently resetting the destination — signed-out users landed on the picker.)
+- **Booking form is honest for fresh companies.** The sample consignor/consignee/route/figures
+  defaults are gone from `BookingFormUiState`; the ViewModel preselects the demo party only
+  when the seeded masters actually contain it (debug). A real company sees "Tap to add" ×2,
+  "Tap to pick a route" and the honest "no rate card" fallback.
+- **Dashboard empty state (Design.md T4).** A brand-new company — zero consignments, zero
+  money — shows "Nothing booked yet" with the "Book the first bilty" CTA instead of ten zero
+  tiles.
+- **§5 decoupling.** `SetupWizardSampleData`, `CarouselSampleData`, `SignInSampleData`,
+  `ProfileSampleData`, `TemplateRequestsSampleData` deleted; static copy inlined into their
+  UiStates; `ProfileUiState` identity now comes from the session.
+
+### Release walk (clean install, signed APK)
+
+Splash → **T1 Sign-in** (first time ever on release) → Continue with Google → picker (empty,
+correct) → Register a new company → typed "VermaGoods"/Bhiwandi/BWD → Finish → "VermaGoods is
+ready" → dashboard: "VermaGoods · Bhiwandi" header + "Nothing booked yet" empty frame → Book
+the first bilty → form shows **BWD/2627/00001**, "Tap to add" parties, "no rate card". The
+validation gate also demonstrated live ("Company name and branch code are required") when the
+branch code was missing. adb IME quirks (documented) made typed walks slow; VM tests carry the
+input-path proof.
+
+**Tests (5 new, 217 total green):** `SetupWizardViewModelTest` (the auth module's first) —
+typed values reach `registerCompany`, series provisioned, blank-name refusal, formatting;
+`MinQty` fractional matrix (kg/t/qtl exact to the gram, fractional packages refused); booking
+VM/screen tests updated to *type* the canonical row instead of relying on sample defaults.
+Full `test` + `checkPureModules` green; debug demo environment restored on emulator-5554.
+
+### Decisions taken this sprint (D54)
+
+| # | Decision | Why |
+|---|---|---|
+| D54 | Session = signed-out flag / stored identity / company context / (debug-only) DEMO fallback; mock sign-in writes through the repository seam | the demo fallback made sign-out a no-op and every release install masquerade as a seeded user; the wizard needs a real signed-in identity to own the company it creates |
+
+**Scope notes:** the wizard's vehicle step still captures input but doesn't persist a VEHICLE_E
+row (deferred — masters CRUD owns vehicles); company picker offers no route/branch creation
+after registering (masters hub covers it); the profile screen's save/settings remain session-read
+only (T25 owns writes).
+
+---
+
+## Phase 3.5, Sprint S19 — Form resilience & field UX
+
+**Goal (from the "Ready for Use" plan):** a backgrounded clerk never loses a half-typed
+document, the photo paths become real, and three §9/§11/§17 flows that existed only as
+entities get their screens: the numbering counter change, trip costs + margin, member invites.
+
+### What was built
+
+- **Draft persistence (D55) on the four real forms.** BookingForm (packages, weight, L/B/H
+  dimensions, payment mode, risk, delivery, amend reason, all article rows, both party ids —
+  re-hydrated from masters by id), ChallanBuilder (the multi-select + filter), MasterEditor
+  (all 11 fields; the draft beats the stored record on re-open and clears on commit),
+  CompanyProfile (15 fields, same draft-clears-on-save rule; its UiState also lost its
+  SampleData defaults — an S18 §5 leftover). Proven by the shared-`SavedStateHandle`
+  process-death test: two ViewModels over one handle, type → "kill" → re-open → everything
+  back.
+- **Real photo paths (D56).** `PhotoImporter` (data layer): content-provider stream →
+  downscale to ≤1600px → JPEG q80 into app files → `(fileRef, bytes)`. T9's Camera tile uses
+  `TakePicture` onto a FileProvider cache uri (`file_paths.xml` gained `pod/`), Gallery uses
+  the system **Photo Picker**; the picked uri rides the POD row (`photoRef`). T8's add-photo
+  launches the picker and goes through `StatusRepository.addAttachment(source=uri)` — the
+  repository owns the import, and an unreadable provider answers typed `PHOTO_QUALITY`
+  ("That photo could not be read. Try another one.") with zero rows written. The S15
+  fake-fileRef path is gone.
+- **§9 counter change.** T28's dead Edit button now opens a typed-confirmation dialog
+  (Owner-only — the button is hidden for others): type the new 5-digit last-used number; the
+  update + its NUMBER_SERIES audit outbox row commit together; moving the counter back is
+  refused ("The counter can only move forward"). `SeriesRowData` gained `localId` for the
+  lookup.
+- **§11 money position.** T11 gained THE MONEY card: freight earned (sum of leg consignment
+  totals via a new DAO query), lorry hire, other costs, and the **provisional margin**
+  (freight − hire − costs) in mono, error-coloured when negative. "Add a cost" opens a
+  head-chip (Diesel/Toll/Repair/Other) + amount + mandatory-remark dialog writing TRIP_COST_E
+  through the existing `addCost`; the card reloads after every save.
+- **§17.4.1 invite sending.** T27's dead Invite button opens a dialog (Owner-only): email +
+  role picker → INVITED membership row with a 5-day expiry, `invited_by`, and its MEMBERSHIP
+  outbox INSERT; an already-active email is refused. The card appears in the Invited tab via
+  the existing live query.
+
+### Verification
+
+- **218 tests / 0 failures / 49 suites** (new: booking process-death, readable-photo import
+  asserting the `attachments/` file ref + non-empty compressed payload + outbox row; the
+  unreadable-provider refusal is device-verified because Robolectric's shadow BitmapFactory
+  decodes any stream). Full `test` + `checkPureModules` green.
+- **Emulator walk:** challan created end-to-end → T11 money card live (freight 12,180.00 /
+  hire 18,500.00 / margin −6,320.00 in error colour); Photo Picker opened from T8; a
+  non-decodable tile tapped → the exact PHOTO_QUALITY copy rendered and the DB stayed clean
+  (0 ATTACHMENT_E rows, outbox untouched). adb's aim fidelity on the picker grid is a
+  documented limitation — the on-device refusal is itself the demo of the typed guard.
+
+### Decisions taken this sprint (D55, D56)
+
+| # | Decision | Why |
+|---|---|---|
+| D55 | Drafts write through per keystroke to SavedStateHandle; parties persist as ids and re-hydrate from masters; drafts clear on commit | process death is the field reality (low-memory phones); re-hydration keeps names fresh without storing PII snapshots; a committed draft must never shadow the stored record |
+| D56 | The repository owns the photo import; unreadable providers answer PHOTO_QUALITY | the entity/outbox path must never half-commit; the §18.3 code already existed and finally has its user |
+
+**Scope notes:** the wizard's vehicle step still doesn't persist VEHICLE_E (masters CRUD
+owns vehicles); Invite "Resend" stays visual until the drain exists; the challan builder's
+vehicle/driver auto-pick remains first-available (a picker is a 3.6 candidate); adb cannot
+reliably drive the system Photo Picker grid — the positive import path is unit-proven, the
+refusal path device-proven.

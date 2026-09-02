@@ -57,6 +57,11 @@ data class MembersUiState(
     ),
     val members: List<MemberRow> = emptyList(),
     val showRoleMatrix: Boolean = false,
+    // S19 — the invite dialog (Owner only).
+    val isOwner: Boolean = false,
+    val showInvite: Boolean = false,
+    val inviteError: String? = null,
+    val isSaving: Boolean = false,
 )
 
 data class RoleMatrixRowUi(val capability: String, val marks: List<Boolean>)
@@ -65,10 +70,16 @@ sealed interface MembersEvent {
     data object Invite : MembersEvent
     data object ToggleRoleMatrix : MembersEvent
     data object Resend : MembersEvent
+    // S19 — the invite dialog
+    data object DismissInvite : MembersEvent
+    data class ChangeInviteEmail(val value: String) : MembersEvent
+    data class ChangeInviteRole(val role: String) : MembersEvent
+    data object SendInvite : MembersEvent
 }
 
 /** T28 series card. */
 data class SeriesRow(
+    val localId: String,
     val label: String,
     val nextNumber: String,
     val prefix: String,
@@ -78,15 +89,35 @@ data class SeriesRow(
     val neverUsed: Boolean = false,
 )
 
+/** The §9 counter-change dialog state: typed confirmation, forward-only (S19). */
+data class CounterEditUi(
+    val seriesLocalId: String,
+    val label: String,
+    val nextNumber: String,
+    val digits: Int,
+    val typed: String = "",
+) {
+    /** The typed value is the new high-water mark; it must be a full-width number. */
+    val valid: Boolean get() = typed.length == digits && typed.toLongOrNull() != null
+}
+
 data class NumberingUiState(
     val title: String = "Numbering series",
     val subtitle: String = "Numbers are leased per device offline; the counter never rolls back.",
     val editLabel: String = "Edit",
     val series: List<SeriesRow> = emptyList(),
+    /** S19: the open counter-change dialog, Owner only. */
+    val isOwner: Boolean = false,
+    val counterEdit: CounterEditUi? = null,
+    val isSaving: Boolean = false,
+    val error: String? = null,
 )
 
 sealed interface NumberingEvent {
-    data object Edit : NumberingEvent
+    data class StartCounterEdit(val seriesLocalId: String) : NumberingEvent
+    data class ChangeCounter(val value: String) : NumberingEvent
+    data object ConfirmCounter : NumberingEvent
+    data object DismissCounterEdit : NumberingEvent
     data object SeriesMore : NumberingEvent
 }
 

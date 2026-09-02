@@ -9,6 +9,7 @@ import com.example.transportapp.core.database.envelope.SyncState
 import com.example.transportapp.core.database.seed.DemoSeeder
 import com.example.transportapp.data.transport.numbering.NumberingRepositoryImpl
 import com.example.transportapp.data.transport.outbox.OutboxWriter
+import com.example.transportapp.data.transport.tracking.PhotoImporter
 import com.example.transportapp.data.transport.rate.RateCardRepositoryImpl
 import com.example.transportapp.data.transport.session.SessionRepository
 import com.example.transportapp.data.transport.session.UserSession
@@ -56,6 +57,7 @@ class ConsignmentRepositoryTest {
             database.numberingDao(),
             deviceIdProvider = { "TEST1" },
         )
+        val importer = PhotoImporter(ApplicationProvider.getApplicationContext())
         repository = ConsignmentRepositoryImpl(
             database = database,
             consignmentDao = database.consignmentDao(),
@@ -68,6 +70,7 @@ class ConsignmentRepositoryTest {
             database,
             fakeSession(),
             OutboxWriter(database.outboxDao()),
+            importer,
         ),
     )
     }
@@ -86,6 +89,7 @@ class ConsignmentRepositoryTest {
             ),
         )
 
+        override suspend fun signIn() {}
         override suspend fun signOut() {}
     }
 

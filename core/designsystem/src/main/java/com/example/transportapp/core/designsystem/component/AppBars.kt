@@ -37,6 +37,8 @@ import com.example.transportapp.core.designsystem.theme.transportColors
  *
  * @param title The title text in titleLarge
  * @param navigationIcon Leading icon (arrow_back/close). Pass null for none.
+ * @param navigationIconDesc Content description for the leading icon ("Navigate back" /
+ *   "Open menu") — TalkBack reads it, so it must match the gesture, not the glyph.
  * @param onNavigationClick Click for the leading icon
  * @param trailingIcons Any trailing content (icon buttons, text button, reserved number, etc.)
  */
@@ -45,6 +47,7 @@ fun TransportTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     navigationIcon: ImageVector? = Icons.Rounded.ArrowBack,
+    navigationIconDesc: String = "Navigate back",
     onNavigationClick: (() -> Unit)? = null,
     trailingIcons: (@Composable () -> Unit)? = null
 ) {
@@ -58,7 +61,7 @@ fun TransportTopAppBar(
     ) {
         if (navigationIcon != null) {
             IconButton(onClick = onNavigationClick ?: {}) {
-                Icon(navigationIcon, contentDescription = "Navigate back", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(navigationIcon, contentDescription = navigationIconDesc, tint = MaterialTheme.colorScheme.onSurface)
             }
         }
         Text(

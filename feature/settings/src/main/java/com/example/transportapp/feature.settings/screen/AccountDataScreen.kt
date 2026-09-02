@@ -3,6 +3,7 @@ package com.example.transportapp.feature.settings.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
@@ -51,25 +53,30 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * T31 — Account and data. Leaving and deleting are visibly different acts.
+ * D53: in debug builds the diagnostics card carries the hidden screen-map entry.
  */
 @Composable
 fun AccountDataScreen(
     onBack: () -> Unit,
+    onOpenScreenMap: (() -> Unit)? = null,
     viewModel: AccountDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     AccountDataContent(
         state = state,
         onEvent = viewModel::onEvent,
-        onBack = onBack
+        onBack = onBack,
+        onOpenScreenMap = onOpenScreenMap
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AccountDataContent(
     state: AccountDataUiState,
     onEvent: (AccountDataEvent) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenScreenMap: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).verticalScroll(rememberScrollState())) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack)
@@ -77,7 +84,10 @@ fun AccountDataContent(
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Section A — This phone
             GroupHeading("This phone")
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+            Column(
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
+                    .combinedClickable(onClick = {}, onLongClick = onOpenScreenMap ?: {})
+            ) {
                 InfoRow("Records stored", state.records)
                 InfoRow("Space used", state.space)
                 InfoRow("Documents cached", state.cachedPdfs)

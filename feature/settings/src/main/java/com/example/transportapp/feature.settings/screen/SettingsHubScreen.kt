@@ -36,12 +36,18 @@ import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Pin
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -57,15 +63,22 @@ import com.example.transportapp.core.designsystem.theme.transportColors
 
 /**
  * T24 — Settings hub. Routes only; locked rows state who can change them.
+ * S17: every row routes to its destination; SignOut confirms, clears the session and
+ * rewinds to Splash via the [signedOut] one-shot.
  */
 @Composable
 fun SettingsHubScreen(
     onBack: () -> Unit,
     onProfile: () -> Unit,
     onRowClick: (String) -> Unit,
+    onSignedOut: () -> Unit,
     viewModel: SettingsHubViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val signedOut by viewModel.signedOut.collectAsState()
+    LaunchedEffect(signedOut) {
+        if (signedOut) onSignedOut()
+    }
     SettingsHubContent(
         state = state,
         onEvent = viewModel::onEvent,
@@ -84,6 +97,7 @@ fun SettingsHubContent(
     onRowClick: (String) -> Unit
 ) {
     val isClerk = false // Owner view here
+    var showSignOutDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).verticalScroll(rememberScrollState())) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack)
@@ -145,7 +159,7 @@ fun SettingsHubContent(
 
         // Sign out
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onEvent(SettingsHubEvent.SignOut) }.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().clickable { showSignOutDialog = true }.padding(horizontal = Dimens.screenPadding, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -154,6 +168,23 @@ fun SettingsHubContent(
             Text(state.signOutLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.error)
         }
         Text(state.signOutNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp), textAlign = TextAlign.Center)
+    }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            title = { Text(state.signOutLabel, style = TransportTypeScale.titleMedium) },
+            text = { Text(state.signOutNote, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutDialog = false
+                    onEvent(SettingsHubEvent.SignOut)
+                }) { Text("Sign out", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) { Text("Stay signed in") }
+            }
+        )
     }
 }
 

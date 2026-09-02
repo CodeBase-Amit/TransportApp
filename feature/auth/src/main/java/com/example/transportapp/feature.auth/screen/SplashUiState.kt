@@ -2,10 +2,14 @@ package com.example.transportapp.feature.auth.screen
 
 enum class SplashPhase { RESOLVING, FORCED_UPDATE, RESOLVE_FAILED }
 
+/** §6.6: no session → T1 sign in; a session → T2 company and branch. */
+enum class SplashDestination { SIGN_IN, COMPANY_PICKER }
+
 data class SplashUiState(
     val phase: SplashPhase = SplashPhase.RESOLVING,
     val stepName: String = "Checking session",
     val stepIndex: Int = 0,
+    val destination: SplashDestination = SplashDestination.COMPANY_PICKER,
     val company: String = "",
     val subtitle: String = "Runs the whole document-and-money trail from a phone.",
     val forcedUpdateTitle: String = "Update required",

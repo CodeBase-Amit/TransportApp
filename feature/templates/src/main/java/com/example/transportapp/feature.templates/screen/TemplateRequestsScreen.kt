@@ -45,8 +45,6 @@ import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
-import com.example.transportapp.core.ui.sample.PastRequest
-import com.example.transportapp.core.ui.sample.TemplateRequest
 
 @Composable
 fun TemplateRequestsScreen(

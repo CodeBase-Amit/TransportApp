@@ -18,13 +18,15 @@ import kotlinx.coroutines.launch
 /**
  * T9's real save (Phase2.md S8): the sheet offers only the §7.1-legal continuations, the
  * hold path carries its reason and ≥10-character remark, and the save appends the event
- * with the projection advancing with it (D1).
+ * with the projection advancing with it (D1). S19: the Camera/Gallery tiles go through the
+ * real Photo Picker; the picked image is compressed into app files and rides the POD row.
  */
 @HiltViewModel
 class StatusUpdateSheetViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val statusRepository: StatusRepository,
+    private val photoImporter: com.example.transportapp.data.transport.tracking.PhotoImporter,
     @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ViewModel() {
 
@@ -32,6 +34,9 @@ class StatusUpdateSheetViewModel @Inject constructor(
 
     /** The signature PNG's file ref, written by the sheet before SaveWithSignature arrives. */
     private val pendingSignatureRef = MutableStateFlow<String?>(null)
+
+    /** S19: the POD photo's file ref, imported from the picker before the save. */
+    private val pendingPhotoRef = MutableStateFlow<String?>(null)
 
     private val _uiState = MutableStateFlow(StatusUpdateSheetUiState(biltyNo = biltyNo))
     val uiState: StateFlow<StatusUpdateSheetUiState> = _uiState.asStateFlow()
@@ -80,6 +85,21 @@ class StatusUpdateSheetViewModel @Inject constructor(
             is StatusUpdateSheetEvent.SetSignature -> _uiState.update { it.copy(hasSignature = event.hasInk) }
             StatusUpdateSheetEvent.ClearSignature -> _uiState.update { it.copy(hasSignature = false, signatureClearSignal = it.signatureClearSignal + 1) }
             StatusUpdateSheetEvent.UseMyLocation -> _uiState.update { it.copy(location = "Current town") }
+            // S19: the picked image is copied + compressed off the UI thread; PHOTO_QUALITY
+            // copy answers when the provider stream cannot be read.
+            is StatusUpdateSheetEvent.PhotoPicked -> viewModelScope.launch {
+                val imported = photoImporter.importToAppFiles(event.uri, "attachments")
+                if (imported == null) {
+                    _uiState.update { it.copy(error = "That photo could not be read. Try another one.") }
+                } else {
+                    pendingPhotoRef.value = imported.first
+                    _uiState.update { it.copy(photoAttached = true) }
+                }
+            }
+            StatusUpdateSheetEvent.RemovePhoto -> _uiState.update {
+                pendingPhotoRef.value = null
+                it.copy(photoAttached = false)
+            }
             is StatusUpdateSheetEvent.SaveWithSignature -> {
                 pendingSignatureRef.value = event.fileRef
                 save()
@@ -111,7 +131,7 @@ class StatusUpdateSheetViewModel @Inject constructor(
                     biltyNo = biltyNo,
                     consigneeName = state.consigneeName.ifBlank { "Consignee" },
                     signatureRef = signatureRef,
-                    photoRef = null,
+                    photoRef = pendingPhotoRef.value,
                     remarks = state.remark.takeIf { it.isNotBlank() },
                     now = System.currentTimeMillis(),
                 )

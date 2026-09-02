@@ -67,7 +67,8 @@ interface StatusRepository {
 
     suspend fun recordPod(biltyNo: String, consigneeName: String, signatureRef: String?, photoRef: String?, remarks: String?, now: Long): Result<Unit>
 
-    suspend fun addAttachment(biltyNo: String, kind: String, fileRef: String, sizeBytes: Long, caption: String?, now: Long): Result<Unit>
+    /** S19: the picked image is imported (downscaled + re-compressed) before the row commits. */
+    suspend fun addAttachment(biltyNo: String, kind: String, source: android.net.Uri, caption: String?, now: Long): Result<Unit>
 
     /**
      * The §12.1 To Pay Manager waiver: an append-only `WAIVE_TOPAY` audit event that the
@@ -85,6 +86,7 @@ class StatusRepositoryImpl @Inject constructor(
     private val database: TransportDatabase,
     private val sessionRepository: SessionRepository,
     private val outboxWriter: OutboxWriter,
+    private val photoImporter: PhotoImporter,
 ) : StatusRepository {
 
     override suspend fun append(event: NewStatusEvent, now: Long): Result<Unit> = database.withTransaction {
@@ -225,8 +227,14 @@ class StatusRepositoryImpl @Inject constructor(
         return Result.success(Unit)
     }
 
-    override suspend fun addAttachment(biltyNo: String, kind: String, fileRef: String, sizeBytes: Long, caption: String?, now: Long): Result<Unit> {
+    override suspend fun addAttachment(biltyNo: String, kind: String, source: android.net.Uri, caption: String?, now: Long): Result<Unit> {
         val session = sessionRepository.session.first()
+        if (!session.isSignedIn) return Result.failure(ErrorCode.AUTH_NO_ACCESS, "No active session")
+        // S19: the content-provider stream is copied out first — a provider that cannot be
+        // read is the §18.3 PHOTO_QUALITY answer, not a half-written row.
+        val imported = photoImporter.importToAppFiles(source, "attachments")
+            ?: return Result.failure(ErrorCode.PHOTO_QUALITY, "That photo could not be read. Try another one.")
+        val (fileRef, sizeBytes) = imported
         val consignment = database.consignmentDao().getConsignmentByBiltyNo(session.companyId, biltyNo)
             ?: database.consignmentDao().getConsignmentByProvisionalNo(session.companyId, biltyNo)
             ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No bilty $biltyNo on this device")

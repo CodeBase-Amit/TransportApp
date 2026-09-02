@@ -161,7 +161,13 @@ class BookingFormScreenTest {
 
     @Test
     fun grandTotalBar_showsAmountAndWords() {
-        setContent(Script())
+        val script = Script()
+        // S18: the form starts empty; the sticky bar renders whatever totals the state carries.
+        script.state = BookingFormUiState(
+            grandTotal = BookingFormSampleData.GRAND_TOTAL,
+            amountInWords = BookingFormSampleData.AMOUNT_IN_WORDS,
+        )
+        setContent(script)
 
         // The sticky bar prints the rupee-marked total above the amount in words.
         composeRule.onNodeWithText(BookingFormSampleData.GRAND_TOTAL.formatted(), substring = true).assertIsDisplayed()
@@ -171,15 +177,13 @@ class BookingFormScreenTest {
     @Test
     fun clearConsignor_showsTapToAdd_thenSearchField_rendersResults() {
         val script = Script()
+        // S18: the form opens with both party cards empty — "Tap to add" is the entry point.
         setContent(script)
 
-        // The form opens with the demo consignor selected. Clear it: "Tap to add" appears.
-        composeRule.onAllNodesWithContentDescription("Clear").onFirst().performClick()
-        composeRule.waitForIdle()
         composeRule.onAllNodesWithText("Tap to add").onFirst().assertIsDisplayed()
 
         // Tap the empty card: the search field enters search mode (S14 pickers).
-        composeRule.onNodeWithText("Tap to add").performClick()
+        composeRule.onAllNodesWithText("Tap to add").onFirst().performClick()
         composeRule.waitForIdle()
         assertTrue(script.events.contains(BookingFormEvent.StartConsignorSearch))
 

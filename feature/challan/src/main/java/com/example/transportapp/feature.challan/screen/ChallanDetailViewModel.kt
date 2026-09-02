@@ -39,6 +39,17 @@ data class ChallanDetailUiState(
     val loadKg: String = "",
     val hire: String = "",
     val balance: String = "",
+    // S19 — the §11 money position (freight earned vs hire + costs).
+    val moneyHeading: String = "THE MONEY",
+    val freightLine: String = "",
+    val hireLine: String = "",
+    val costsLine: String = "",
+    val marginLabel: String = "Provisional margin",
+    val margin: String = "",
+    val costs: List<TripCostLine> = emptyList(),
+    val addCostLabel: String = "Add a cost",
+    val costOpen: Boolean = false,
+    val isOwnerOrManager: Boolean = false,
     val whatsLoadedTitle: String = "WHAT'S LOADED",
     val whatsLoadedAction: String = "Group by station",
     val showAll: String = "",
@@ -62,6 +73,18 @@ data class ChallanDetailUiState(
     val error: String? = null,
 )
 
+/** One recorded trip cost row (S19 §11 block). */
+data class TripCostLine(val head: String, val amount: String, val remark: String)
+
+/** The add-cost dialog state (S19): head, rupee amount, remark (required per §11.4). */
+data class CostDraft(
+    val head: String = "Diesel",
+    val amount: String = "",
+    val remark: String = "",
+) {
+    val valid: Boolean get() = amount.toLongOrNull() != null && amount.toLongOrNull()!! > 0 && remark.isNotBlank()
+}
+
 sealed interface ChallanDetailEvent {
     data object Dispatch : ChallanDetailEvent
     data object CloseTrip : ChallanDetailEvent
@@ -69,6 +92,13 @@ sealed interface ChallanDetailEvent {
     data object Print : ChallanDetailEvent
     data object Share : ChallanDetailEvent
     data object More : ChallanDetailEvent
+    // S19 — trip costs (§11)
+    data object StartAddCost : ChallanDetailEvent
+    data object DismissAddCost : ChallanDetailEvent
+    data class ChangeCostHead(val head: String) : ChallanDetailEvent
+    data class ChangeCostAmount(val value: String) : ChallanDetailEvent
+    data class ChangeCostRemark(val value: String) : ChallanDetailEvent
+    data object SaveCost : ChallanDetailEvent
 }
 
 /**
@@ -87,12 +117,18 @@ class ChallanDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ChallanDetailUiState(challanNo = challanNo))
     val uiState: StateFlow<ChallanDetailUiState> = _uiState.asStateFlow()
 
+    /** S19: the open add-cost dialog draft. */
+    private val _costDraft = MutableStateFlow(CostDraft())
+    val costDraft: StateFlow<CostDraft> = _costDraft.asStateFlow()
+
     init {
         reload()
     }
 
     private fun reload() {
         viewModelScope.launch {
+            val session = sessionRepository.session.first()
+            val isOwnerOrManager = session.role == "OWNER" || session.role == "MANAGER"
             val detail = tripRepository.tripDetail(challanNo)
             if (detail == null) {
                 _uiState.update { it.copy(isLoading = false) }
@@ -147,6 +183,13 @@ class ChallanDetailViewModel @Inject constructor(
                     paperChallanNo = detail.challanNo ?: "",
                     paperVehicle = detail.vehicleNumber,
                     paperBiltyLines = detail.legs.take(2).map { BiltyLine(it.displayNo, it.toStation, formatIndianGrouping(it.weightKg) + " kg") },
+                    // S19 — the §11 money position card.
+                    freightLine = Money(detail.freightPaise).formatted(),
+                    hireLine = Money(detail.hirePaise).formatted(),
+                    costsLine = Money(detail.costsPaise).formatted(),
+                    margin = Money(detail.marginPaise).formatted(),
+                    costs = detail.costs.map { TripCostLine(it.head, it.amount, it.remark) },
+                    isOwnerOrManager = isOwnerOrManager,
                     dispatchedNotice = if (detail.state == TripState.DISPATCHED) {
                         "Balance ${Money(detail.balancePaise).formatted()} payable to the driver when the trip closes."
                     } else {
@@ -166,6 +209,34 @@ class ChallanDetailViewModel @Inject constructor(
             is ChallanDetailEvent.Dispatch -> act { tripRepository.dispatch(it, System.currentTimeMillis()) }
             is ChallanDetailEvent.CloseTrip -> act { tripRepository.close(it, System.currentTimeMillis()) }
             ChallanDetailEvent.EditLoad, ChallanDetailEvent.Print, ChallanDetailEvent.Share, ChallanDetailEvent.More -> Unit
+            // S19 — trip costs (§11): every cost needs a remark; the save reloads the money card.
+            ChallanDetailEvent.StartAddCost -> _costDraft.update { CostDraft() }.also { _uiState.update { s -> s.copy(costOpen = true) } }
+            ChallanDetailEvent.DismissAddCost -> _uiState.update { it.copy(costOpen = false) }
+            is ChallanDetailEvent.ChangeCostHead -> _costDraft.update { it.copy(head = event.head) }
+            is ChallanDetailEvent.ChangeCostAmount -> _costDraft.update { it.copy(amount = event.value.filter { ch -> ch.isDigit() }) }
+            is ChallanDetailEvent.ChangeCostRemark -> _costDraft.update { it.copy(remark = event.value) }
+            ChallanDetailEvent.SaveCost -> viewModelScope.launch {
+                val draft = _costDraft.value
+                val trip = tripRepository.tripDetail(challanNo) ?: return@launch
+                _uiState.update { it.copy(isLoading = true, error = null) }
+                val result = tripRepository.addCost(
+                    tripId = trip.tripLocalId,
+                    head = draft.head.uppercase(),
+                    amountPaise = (draft.amount.toLongOrNull() ?: 0) * 100,
+                    paymentMode = "CASH",
+                    remark = draft.remark,
+                    now = System.currentTimeMillis(),
+                )
+                when (result) {
+                    is com.example.transportapp.core.common.Result.Success -> {
+                        _costDraft.value = CostDraft()
+                        _uiState.update { it.copy(isLoading = false, costOpen = false) }
+                        reload()
+                    }
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        _uiState.update { it.copy(isLoading = false, error = result.message ?: result.code.name) }
+                }
+            }
         }
     }
 

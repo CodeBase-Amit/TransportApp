@@ -52,6 +52,16 @@ data class TripLegRow(
     val weight_kg: Long,
 )
 
+/** One trip cost row (S19): the §11 margin inputs beyond lorry hire. */
+data class TripCostRow(
+    val local_id: String,
+    val head: String,
+    val amount_paise: Long,
+    val payment_mode: String,
+    val remark: String,
+    val incurred_on: Long,
+)
+
 @Dao
 interface TripDao {
 
@@ -125,6 +135,27 @@ interface TripDao {
         """,
     )
     suspend fun getLegRows(tripId: String): List<TripLegRow>
+
+    /** §11: the trip's cost rows — the margin inputs beyond lorry hire (S19). */
+    @Query(
+        """
+        SELECT local_id, head, amount_paise, payment_mode, remark, incurred_on
+        FROM TRIP_COST_E
+        WHERE trip_id = :tripId AND deleted_at IS NULL
+        ORDER BY incurred_on
+        """,
+    )
+    suspend fun getCosts(tripId: String): List<TripCostRow>
+
+    /** Freight earned on the trip: the sum of every leg consignment's total (S19 margin). */
+    @Query(
+        """
+        SELECT COALESCE(SUM(C.total_paise), 0) FROM TRIP_LEG_E L
+        JOIN CONSIGNMENT_E C ON C.local_id = L.consignment_id
+        WHERE L.trip_id = :tripId AND L.deleted_at IS NULL
+        """,
+    )
+    suspend fun getLegsFreightPaise(tripId: String): Long
 
     /** Consignments already on a live leg of any trip — the pool must exclude them. */
     @Query(

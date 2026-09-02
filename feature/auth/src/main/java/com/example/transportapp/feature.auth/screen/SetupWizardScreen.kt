@@ -42,10 +42,11 @@ import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.SetupWizardSampleData
 
 /**
- * T3 — Company setup wizard. Four steps + done frame.
+ * T3 — Company setup wizard. Four steps + done frame. S18: every field writes back through
+ * [SetupWizardEvent.EditField]; Finish routes through the ViewModel so the company actually
+ * persists (previously both wires were dead — AgentChanges S18).
  */
 @Composable
 fun SetupWizardScreen(
@@ -67,7 +68,7 @@ fun SetupWizardContent(
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         if (state.justFinished) {
             // §6.1/T3: after the company persists, the done frame offers the next action.
-            SetupDoneFrame(onBookFirst = onFinish, onGoDashboard = onFinish)
+            SetupDoneFrame(state = state, onBookFirst = onFinish, onGoDashboard = onFinish)
             return@Column
         }
         Row(
@@ -98,10 +99,18 @@ fun SetupWizardContent(
             verticalArrangement = Arrangement.spacedBy(Dimens.fieldGap)
         ) {
             when (state.step) {
-                0 -> StepCompany(state)
+                0 -> StepCompany(state, onEvent)
                 1 -> StepTax(state, onEvent)
-                2 -> StepBranch(state)
+                2 -> StepBranch(state, onEvent)
                 3 -> StepVehicle(state, onEvent)
+            }
+            if (state.error != null) {
+                Text(
+                    state.error,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
@@ -114,7 +123,8 @@ fun SetupWizardContent(
         ) {
             AppPrimaryButton(
                 when (state.step) { 0 -> state.nextLabel; 1 -> state.nextLabel; 2 -> state.nextLabel; else -> state.finishLabel },
-                onClick = { if (state.step < state.stepLabels.lastIndex) onEvent(SetupWizardEvent.Next) else onFinish() },
+                // S18: Finish goes through the ViewModel — registerCompany must run.
+                onClick = { if (state.step < state.stepLabels.lastIndex) onEvent(SetupWizardEvent.Next) else onEvent(SetupWizardEvent.Finish) },
                 modifier = Modifier.fillMaxWidth()
             )
             if (state.step == state.stepLabels.lastIndex) {
@@ -131,11 +141,40 @@ fun SetupWizardContent(
 }
 
 @Composable
-private fun StepCompany(state: SetupWizardUiState) {
-    TransportTextField(value = state.companyName, onValueChange = {}, label = "Company name")
-    TransportTextField(value = state.headOffice, onValueChange = {}, label = "Head office address", singleLine = false, maxLines = 3)
-    TransportTextField(value = state.phone, onValueChange = {}, label = "Phone")
-    TransportTextField(value = state.email, onValueChange = {}, label = "Email")
+private fun SetupDoneFrame(state: SetupWizardUiState, onBookFirst: () -> Unit, onGoDashboard: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier.size(72.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(36.dp))
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(state.doneTitle, style = TransportTypeScale.headlineMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "You're the owner. Book your first bilty and all four copies print together.",
+            style = TransportTypeScale.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(32.dp))
+        AppPrimaryButton("Book the first bilty", onClick = onBookFirst, modifier = Modifier.fillMaxWidth())
+        AppTextButton("Go to dashboard", onClick = onGoDashboard, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun StepCompany(state: SetupWizardUiState, onEvent: (SetupWizardEvent) -> Unit) {
+    val edit = { field: SetupField -> { value: String -> onEvent(SetupWizardEvent.EditField(field, value)) } }
+    TransportTextField(value = state.companyName, onValueChange = edit(SetupField.COMPANY_NAME), label = "Company name")
+    TransportTextField(value = state.headOffice, onValueChange = edit(SetupField.HEAD_OFFICE), label = "Head office address", singleLine = false, maxLines = 3)
+    TransportTextField(value = state.phone, onValueChange = edit(SetupField.PHONE), label = "Phone")
+    TransportTextField(value = state.email, onValueChange = edit(SetupField.EMAIL), label = "Email")
     Spacer(Modifier.height(12.dp))
     GroupHeading(state.printHeading, modifier = Modifier.padding(bottom = 8.dp))
     // Letterhead preview (paper colours)
@@ -147,9 +186,9 @@ private fun StepCompany(state: SetupWizardUiState) {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(state.printName, color = PaperColors.paperInk, style = TransportTypeScale.titleMedium)
+        Text(state.companyName.uppercase().ifBlank { "YOUR COMPANY" }, color = PaperColors.paperInk, style = TransportTypeScale.titleMedium)
         Text(state.headOffice, color = PaperColors.paperInk, style = TransportTypeScale.bodySmall, textAlign = TextAlign.Center)
-        Text(state.printPhoneLabel, color = PaperColors.paperInk, style = TransportTypeScale.bodySmall)
+        if (state.phone.isNotBlank()) Text("Ph: ${state.phone}", color = PaperColors.paperInk, style = TransportTypeScale.bodySmall)
         Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(PaperColors.paperRule))
         Spacer(Modifier.height(8.dp))
@@ -159,8 +198,9 @@ private fun StepCompany(state: SetupWizardUiState) {
 
 @Composable
 private fun StepTax(state: SetupWizardUiState, onEvent: (SetupWizardEvent) -> Unit) {
-    TransportTextField(value = state.gstin, onValueChange = {}, label = "GSTIN", monospace = true)
-    TransportTextField(value = state.pan, onValueChange = {}, label = "PAN", monospace = true)
+    val edit = { field: SetupField -> { value: String -> onEvent(SetupWizardEvent.EditField(field, value)) } }
+    TransportTextField(value = state.gstin, onValueChange = edit(SetupField.GSTIN), label = "GSTIN", monospace = true)
+    TransportTextField(value = state.pan, onValueChange = edit(SetupField.PAN), label = "PAN", monospace = true)
     Spacer(Modifier.height(8.dp))
     GroupHeading(state.gstHeading, modifier = Modifier.padding(bottom = 8.dp))
     Column(
@@ -216,67 +256,40 @@ private fun GstOptionRow(label: String, selected: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-private fun StepBranch(state: SetupWizardUiState) {
-    TransportTextField(value = state.branchName, onValueChange = {}, label = "Branch name")
-    TransportTextField(value = state.branchAddress, onValueChange = {}, label = "Branch address")
-    TransportTextField(value = state.branchCode, onValueChange = {}, label = "Branch code", monospace = true)
-    Spacer(Modifier.height(8.dp))
+private fun StepBranch(state: SetupWizardUiState, onEvent: (SetupWizardEvent) -> Unit) {
+    val edit = { field: SetupField -> { value: String -> onEvent(SetupWizardEvent.EditField(field, value)) } }
+    TransportTextField(value = state.branchName, onValueChange = edit(SetupField.BRANCH_NAME), label = "Branch name")
+    TransportTextField(value = state.branchAddress, onValueChange = edit(SetupField.BRANCH_ADDRESS), label = "Branch address", singleLine = false, maxLines = 3)
+    TransportTextField(value = state.branchCode, onValueChange = edit(SetupField.BRANCH_CODE), label = "Branch code (e.g. IND)", monospace = true)
+    Spacer(Modifier.height(12.dp))
     GroupHeading(state.branchHeading, modifier = Modifier.padding(bottom = 8.dp))
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(12.dp))
-            .padding(12.dp)
+            .padding(16.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Prefix ${state.branchPrefix}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Year ${state.branchFy}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Digits ${state.branchDigits}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(state.nextBiltyLabel, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(state.nextBilty, style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.primary)
+        Text("${state.nextBiltyLabel}:", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(state.nextBilty, style = TransportTypeScale.dataLarge, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            "Prefix ${state.branchCode.uppercase()}/${state.branchFyPart} · ${state.branchDigits} digits · resets each financial year",
+            style = TransportTypeScale.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun StepVehicle(state: SetupWizardUiState, onEvent: (SetupWizardEvent) -> Unit) {
-    TransportTextField(value = state.vehicleNumber, onValueChange = {}, label = "Vehicle number", monospace = true)
-    Column {
-        Text(state.ownershipLabel, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
-        SegmentedControl(
-            options = state.ownershipOptions.map { it to it },
-            selected = state.ownership,
-            onSelect = { onEvent(SetupWizardEvent.SelectOwnership(it)) }
-        )
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        TransportTextField(value = state.capacity, onValueChange = {}, label = "Capacity", modifier = Modifier.weight(1f), monospace = true)
-        Text(state.capacityUnit, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    TransportTextField(value = state.driverName, onValueChange = {}, label = "Driver name")
-    TransportTextField(value = state.driverPhone, onValueChange = {}, label = "Driver phone")
-}
-
-@Composable
-fun SetupDoneFrame(onBookFirst: () -> Unit, onGoDashboard: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier.size(72.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.Check, contentDescription = "Done", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(36.dp))
-        }
-        Spacer(Modifier.height(24.dp))
-        Text(SetupWizardSampleData.DONE_TITLE, style = TransportTypeScale.headlineMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(8.dp))
-        Text(SetupWizardSampleData.DONE_BODY, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(24.dp))
-        AppPrimaryButton(SetupWizardSampleData.DONE_PRIMARY, onClick = onBookFirst, modifier = Modifier.fillMaxWidth())
-        AppTextButton(SetupWizardSampleData.DONE_SECONDARY, onClick = onGoDashboard)
-    }
+    val edit = { field: SetupField -> { value: String -> onEvent(SetupWizardEvent.EditField(field, value)) } }
+    TransportTextField(value = state.vehicleNumber, onValueChange = edit(SetupField.VEHICLE_NUMBER), label = "Vehicle number", monospace = true)
+    GroupHeading(state.ownershipLabel, modifier = Modifier.padding(top = 8.dp))
+    SegmentedControl(
+        options = state.ownershipOptions.map { it to it },
+        selected = state.ownership,
+        onSelect = { onEvent(SetupWizardEvent.SelectOwnership(it)) }
+    )
+    TransportTextField(value = state.capacity, onValueChange = edit(SetupField.CAPACITY), label = "Capacity (${state.capacityUnit})")
+    TransportTextField(value = state.driverName, onValueChange = edit(SetupField.DRIVER_NAME), label = "Driver name")
+    TransportTextField(value = state.driverPhone, onValueChange = edit(SetupField.DRIVER_PHONE), label = "Driver phone")
 }

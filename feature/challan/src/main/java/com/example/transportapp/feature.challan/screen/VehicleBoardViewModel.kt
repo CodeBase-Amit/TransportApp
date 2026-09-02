@@ -40,6 +40,9 @@ data class VehicleBoardUiState(
     val vehicles: List<VehicleRow> = emptyList(),
     val loadIt: String = "Load it",
     val newChallan: String = "New challan",
+    val companyInitials: String = "SR",
+    val companyName: String = "",
+    val branchName: String = "",
 )
 
 sealed interface VehicleBoardEvent {
@@ -102,6 +105,9 @@ class VehicleBoardViewModel @Inject constructor(
                         summaryLate = late.size.toString(),
                         vehicles = cards,
                         selectedFilter = filter,
+                        companyInitials = session.companyName.split(" ").mapNotNull { w -> w.firstOrNull() }.take(2).joinToString("").ifEmpty { "SR" },
+                        companyName = session.companyName,
+                        branchName = session.branchName,
                     ),
                     running.size,
                     late.size,

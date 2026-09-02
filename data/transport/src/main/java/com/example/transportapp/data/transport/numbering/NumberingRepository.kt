@@ -40,6 +40,12 @@ interface NumberingRepository {
 
     /** Debug/demo: simulate a server that cannot grant leases right now. */
     suspend fun debugSetGrantsEnabled(enabled: Boolean)
+
+    /**
+     * S18: provision a series for a freshly-registered company/branch (§9) so the first
+     * booking has a real series to lease from. No-op when the triple already exists.
+     */
+    suspend fun ensureSeries(companyId: String, branchId: String, docType: String, prefix: String)
 }
 
 @Singleton
@@ -95,6 +101,39 @@ class NumberingRepositoryImpl @Inject constructor(
 
     override suspend fun debugSetGrantsEnabled(enabled: Boolean) {
         grantsEnabled = enabled
+    }
+
+    override suspend fun ensureSeries(companyId: String, branchId: String, docType: String, prefix: String) {
+        val now = System.currentTimeMillis()
+        if (numberingDao.getSeries(companyId, branchId, docType) != null) return
+        val fyPart = financialYearPart(now)
+        numberingDao.upsertSeries(
+            NumberSeriesEntity(
+                local_id = "series-" + UUID.randomUUID().toString(),
+                server_id = null,
+                updated_at_local = now,
+                updated_at_server = null,
+                sync_state = SyncState.PENDING,
+                deleted_at = null,
+                company_id = companyId,
+                branch_id = branchId,
+                doc_type = docType,
+                prefix = "$prefix/$fyPart/",
+                fy_part = fyPart,
+                digits = 5,
+                last_issued = 0L,
+                reset_rule = "FINANCIAL_YEARLY",
+            ),
+        )
+    }
+
+    /** §9: the Indian financial year the counter resets at — "2627" for Apr 2026–Mar 2027. */
+    private fun financialYearPart(now: Long): String {
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = now }
+        val startYear = if (cal.get(java.util.Calendar.MONTH) >= java.util.Calendar.APRIL) cal.get(java.util.Calendar.YEAR) else cal.get(java.util.Calendar.YEAR) - 1
+        val y1 = (startYear % 100).toString().padStart(2, '0')
+        val y2 = ((startYear + 1) % 100).toString().padStart(2, '0')
+        return "$y1$y2"
     }
 
     /**

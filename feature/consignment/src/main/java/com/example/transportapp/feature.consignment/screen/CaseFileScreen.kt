@@ -83,6 +83,11 @@ fun CaseFileScreen(
     val printStatus by viewModel.printStatus.collectAsState()
     val canManage by viewModel.canManage.collectAsState()
     var showCancelDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    // S19: the real Photo Picker — the picked image is imported + compressed into app
+    // files and enqueued as ATTACHMENT_E with its outbox row.
+    val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let(viewModel::onPhotoPicked) }
     androidx.lifecycle.compose.LifecycleResumeEffect(biltyNo) {
         viewModel.refresh()
         onPauseOrDispose { }
@@ -103,7 +108,11 @@ fun CaseFileScreen(
         onBack = onBack,
         onPrint = viewModel::printBilty,
         onDismissPrintStatus = viewModel::dismissPrintStatus,
-        onAddPhoto = viewModel::addPhoto,
+        onAddPhoto = {
+            photoPicker.launch(androidx.activity.result.PickVisualMediaRequest(
+                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+            ))
+        },
         onHold = onHold,
         onRaiseBill = onRaiseBill,
         onFullHistory = onFullHistory,

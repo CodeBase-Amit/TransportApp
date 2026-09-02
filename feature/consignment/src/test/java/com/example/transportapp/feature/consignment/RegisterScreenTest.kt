@@ -59,11 +59,15 @@ class RegisterScreenTest {
                     state = state,
                     items = items,
                     onEvent = onEvent,
-                    onBack = {},
                     onDocketClick = {},
                     onNewBilty = onNewBilty,
                     onHome = {},
-                    onVehicles = {}
+                    onVehicles = {},
+                    onReports = {},
+                    onMasters = {},
+                    onExports = {},
+                    onSettings = {},
+                    onAccountData = {}
                 )
             }
         }

@@ -21,16 +21,24 @@ import kotlinx.coroutines.launch
 /**
  * T10 (Phase2.md S7): the loadable pool = Booked here + At hub here, never on a live trip;
  * the load meter fills toward the vehicle's capacity; Create stamps the challan (§9) and
- * marks every leg Loaded (§11.2).
+ * marks every leg Loaded (§11.2). S19: the selection survives process death via
+ * [savedStateHandle] — re-picking eight bilties after a background kill is the loss that
+ * makes clerks hate apps.
  */
 @HiltViewModel
 class ChallanBuilderViewModel @Inject constructor(
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val tripRepository: TripRepository,
     private val numberingRepository: com.example.transportapp.data.transport.numbering.NumberingRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ChallanBuilderUiState())
+    private val _uiState = MutableStateFlow(
+        ChallanBuilderUiState(
+            selectedBilties = savedStateHandle[KEY_SELECTION] ?: emptySet(),
+            selectedFilter = savedStateHandle[KEY_FILTER] ?: "Booked here",
+        )
+    )
     val uiState: StateFlow<ChallanBuilderUiState> = _uiState.asStateFlow()
 
     private var vehicleId: String? = null
@@ -102,13 +110,19 @@ class ChallanBuilderViewModel @Inject constructor(
         when (event) {
             is ChallanBuilderEvent.ToggleSelectAll -> _uiState.update {
                 val all = if (it.selectedBilties.size == it.loadable.size) emptySet() else it.loadable.map { c -> c.docNumber }.toSet()
+                savedStateHandle[KEY_SELECTION] = all
                 it.copy(selectedBilties = all).recomputed()
             }
             is ChallanBuilderEvent.ToggleConsignment -> _uiState.update {
                 val today = it.selectedBilties
-                it.copy(selectedBilties = if (event.docNumber in today) today - event.docNumber else today + event.docNumber).recomputed()
+                val next = if (event.docNumber in today) today - event.docNumber else today + event.docNumber
+                savedStateHandle[KEY_SELECTION] = next
+                it.copy(selectedBilties = next).recomputed()
             }
-            is ChallanBuilderEvent.SelectFilter -> _uiState.update { it.copy(selectedFilter = event.filter) }
+            is ChallanBuilderEvent.SelectFilter -> _uiState.update {
+                savedStateHandle[KEY_FILTER] = event.filter
+                it.copy(selectedFilter = event.filter)
+            }
             is ChallanBuilderEvent.Create -> create()
         }
     }
@@ -179,5 +193,10 @@ class ChallanBuilderViewModel @Inject constructor(
 
     fun consumeCreatedChallanNo() {
         _uiState.update { it.copy(createdChallanNo = null) }
+    }
+
+    private companion object {
+        const val KEY_SELECTION = "challan_selected_bilties"
+        const val KEY_FILTER = "challan_filter"
     }
 }

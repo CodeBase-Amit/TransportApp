@@ -31,5 +31,11 @@ data class SessionSnapshot(
             branchId = SeedIds.BRANCH_INDORE,
             branchName = "Indore",
         )
+
+        /** Nobody signed in — S18: release clean installs and post-sign-out land here. */
+        val SIGNED_OUT = SessionSnapshot(
+            userId = "", name = "", email = "", role = "",
+            companyId = "", companyName = "", branchId = "", branchName = "",
+        )
     }
 }

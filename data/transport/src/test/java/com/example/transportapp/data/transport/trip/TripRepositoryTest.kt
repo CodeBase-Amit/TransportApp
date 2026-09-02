@@ -74,6 +74,7 @@ class TripRepositoryTest {
             ),
         )
 
+        override suspend fun signIn() {}
         override suspend fun signOut() {}
     }
 

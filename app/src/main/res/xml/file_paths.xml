@@ -3,6 +3,8 @@
 <paths>
     <!-- Share hand-off copies live here briefly (AndroidPdfRenderer.sharePdf). -->
     <cache-path name="pdfs" path="pdfs/" />
+    <!-- S19: TakePicture's POD capture lands in cache/pod before the importer copies it. -->
+    <cache-path name="pod" path="pod/" />
     <!-- Saved exports (DocumentRepository's files/exports output). -->
     <files-path name="exports" path="exports/" />
 </paths>

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.transportapp.data.transport.session.SessionRepository
 import com.example.transportapp.data.transport.session.UserSession
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +33,7 @@ class SignInViewModel @Inject constructor(
                 if (_uiState.value.loading) return
                 _uiState.update { it.copy(loading = true) }
                 viewModelScope.launch {
-                    delay(400) // Credential Manager's exchange slot — mock resolves instantly
+                    sessionRepository.signIn() // Credential Manager's slot — mock resolves instantly
                     _uiState.update { it.copy(loading = false) }
                     _signedIn.value = true
                 }

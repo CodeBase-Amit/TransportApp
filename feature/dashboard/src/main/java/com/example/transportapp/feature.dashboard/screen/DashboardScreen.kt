@@ -2,6 +2,7 @@ package com.example.transportapp.feature.dashboard.screen
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,17 +18,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ListAlt
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.ListAlt
+import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LocalShipping
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ListAlt
-import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -46,18 +49,28 @@ import com.example.transportapp.core.designsystem.component.NavDestination
 import com.example.transportapp.core.designsystem.component.TransportBottomNavBar
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.ui.AppNavDrawer
+import com.example.transportapp.core.ui.DrawerDestination
+import com.example.transportapp.core.ui.rememberAppDrawerState
+import kotlinx.coroutines.launch
 
 /**
  * T4 — Dashboard. Exception strip above the numbers, 2-column tiles, one sparkline.
- * Phase2 S2: header reads the active company/branch; tiles arrive from §13 queries in S10.
+ * S17: app shell — hamburger drawer, person→settings, tiles/strip navigate (§6.6).
+ * The dev screen map is no longer linked from here (D53).
  */
 @Composable
 fun DashboardScreen(
     onNewBilty: () -> Unit,
     onRegister: () -> Unit,
     onVehicles: () -> Unit,
-    onOpenScreenMap: () -> Unit = {},
-    showScreenMap: Boolean = false,
+    onReports: () -> Unit,
+    onMasters: () -> Unit,
+    onExports: () -> Unit,
+    onSettings: () -> Unit,
+    onAccountData: () -> Unit,
+    onUnbilled: () -> Unit,
+    onException: (String) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -67,8 +80,13 @@ fun DashboardScreen(
         onNewBilty = onNewBilty,
         onRegister = onRegister,
         onVehicles = onVehicles,
-        onOpenScreenMap = onOpenScreenMap,
-        showScreenMap = showScreenMap,
+        onReports = onReports,
+        onMasters = onMasters,
+        onExports = onExports,
+        onSettings = onSettings,
+        onAccountData = onAccountData,
+        onUnbilled = onUnbilled,
+        onException = onException,
     )
 }
 
@@ -79,100 +97,163 @@ fun DashboardContent(
     onNewBilty: () -> Unit,
     onRegister: () -> Unit,
     onVehicles: () -> Unit,
-    onOpenScreenMap: () -> Unit,
-    showScreenMap: Boolean = false
+    onReports: () -> Unit,
+    onMasters: () -> Unit,
+    onExports: () -> Unit,
+    onSettings: () -> Unit,
+    onAccountData: () -> Unit,
+    onUnbilled: () -> Unit,
+    onException: (String) -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Top app bar
-            Row(
-                modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                    Text(state.companyInitials, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
+    val drawerState = rememberAppDrawerState()
+    val scope = rememberCoroutineScope()
+    AppNavDrawer(
+        drawerState = drawerState,
+        companyInitials = state.companyInitials,
+        companyName = state.companyName,
+        branchName = state.branchName,
+        activeDestination = DrawerDestination.HOME,
+        onSelect = { destination ->
+            scope.launch { drawerState.close() }
+            when (destination) {
+                DrawerDestination.REGISTER -> onRegister()
+                DrawerDestination.VEHICLES -> onVehicles()
+                DrawerDestination.REPORTS -> onReports()
+                DrawerDestination.MASTERS -> onMasters()
+                DrawerDestination.EXPORTS -> onExports()
+                DrawerDestination.SETTINGS -> onSettings()
+                DrawerDestination.ACCOUNT_DATA -> onAccountData()
+                DrawerDestination.HOME -> Unit
+            }
+        }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top app bar: hamburger + identity + person (settings)
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Rounded.Menu, contentDescription = "Open menu", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box(modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                        Text(state.companyInitials, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(state.companyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(state.branchName, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = onSettings) { Icon(Icons.Rounded.Person, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(state.companyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(state.branchName, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = {}) { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                if (showScreenMap) {
-                    IconButton(onClick = onOpenScreenMap) { Icon(Icons.Rounded.Person, contentDescription = "Screen map", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+
+                Text(
+                    state.asOf,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
+                    textAlign = TextAlign.End
+                )
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (state.isEmpty) {
+                        // Design.md T4 empty frame: a brand-new company — no strip, no tiles.
+                        item {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 96.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("Nothing booked yet", style = TransportTypeScale.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    "Book your first bilty and its four copies print straight away. The dashboard fills in from there.",
+                                    style = TransportTypeScale.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                                AppPrimaryButton("Book the first bilty", onClick = onNewBilty)
+                            }
+                        }
+                    } else {
+                        item {
+                            state.visibleExceptions.forEachIndexed { visibleIndex, exc ->
+                                val index = state.exceptions.indexOfFirst { it == exc }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp)).padding(16.dp)
+                                        .clickable(enabled = exc.biltyNo.isNotEmpty()) { onException(exc.biltyNo) },
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Icon(if (exc.isLate) Icons.Rounded.Schedule else Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(exc.title, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                        Text(exc.body, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
+                                    }
+                                    IconButton(onClick = { onEvent(DashboardEvent.DismissException(index)) }) {
+                                        Icon(Icons.Rounded.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                        }
+
+                        state.tiles.chunked(2).forEach { rowTiles ->
+                            item {
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    rowTiles.forEach { tile ->
+                                        DashboardTile(
+                                            tile,
+                                            onClick = when (tile.label) {
+                                                "Unbilled freight" -> onUnbilled
+                                                "Vehicles idle" -> onVehicles
+                                                "Exceptions" -> onRegister
+                                                else -> null
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    if (rowTiles.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                        item { ThisMonthTile(state) }
+                    }
                 }
             }
 
-            Text(
-                state.asOf,
-                style = TransportTypeScale.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
-                textAlign = TextAlign.End
+            // Extended FAB
+            Box(modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 96.dp)) {
+                AppPrimaryButton(state.newBiltyLabel, onClick = onNewBilty, leadingIcon = Icons.Rounded.Add)
+            }
+
+            // Bottom nav
+            TransportBottomNavBar(
+                destinations = listOf(
+                    NavDestination("Home", Icons.Outlined.Home, Icons.Rounded.Home),
+                    NavDestination("Register", Icons.Outlined.ListAlt, Icons.AutoMirrored.Rounded.ListAlt),
+                    NavDestination("Vehicles", Icons.Outlined.LocalShipping, Icons.Rounded.LocalShipping)
+                ),
+                activeIndex = 0,
+                onSelect = { index -> when (index) { 1 -> onRegister(); 2 -> onVehicles() } },
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    state.visibleExceptions.forEachIndexed { visibleIndex, exc ->
-                        val index = state.exceptions.indexOfFirst { it == exc }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp)).padding(16.dp),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Icon(if (exc.isLate) Icons.Rounded.Schedule else Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(exc.title, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                                Text(exc.body, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                            }
-                            IconButton(onClick = { onEvent(DashboardEvent.DismissException(index)) }) {
-                                Icon(Icons.Rounded.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-                }
-
-                state.tiles.chunked(2).forEach { rowTiles ->
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            rowTiles.forEach { tile ->
-                                DashboardTile(tile, modifier = Modifier.weight(1f))
-                            }
-                            if (rowTiles.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
-                item { ThisMonthTile(state) }
-            }
         }
-
-        // Extended FAB
-        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 96.dp)) {
-            AppPrimaryButton(state.newBiltyLabel, onClick = onNewBilty, leadingIcon = Icons.Rounded.Add)
-        }
-
-        // Bottom nav
-        TransportBottomNavBar(
-            destinations = listOf(
-                NavDestination("Home", Icons.Outlined.Home, Icons.Rounded.Home),
-                NavDestination("Register", Icons.Outlined.ListAlt, Icons.Outlined.ListAlt),
-                NavDestination("Vehicles", Icons.Outlined.LocalShipping, Icons.Rounded.LocalShipping)
-            ),
-            activeIndex = 0,
-            onSelect = { index -> when (index) { 1 -> onRegister(); 2 -> onVehicles() } },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
     }
 }
 
 @Composable
-private fun DashboardTile(tile: DashTile, modifier: Modifier = Modifier) {
+private fun DashboardTile(tile: DashTile, onClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.height(116.dp).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(16.dp),
+        modifier = modifier
+            .height(116.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp))
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .padding(16.dp),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Text(tile.label.uppercase(), style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

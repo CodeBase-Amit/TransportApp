@@ -32,7 +32,6 @@ import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
-import com.example.transportapp.core.ui.sample.CarouselPanel
 import kotlinx.coroutines.flow.collect
 
 /**

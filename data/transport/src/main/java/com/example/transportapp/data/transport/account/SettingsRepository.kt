@@ -8,6 +8,7 @@ import com.example.transportapp.data.transport.outbox.OutboxWriter
 import com.example.transportapp.data.transport.session.SessionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -33,6 +34,7 @@ data class MemberRowData(val name: String, val email: String, val role: String, 
 
 /** One series row as T28 prints it. */
 data class SeriesRowData(
+    val localId: String,
     val branch: String,
     val docType: String,
     val prefix: String,
@@ -72,6 +74,7 @@ class SettingsRepository @Inject constructor(
             .map { series ->
                 series.map { s ->
                     SeriesRowData(
+                        localId = s.local_id,
                         branch = s.branch_id, docType = s.doc_type, prefix = s.prefix,
                         fyPart = s.fy_part, digits = s.digits, lastIssued = s.last_issued,
                         nextValue = null,
@@ -130,5 +133,86 @@ class SettingsRepository @Inject constructor(
             payloadJson = com.example.transportapp.data.transport.account.companyProfilePayload(name, legalName, address, gstin, pan, transporterId),
             now = System.currentTimeMillis(),
         )
+    }
+
+    /**
+     * S19 — the §9 counter change (T28's Edit). Owner-only; the counter moves *forward*
+     * only (a moved-back counter re-issues printed numbers); the update and its audit
+     * outbox row commit together. `newLastIssued` is the new high-water mark.
+     */
+    suspend fun changeSeriesCounter(companyId: String, branchId: String, docType: String, newLastIssued: Long): com.example.transportapp.core.common.Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER") {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.AUTH_NO_ACCESS, "Only the Owner can change a numbering counter"
+            )
+        }
+        val series = numberingDao.getSeries(companyId, branchId, docType)
+            ?: return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.LEASE_INVALID, "Series not found"
+            )
+        if (newLastIssued < series.last_issued) {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.LEASE_INVALID,
+                "The counter can only move forward — it is already at ${series.last_issued}",
+            )
+        }
+        val now = System.currentTimeMillis()
+        numberingDao.upsertSeries(series.copy(last_issued = newLastIssued, updated_at_local = now))
+        outboxWriter.enqueue(
+            op = com.example.transportapp.core.database.outbox.OutboxOp.UPDATE,
+            entityType = com.example.transportapp.core.database.outbox.OutboxEntityType.NUMBER_SERIES,
+            entityLocalId = series.local_id,
+            payloadJson = """{"last_issued":$newLastIssued}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(Unit)
+    }
+
+    /** The branch's local id for the T28 edit dialog (rows today key by branch name). */
+    suspend fun branchIdForName(companyId: String, branchName: String): String? =
+        orgDao.getBranchesForCompany(companyId).firstOrNull { it.name == branchName }?.local_id
+
+    /**
+     * S19 — the §17.4.1 invite: Owner-only; writes an INVITED membership row with a
+     * five-day expiry and its outbox INSERT (the invite travels with the sync, §16.2).
+     * A member already active on that email is refused.
+     */
+    suspend fun inviteMember(companyId: String, email: String, role: String, invitedByName: String): com.example.transportapp.core.common.Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER") {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.AUTH_NO_ACCESS, "Only the Owner can invite members"
+            )
+        }
+        val now = System.currentTimeMillis()
+        val existing = orgDao.observeMemberships().first()
+            .firstOrNull { it.company_id == companyId && it.user_email == email && it.deleted_at == null }
+        if (existing != null && existing.status == com.example.transportapp.core.database.entity.MembershipEntity.STATUS_ACTIVE) {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "$email is already a member"
+            )
+        }
+        val membershipId = java.util.UUID.randomUUID().toString()
+        orgDao.upsertMembership(
+            com.example.transportapp.core.database.entity.MembershipEntity(
+                local_id = membershipId, server_id = null,
+                updated_at_local = now, updated_at_server = null,
+                sync_state = com.example.transportapp.core.database.envelope.SyncState.PENDING, deleted_at = null,
+                company_id = companyId, user_name = email.substringBefore('@'), user_email = email,
+                role = role, branch_scope = com.example.transportapp.core.database.entity.MembershipEntity.SCOPE_ALL,
+                status = com.example.transportapp.core.database.entity.MembershipEntity.STATUS_INVITED,
+                invited_by = invitedByName, invited_expires_at = now + 5L * 24 * 60 * 60 * 1000,
+                display_expires = "expires in 5 days",
+            ),
+        )
+        outboxWriter.enqueue(
+            op = OutboxOp.INSERT,
+            entityType = OutboxEntityType.MEMBERSHIP,
+            entityLocalId = membershipId,
+            payloadJson = """{"email":"$email","role":"$role","status":"INVITED"}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(Unit)
     }
 }

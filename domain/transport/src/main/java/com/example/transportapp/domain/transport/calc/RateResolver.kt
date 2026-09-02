@@ -79,13 +79,20 @@ sealed interface MinQty {
             val text = label?.trim()?.lowercase()?.replace(",", "") ?: return null
             if (text.isEmpty()) return null
             val match = Regex("^(\\d+(?:\\.\\d+)?)\\s*(kg|kgs|t|ton|tons|tonne|tonnes|qtl|quintal|pkg|pkgs|art|arts)$").find(text) ?: return null
-            val value = match.groupValues[1].toDoubleOrNull() ?: return null
-            if (value <= 0.0) return null
+            // §14.1: no floating point on the money/weight path — the decimal string is
+            // split and scaled with integer arithmetic ("1.5" → 1*1000 + 500*1 for kg).
+            val whole = match.groupValues[1].takeWhile { it != '.' }
+            val frac = match.groupValues[1].dropWhile { it != '.' }.drop(1).take(3).padEnd(3, '0')
+            if (whole.isEmpty() || whole.toLongOrNull() == null || frac.toLongOrNull() == null) return null
+            if (match.groupValues[1].contains('.') && match.groupValues[1].dropWhile { it != '.' }.drop(1).length > 3) return null
+            val milli = whole.toLong() * 1000L + frac.toLong()
+            if (milli <= 0L) return null
             return when (match.groupValues[2]) {
-                "kg", "kgs" -> Weight(Math.round(value * 1000).toLong())
-                "t", "ton", "tons", "tonne", "tonnes" -> Weight(Math.round(value * 1_000_000).toLong())
-                "qtl", "quintal" -> Weight(Math.round(value * 100_000).toLong())
-                else -> Packages(Math.round(value).toLong())
+                "kg", "kgs" -> Weight(milli)                                  // gram-precise
+                "t", "ton", "tons", "tonne", "tonnes" -> Weight(milli * 1000)  // t → g: ×10⁶ from milli-units
+                "qtl", "quintal" -> Weight(milli * 100)
+                // Packages are discrete: a fractional package floor is a guess, not a number.
+                else -> if (milli % 1000L == 0L) Packages(milli / 1000) else null
             }
         }
     }

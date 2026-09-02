@@ -26,6 +26,10 @@ class SettingsHubViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsHubUiState())
     val uiState: StateFlow<SettingsHubUiState> = _uiState.asStateFlow()
 
+    /** One-shot: sign-out confirmed; the nav graph rewinds to Splash. */
+    private val _signedOut = MutableStateFlow(false)
+    val signedOut: StateFlow<Boolean> = _signedOut.asStateFlow()
+
     init {
         viewModelScope.launch {
             val s = sessionRepository.session.first()
@@ -60,8 +64,10 @@ class SettingsHubViewModel @Inject constructor(
     }
 fun onEvent(event: SettingsHubEvent) {
         when (event) {
-            SettingsHubEvent.SignOut -> _uiState.update { it }
-            is SettingsHubEvent.RowClick -> _uiState.update { it }
+            SettingsHubEvent.SignOut -> viewModelScope.launch {
+                sessionRepository.signOut()
+                _signedOut.value = true
+            }
         }
     }
 }

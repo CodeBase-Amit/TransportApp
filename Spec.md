@@ -39,8 +39,10 @@ definition of done. Read this before touching any file. It is deliberately pract
 Native Android, Kotlin 2.2.10, Jetpack Compose (BOM 2026.02.01), Material 3, AGP 9.3.2, version catalog in
 `gradle/libs.versions.toml`, applicationId `com.example.transportapp`. Phase 1 delivered all 34 screens (T0–T33)
 as UI-only MVVM with per-screen sample data. Phase 2 (see `..\TransportApp\Phase2.md`) adds the offline data layer:
-Hilt, Room, repositories, outbox scaffold, seeded demo dataset. The dev "Screen map" (`Routes.SCREEN_INDEX`) is the
-start destination and reaches every screen in one tap.
+Hilt, Room, repositories, outbox scaffold, seeded demo dataset. Phase 3.2 (S17) replaced the dev screen map with a
+real app shell: the three §6.2 tabs carry a hamburger drawer (Home/Register/Vehicles, Business: Reports/Masters/
+Exports, Admin: Settings/Account & data), every hub is reachable from natural entry points, and the app always
+starts at T0 Splash — the screen map survives only behind a debug-build long-press on T31's diagnostics card (D53).
 
 ## §2 Module rules
 
@@ -155,7 +157,9 @@ prototype's displayed numbers. Debug reset (T31) = delete DB + DataStore active 
 All routes live in `core/ui/Routes.kt` with a `// Tn` comment per §6 of TransportApp.md. Any route argument that can
 contain `/` (document numbers) **must** go through the `Uri.encode` helpers — `Routes.caseFile("IND/2627/04188")`.
 Nav graphs are `NavGraphBuilder` extensions per feature (`XxxNavGraph.kt`) called from `AppNavHost` in declaration
-order. The screen map (`SCREEN_INDEX`) navigates by route; production flows navigate by domain id.
+order. The three tab roots (T4/T7/T12) switch via `NavController.navigateTab` (`:core:ui`) — `popUpTo(0) { saveState }`
++ `launchSingleTop` + `restoreState`, so tab state survives switching; drawer hub selections are plain pushes.
+Production flows navigate by domain id; the screen map (`SCREEN_INDEX`) is a debug-only dev tool (D53).
 
 ## §9 Error handling
 

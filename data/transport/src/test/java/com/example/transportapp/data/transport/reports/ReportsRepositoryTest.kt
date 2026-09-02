@@ -50,7 +50,8 @@ class ReportsRepositoryTest {
                     ),
                 )
 
-                override suspend fun signOut() {}
+                override suspend fun signIn() {}
+        override suspend fun signOut() {}
             },
             context,
         )

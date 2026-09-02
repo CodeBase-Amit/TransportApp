@@ -49,6 +49,9 @@ data class RegisterUiState(
     val summary: RegisterSummary? = null,
     val isEmptyRegister: Boolean = false,
     val isLoading: Boolean = true,
+    val companyInitials: String = "SR",
+    val companyName: String = "",
+    val branchName: String = "",
 ) {
     companion object {
         fun defaultChips(selected: Set<ChipKind> = emptySet()) =
@@ -146,6 +149,9 @@ class RegisterViewModel @Inject constructor(
                     it.copy(
                         chips = RegisterUiState.defaultChips(selectedChips(f)),
                         isLoading = true,
+                        companyInitials = session.companyName.split(" ").mapNotNull { w -> w.firstOrNull() }.take(2).joinToString("").ifEmpty { "SR" },
+                        companyName = session.companyName,
+                        branchName = session.branchName,
                     )
                 }
                 val summary = registerRepository.summary(session.companyId, session.branchId, f)

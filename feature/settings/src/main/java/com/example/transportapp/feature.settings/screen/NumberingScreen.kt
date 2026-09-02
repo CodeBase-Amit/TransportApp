@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
@@ -62,14 +63,54 @@ fun NumberingContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             state.series.forEach { series ->
-                SeriesCard(series, state.editLabel)
+                SeriesCard(series, state.editLabel, state.isOwner, onEdit = { onEvent(NumberingEvent.StartCounterEdit(series.localId)) })
             }
         }
+    }
+
+    // §9 counter change: Owner-only, typed confirmation, forward-only (S19).
+    state.counterEdit?.let { edit ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { onEvent(NumberingEvent.DismissCounterEdit) },
+            title = { Text("Change the counter", style = TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    Text(edit.label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "The counter is at ${edit.nextNumber.substringAfterLast('/')}. Moving it forward skips numbers; it can never move back.",
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    TransportTextField(
+                        value = edit.typed,
+                        onValueChange = { onEvent(NumberingEvent.ChangeCounter(it)) },
+                        label = "Type the new last-used number (${edit.digits} digits)",
+                        monospace = true,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    if (state.error != null) {
+                        Text(state.error, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = edit.valid && !state.isSaving,
+                    onClick = { onEvent(NumberingEvent.ConfirmCounter) }
+                ) { Text("Set counter", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { onEvent(NumberingEvent.DismissCounterEdit) }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
-private fun SeriesCard(series: SeriesRow, editLabel: String) {
+private fun SeriesCard(series: SeriesRow, editLabel: String, isOwner: Boolean, onEdit: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
     ) {
@@ -94,7 +135,8 @@ private fun SeriesCard(series: SeriesRow, editLabel: String) {
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(series.caption, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            AppTextButton(editLabel, onClick = {})
+            // §9: the counter change is Owner data (S19 wires the dead Edit button).
+            if (isOwner) AppTextButton(editLabel, onClick = onEdit)
         }
         if (series.neverUsed) {
             Spacer(Modifier.height(8.dp))

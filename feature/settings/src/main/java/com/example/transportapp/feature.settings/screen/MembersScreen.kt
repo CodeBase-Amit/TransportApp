@@ -2,6 +2,7 @@ package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,11 +52,64 @@ fun MembersScreen(
     viewModel: MembersViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val inviteEmail by viewModel.inviteEmail.collectAsState()
+    val inviteRole by viewModel.inviteRole.collectAsState()
     MembersContent(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack
     )
+    // S19: the §17.4.1 invite dialog — email + role, Owner only, INVITED membership + outbox.
+    if (state.showInvite) {
+        val roles = listOf(
+            "BOOKING_CLERK" to "Booking clerk",
+            "DELIVERY_CLERK" to "Delivery clerk",
+            "ACCOUNTANT" to "Accountant",
+            "MANAGER" to "Manager",
+        )
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.onEvent(MembersEvent.DismissInvite) },
+            title = { Text("Invite a member", style = TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = inviteEmail,
+                        onValueChange = { viewModel.onEvent(MembersEvent.ChangeInviteEmail(it)) },
+                        label = "Email address"
+                    )
+                    Text("Role", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+                    Column {
+                        roles.forEach { (code, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.onEvent(MembersEvent.ChangeInviteRole(code)) }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(if (inviteRole == code) Icons.Rounded.Check else Icons.Rounded.Remove, contentDescription = null, tint = if (inviteRole == code) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                    Text("They get an invitation valid for 5 days. Invite travels when the phone syncs.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                    if (state.inviteError != null) {
+                        Text(state.inviteError ?: "", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = android.util.Patterns.EMAIL_ADDRESS.matcher(inviteEmail).matches() && !state.isSaving,
+                    onClick = { viewModel.onEvent(MembersEvent.SendInvite) }
+                ) { Text("Send invite", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.onEvent(MembersEvent.DismissInvite) }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable

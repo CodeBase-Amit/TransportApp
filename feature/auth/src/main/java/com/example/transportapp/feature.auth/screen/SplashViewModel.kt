@@ -40,12 +40,20 @@ class SplashViewModel @Inject constructor(
         viewModelScope.launch {
             val steps = listOf("Checking session", "Reading your memberships", "Loading your company", "Opening")
             steps.forEachIndexed { index, name ->
-                _uiState.update { SplashUiState(phase = SplashPhase.RESOLVING, stepName = name, stepIndex = index) }
+                // copy, not replace — the destination set at step 0 must survive (S18 fix:
+                // the old replace-reset sent signed-out users to the company picker).
+                _uiState.update { it.copy(phase = SplashPhase.RESOLVING, stepName = name, stepIndex = index) }
                 when (index) {
-                    // Session read: is anyone signed in on this device?
+                    // Session read: is anyone signed in on this device? The destination
+                    // follows §6.6 — no session goes to T1, a session goes to T2.
                     0 -> {
                         val session = sessionRepository.session.first()
-                        _uiState.update { it.copy(company = session.companyName.ifEmpty { "TransportApp" }) }
+                        _uiState.update {
+                            it.copy(
+                                company = session.companyName.ifEmpty { "TransportApp" },
+                                destination = if (session.isSignedIn) SplashDestination.COMPANY_PICKER else SplashDestination.SIGN_IN,
+                            )
+                        }
                     }
                     1 -> delay(150) // memberships read inline with the session snapshot
                     2 -> delay(150) // company context rides the same snapshot

@@ -14,7 +14,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.LocalShipping
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Rule
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.outlined.Home
@@ -27,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -44,15 +47,23 @@ import com.example.transportapp.core.designsystem.component.TransportBottomNavBa
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.ui.AppNavDrawer
+import com.example.transportapp.core.ui.DrawerDestination
+import com.example.transportapp.core.ui.rememberAppDrawerState
 import com.example.transportapp.core.ui.sample.RegisterListItem
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
-    onBack: () -> Unit,
     onDocketClick: (String) -> Unit,
     onNewBilty: () -> Unit,
     onHome: () -> Unit,
     onVehicles: () -> Unit,
+    onReports: () -> Unit,
+    onMasters: () -> Unit,
+    onExports: () -> Unit,
+    onSettings: () -> Unit,
+    onAccountData: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -61,11 +72,15 @@ fun RegisterScreen(
         state = state,
         items = items,
         onEvent = viewModel::onEvent,
-        onBack = onBack,
         onDocketClick = onDocketClick,
         onNewBilty = onNewBilty,
         onHome = onHome,
-        onVehicles = onVehicles
+        onVehicles = onVehicles,
+        onReports = onReports,
+        onMasters = onMasters,
+        onExports = onExports,
+        onSettings = onSettings,
+        onAccountData = onAccountData
     )
 }
 
@@ -74,15 +89,41 @@ fun RegisterContent(
     state: RegisterUiState,
     items: androidx.paging.compose.LazyPagingItems<RegisterListItem>,
     onEvent: (RegisterEvent) -> Unit,
-    onBack: () -> Unit,
     onDocketClick: (String) -> Unit,
     onNewBilty: () -> Unit,
     onHome: () -> Unit,
-    onVehicles: () -> Unit
+    onVehicles: () -> Unit,
+    onReports: () -> Unit,
+    onMasters: () -> Unit,
+    onExports: () -> Unit,
+    onSettings: () -> Unit,
+    onAccountData: () -> Unit
 ) {
+    val drawerState = rememberAppDrawerState()
+    val scope = rememberCoroutineScope()
+    AppNavDrawer(
+        drawerState = drawerState,
+        companyInitials = state.companyInitials,
+        companyName = state.companyName,
+        branchName = state.branchName,
+        activeDestination = DrawerDestination.REGISTER,
+        onSelect = { destination ->
+            scope.launch { drawerState.close() }
+            when (destination) {
+                DrawerDestination.HOME -> onHome()
+                DrawerDestination.VEHICLES -> onVehicles()
+                DrawerDestination.REPORTS -> onReports()
+                DrawerDestination.MASTERS -> onMasters()
+                DrawerDestination.EXPORTS -> onExports()
+                DrawerDestination.SETTINGS -> onSettings()
+                DrawerDestination.ACCOUNT_DATA -> onAccountData()
+                else -> Unit
+            }
+        },
+        content = {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TransportTopAppBar(title = "Register", onNavigationClick = onBack, trailingIcons = {
+            TransportTopAppBar(title = "Register", navigationIcon = Icons.Rounded.Menu, navigationIconDesc = "Open menu", onNavigationClick = { scope.launch { drawerState.open() } }, trailingIcons = {
                 IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
                 IconButton(onClick = {}) { Icon(Icons.Rounded.FileDownload, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSurface) }
             })
@@ -138,7 +179,7 @@ fun RegisterContent(
             TransportBottomNavBar(
                 destinations = listOf(
                     NavDestination("Home", Icons.Outlined.Home, Icons.Rounded.Home),
-                    NavDestination("Register", Icons.Outlined.ListAlt, Icons.Outlined.ListAlt),
+                    NavDestination("Register", Icons.Outlined.ListAlt, Icons.AutoMirrored.Rounded.ListAlt),
                     NavDestination("Vehicles", Icons.Outlined.LocalShipping, Icons.Rounded.LocalShipping)
                 ),
                 activeIndex = 1,
@@ -164,6 +205,8 @@ fun RegisterContent(
             )
         }
     }
+        }
+    )
 }
 
 private fun LazyListScope.registerList(

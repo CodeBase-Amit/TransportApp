@@ -117,22 +117,22 @@ class CaseFileViewModel @Inject constructor(
     private val _canManage = MutableStateFlow(false)
     val canManage: StateFlow<Boolean> = _canManage.asStateFlow()
 
-    /** S15: the add-photo path writes a local file and enqueues the ATTACHMENT_E row. */
-    fun addPhoto() {
+    /** S19: the picker answered — the image is imported (downscaled, re-compressed) and
+     *  enqueued as ATTACHMENT_E with its outbox row; a failed read answers PHOTO_QUALITY. */
+    fun onPhotoPicked(uri: android.net.Uri) {
         if (_printStatus.value is PrintStatus.Rendering) return
         viewModelScope.launch {
-            val result = statusRepository.addAttachment(
+            val imported = statusRepository.addAttachment(
                 biltyNo = biltyNo,
                 kind = "GOODS",
-                fileRef = "attachments/att-${System.currentTimeMillis()}.jpg",
-                sizeBytes = 0,
-                caption = "Captured at the case file",
+                source = uri,
+                caption = "Attached from the case file",
                 now = System.currentTimeMillis(),
             )
-            when (result) {
+            when (imported) {
                 is com.example.transportapp.core.common.Result.Success -> refresh()
                 is com.example.transportapp.core.common.Result.Failure ->
-                    _printStatus.value = PrintStatus.Error(result.message ?: "The photo could not be attached")
+                    _printStatus.value = PrintStatus.Error(imported.message ?: "The photo could not be attached")
             }
         }
     }

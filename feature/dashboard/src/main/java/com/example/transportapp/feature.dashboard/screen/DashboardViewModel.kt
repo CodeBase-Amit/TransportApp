@@ -83,6 +83,7 @@ class DashboardViewModel @Inject constructor(
                 asOf = "as of " + SimpleDateFormat("h:mm a", Locale.ENGLISH).format(java.util.Date(now)),
                 exceptions = exceptions.map { item ->
                     DashException(
+                        biltyNo = item.biltyNo,
                         title = "${item.biltyNo} held",
                         body = listOfNotNull(item.remark ?: item.reasonCode, item.atText).joinToString(" · "),
                         isLate = item.isLate,
@@ -95,6 +96,15 @@ class DashboardViewModel @Inject constructor(
                     m(tiles.month.marginPaise) to "Margin",
                 ),
                 thisMonthDelta = deltaText(tiles),
+                isEmpty = tiles.runningServices == 0 &&
+                    tiles.inTransit == 0 &&
+                    tiles.bookedToday == 0 &&
+                    tiles.topayAwaiting == 0 &&
+                    tiles.unbilledPaise == 0L &&
+                    tiles.receivablePaise == 0L &&
+                    tiles.exceptions.isEmpty() &&
+                    tiles.ageing1to3 + tiles.ageing4to7 + tiles.ageing7plus == 0 &&
+                    tiles.month.freightPaise == 0L,
             )
         }
     }

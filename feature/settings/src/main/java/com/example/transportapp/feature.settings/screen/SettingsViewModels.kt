@@ -49,12 +49,20 @@ class MembersViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
+    // S19: the invite dialog's fields.
+    private val _inviteEmail = MutableStateFlow("")
+    val inviteEmail: StateFlow<String> = _inviteEmail.asStateFlow()
+    private val _inviteRole = MutableStateFlow("BOOKING_CLERK")
+    val inviteRole: StateFlow<String> = _inviteRole.asStateFlow()
+
     private val _uiState = MutableStateFlow(MembersUiState())
     val uiState: StateFlow<MembersUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val selfEmail = sessionRepository.session.first().email
+            val session = sessionRepository.session.first()
+            _uiState.update { it.copy(isOwner = session.role == "OWNER") }
+            val selfEmail = session.email
             settingsRepository.members().collect { members ->
                 _uiState.update { state ->
                     val rows = members.map { it.toRow(selfEmail) }
@@ -70,7 +78,23 @@ class MembersViewModel @Inject constructor(
 
     fun onEvent(event: MembersEvent) {
         when (event) {
-            MembersEvent.Invite -> _uiState.update { it }
+            // S19: the invite button opens the dialog (was a dead no-op).
+            MembersEvent.Invite -> _uiState.update { if (it.isOwner) it.copy(showInvite = true, inviteError = null) else it }
+            MembersEvent.DismissInvite -> _uiState.update { it.copy(showInvite = false, inviteError = null) }.also { _inviteEmail.value = "" }
+            is MembersEvent.ChangeInviteEmail -> _inviteEmail.value = event.value
+            is MembersEvent.ChangeInviteRole -> _inviteRole.value = event.role
+            MembersEvent.SendInvite -> viewModelScope.launch {
+                _uiState.update { it.copy(isSaving = true, inviteError = null) }
+                val session = sessionRepository.session.first()
+                val role = _inviteRole.value
+                val result = settingsRepository.inviteMember(session.companyId, _inviteEmail.value.trim(), role, session.name)
+                when (result) {
+                    is com.example.transportapp.core.common.Result.Success ->
+                        _uiState.update { it.copy(isSaving = false, showInvite = false) }.also { _inviteEmail.value = "" }
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        _uiState.update { it.copy(isSaving = false, inviteError = result.message ?: result.code.name) }
+                }
+            }
             MembersEvent.ToggleRoleMatrix -> _uiState.update { it.copy(showRoleMatrix = !it.showRoleMatrix) }
             MembersEvent.Resend -> _uiState.update { it }
         }
@@ -80,6 +104,7 @@ class MembersViewModel @Inject constructor(
 @HiltViewModel
 class NumberingViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NumberingUiState())
@@ -87,12 +112,15 @@ class NumberingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val session = sessionRepository.session.first()
+            _uiState.update { it.copy(isOwner = session.role == "OWNER") }
             settingsRepository.series().collect { series ->
                 _uiState.update { state ->
                     state.copy(
                         series = series.map { s ->
                             val used = s.lastIssued > 0
                             SeriesRow(
+                                localId = s.localId,
                                 label = s.docType.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() } + " · " + s.branch,
                                 nextNumber = s.prefix + (s.lastIssued + 1).toString().padStart(s.digits, '0'),
                                 prefix = s.prefix,
@@ -110,7 +138,41 @@ class NumberingViewModel @Inject constructor(
 
     fun onEvent(event: NumberingEvent) {
         when (event) {
-            NumberingEvent.Edit -> _uiState.update { it }
+            is NumberingEvent.StartCounterEdit -> {
+                val row = _uiState.value.series.firstOrNull { it.localId == event.seriesLocalId } ?: return
+                _uiState.update {
+                    it.copy(counterEdit = CounterEditUi(
+                        seriesLocalId = row.localId,
+                        label = row.label,
+                        nextNumber = row.nextNumber,
+                        digits = row.nextNumber.substringAfterLast('/').length,
+                        typed = "",
+                    ))
+                }
+            }
+            is NumberingEvent.ChangeCounter -> _uiState.update { state ->
+                state.copy(counterEdit = state.counterEdit?.copy(typed = event.value.filter { ch -> ch.isDigit() }))
+            }
+            NumberingEvent.ConfirmCounter -> viewModelScope.launch {
+                val edit = _uiState.value.counterEdit ?: return@launch
+                val newCounter = edit.typed.toLongOrNull() ?: return@launch
+                _uiState.update { it.copy(isSaving = true, error = null) }
+                val companyId = sessionRepository.session.first().companyId
+                val branchId = settingsRepository.branchIdForName(companyId, edit.label.substringAfter(" · "))
+                val docType = edit.label.substringBefore(" · ").uppercase().replace(' ', '_')
+                if (branchId == null) {
+                    _uiState.update { it.copy(isSaving = false, error = "That branch could not be found") }
+                    return@launch
+                }
+                val result = settingsRepository.changeSeriesCounter(companyId, branchId, docType, newCounter)
+                when (result) {
+                    is com.example.transportapp.core.common.Result.Success ->
+                        _uiState.update { it.copy(isSaving = false, counterEdit = null) }
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        _uiState.update { it.copy(isSaving = false, error = result.message ?: result.code.name) }
+                }
+            }
+            NumberingEvent.DismissCounterEdit -> _uiState.update { it.copy(counterEdit = null) }
             NumberingEvent.SeriesMore -> _uiState.update { it }
         }
     }

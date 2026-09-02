@@ -11,6 +11,7 @@ import com.example.transportapp.core.database.envelope.SyncState
 import com.example.transportapp.core.database.seed.DemoSeeder
 import com.example.transportapp.data.transport.numbering.NumberingRepositoryImpl
 import com.example.transportapp.data.transport.outbox.OutboxWriter
+import com.example.transportapp.data.transport.tracking.PhotoImporter
 import com.example.transportapp.data.transport.session.SessionRepository
 import com.example.transportapp.data.transport.session.UserSession
 import com.example.transportapp.data.transport.tracking.StatusRepositoryImpl
@@ -57,13 +58,15 @@ class BillingRepositoryTest {
         DemoSeeder(database).seedIfNeeded()
         sessionFlow = kotlinx.coroutines.flow.MutableStateFlow(ownerSession())
         val numbering = NumberingRepositoryImpl(database, database.numberingDao(), deviceIdProvider = { "TEST1" })
+        val importer = PhotoImporter(context)
         val outbox = OutboxWriter(database.outboxDao())
         val sessions = object : SessionRepository {
             override val session = sessionFlow
-            override suspend fun signOut() {}
+            override suspend fun signIn() {}
+        override suspend fun signOut() {}
         }
         repository = BillingRepositoryImpl(database, sessions, numbering, outbox)
-        statusRepository = StatusRepositoryImpl(database, sessions, outbox)
+        statusRepository = StatusRepositoryImpl(database, sessions, outbox, importer)
     }
 
     @After

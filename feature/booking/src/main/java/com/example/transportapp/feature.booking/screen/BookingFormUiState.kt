@@ -1,7 +1,6 @@
 package com.example.transportapp.feature.booking.screen
 
 import com.example.transportapp.core.common.Money
-import com.example.transportapp.core.ui.sample.BookingFormSampleData
 import com.example.transportapp.core.ui.sample.ChargeLine
 import com.example.transportapp.core.ui.sample.DeliveryType
 import com.example.transportapp.core.ui.sample.Party
@@ -9,30 +8,30 @@ import com.example.transportapp.core.ui.sample.Risk
 import com.example.transportapp.domain.transport.PaymentMode
 
 /**
- * T5 state. First-frame defaults keep the preview honest; the ViewModel overwrites every
- * money field from the S4 engine within the first frame, per keystroke afterwards.
+ * T5 state. S18: first-frame defaults are empty — a real company books against its own
+ * parties, not the demo seed (the ViewModel overwrites every money field per keystroke).
  */
 data class BookingFormUiState(
-    val reservedNumber: String = BookingFormSampleData.RESERVED_NUMBER,
-    val consignor: Party? = BookingFormSampleData.deepakSteel,
-    val consignee: Party? = BookingFormSampleData.nashikHardware,
-    val goods: String = BookingFormSampleData.GOODS,
-    val packages: String = BookingFormSampleData.PACKAGES,
-    val actualWeightKg: String = BookingFormSampleData.ACTUAL_WEIGHT_KG,
-    val rate: String = BookingFormSampleData.RATE,
-    val rateNote: String = BookingFormSampleData.RATE_NOTE,
-    val chargeableCaption: String = "Chargeable 780 kg · minimum 500 kg on this route",
+    val reservedNumber: String = "",
+    val consignor: Party? = null,
+    val consignee: Party? = null,
+    val goods: String = "",
+    val packages: String = "",
+    val actualWeightKg: String = "",
+    val rate: String = "",
+    val rateNote: String = "",
+    val chargeableCaption: String = "",
     val paymentMode: PaymentMode = PaymentMode.TOPAY,
     val risk: Risk = Risk.OWNER,
     val delivery: DeliveryType = DeliveryType.DOOR,
-    val charges: List<ChargeLine> = BookingFormSampleData.defaultCharges,
-    val taxable: Money = BookingFormSampleData.TAXABLE,
-    val gst: Money = BookingFormSampleData.GST,
-    val gstLabel: String = BookingFormSampleData.GST_LABEL,
+    val charges: List<ChargeLine> = emptyList(),
+    val taxable: Money = Money(0),
+    val gst: Money = Money(0),
+    val gstLabel: String = "",
     val showRounding: Boolean = true,
-    val roundingLabel: String = "+${BookingFormSampleData.ROUNDING.formatted()}",
-    val grandTotal: Money = BookingFormSampleData.GRAND_TOTAL,
-    val amountInWords: String = BookingFormSampleData.AMOUNT_IN_WORDS,
+    val roundingLabel: String = "+0.00",
+    val grandTotal: Money = Money(0),
+    val amountInWords: String = "",
     val isSearchingConsignor: Boolean = false,
     val isSearchingConsignee: Boolean = false,
     val searchQuery: String = "",
@@ -49,14 +48,14 @@ data class BookingFormUiState(
     /** The pickers' options (S14): id → label pairs loaded from the seeded masters. */
     val routeOptions: List<Pair<String, String>> = emptyList(),
     val goodsOptions: List<Pair<String, String>> = emptyList(),
-    val routeLabel: String = BookingFormSampleData.ROUTE_LABEL,
+    val routeLabel: String = "",
     val weightError: String? = null,
     val rateCardWarning: String? = null,
     val provisionalWarning: String? = null,
     /** §7.1 amendment mode (S15): the original bilty this form supersedes. */
     val amending: String? = null,
     val amendReason: String = "",
-    val bookedBy: String = BookingFormSampleData.BOOKED_BY,
+    val bookedBy: String = "",
     val isLoading: Boolean = false,
     val error: String? = null
 )

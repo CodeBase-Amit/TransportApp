@@ -22,6 +22,9 @@ import com.example.transportapp.domain.transport.calc.PackageDims
 import com.example.transportapp.domain.transport.calc.RateBasis
 import com.example.transportapp.domain.transport.calc.ResolvedRate
 import com.example.transportapp.domain.transport.calc.RoundingRule
+import com.example.transportapp.core.ui.sample.DeliveryType
+import com.example.transportapp.core.ui.sample.Risk
+import com.example.transportapp.domain.transport.PaymentMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +50,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class BookingFormViewModel @Inject constructor(
-    savedStateHandle: androidx.lifecycle.SavedStateHandle,
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val rateCardRepository: RateCardRepository,
     private val numberingRepository: com.example.transportapp.data.transport.numbering.NumberingRepository,
@@ -55,7 +58,43 @@ class BookingFormViewModel @Inject constructor(
     private val mastersRepository: com.example.transportapp.data.transport.masters.MastersRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(BookingFormUiState())
+    // S19 — in-progress draft survives process death: every keystroke on the expensive
+    // fields writes through. Parties persist as ids and re-hydrate from the masters.
+    private val savedPackages: String? = savedStateHandle["bf_packages"]
+    private val savedWeight: String? = savedStateHandle["bf_weight"]
+    private val savedLength: String? = savedStateHandle["bf_len"]
+    private val savedBreadth: String? = savedStateHandle["bf_brd"]
+    private val savedHeight: String? = savedStateHandle["bf_hgt"]
+    private val savedPayment: String? = savedStateHandle["bf_pay"]
+    private val savedRisk: String? = savedStateHandle["bf_risk"]
+    private val savedDelivery: String? = savedStateHandle["bf_del"]
+    private val savedAmendReason: String? = savedStateHandle["bf_amend_reason"]
+    private val savedArticleDesc: List<String>? = savedStateHandle["bf_art_d"]
+    private val savedArticlePkgs: List<String>? = savedStateHandle["bf_art_p"]
+    private val savedArticleWt: List<String>? = savedStateHandle["bf_art_w"]
+    private val savedConsignorId: String? = savedStateHandle.get<String>("bf_consignor")
+    private val savedConsigneeId: String? = savedStateHandle.get<String>("bf_consignee")
+
+    private val _uiState = MutableStateFlow(
+        BookingFormUiState(
+            packages = savedPackages ?: "",
+            actualWeightKg = savedWeight ?: "",
+            lengthCm = savedLength ?: "",
+            breadthCm = savedBreadth ?: "",
+            heightCm = savedHeight ?: "",
+            paymentMode = savedPayment?.let { runCatching { PaymentMode.valueOf(it) }.getOrNull() } ?: PaymentMode.TOPAY,
+            risk = savedRisk?.let { runCatching { Risk.valueOf(it) }.getOrNull() } ?: Risk.OWNER,
+            delivery = savedDelivery?.let { runCatching { DeliveryType.valueOf(it) }.getOrNull() } ?: DeliveryType.DOOR,
+            amendReason = savedAmendReason ?: "",
+            extraItems = savedArticleDesc?.mapIndexed { i, d ->
+                ArticleRow(
+                    description = d,
+                    packages = savedArticlePkgs?.getOrNull(i) ?: "",
+                    weightKg = savedArticleWt?.getOrNull(i) ?: "",
+                )
+            } ?: emptyList(),
+        )
+    )
     val uiState: StateFlow<BookingFormUiState> = _uiState.asStateFlow()
 
     /** One-shot: the bilty number of a successful booking; T5 navigates to T6 on it. */
@@ -115,7 +154,14 @@ class BookingFormViewModel @Inject constructor(
                     return@launch
                 }
             }
-            resolveScope(partyId = SeedIds.PARTY_DEEPAK_STEEL)
+            // S18: the demo party is only a convenience when the seeded masters actually
+            // contain it (debug); a real company starts with an empty "Tap to add" card.
+            // S19: a saved draft's parties take priority over any default — they re-hydrate
+            // from the masters by id so the cards show real names after process death.
+            val demoParty = if (savedConsignorId == null) mastersRepository.partyDetail(SeedIds.PARTY_DEEPAK_STEEL) else null
+            val restoredConsignor = savedConsignorId?.let { mastersRepository.partyDetail(it) }
+            val restoredConsignee = savedConsigneeId?.let { mastersRepository.partyDetail(it) }
+            resolveScope(partyId = restoredConsignor?.localId ?: demoParty?.localId)
             heads = rateCardRepository.autoApplyHeads(session.companyId)
             // The pickers' options (S14): every company route and goods type, loaded once.
             val routes = rateCardRepository.routeOptions(session.companyId)
@@ -123,10 +169,27 @@ class BookingFormViewModel @Inject constructor(
             if (routes.none { it.id == routeId }) {
                 routeId = routes.firstOrNull()?.id ?: routeId
                 goodsId = null
-                resolveScope(partyId = SeedIds.PARTY_DEEPAK_STEEL)
+                resolveScope(partyId = restoredConsignor?.localId ?: demoParty?.localId)
             }
             _uiState.update { state ->
                 state.copy(
+                    consignor = restoredConsignor?.let { p ->
+                        com.example.transportapp.core.ui.sample.Party(
+                            id = p.localId, name = p.name, phone = p.phone,
+                            station = p.station.orEmpty(), gstin = p.gstin.orEmpty(),
+                        )
+                    } ?: demoParty?.let { p ->
+                        com.example.transportapp.core.ui.sample.Party(
+                            id = p.localId, name = p.name, phone = p.phone,
+                            station = p.station.orEmpty(), gstin = p.gstin.orEmpty(),
+                        )
+                    },
+                    consignee = restoredConsignee?.let { p ->
+                        com.example.transportapp.core.ui.sample.Party(
+                            id = p.localId, name = p.name, phone = p.phone,
+                            station = p.station.orEmpty(), gstin = p.gstin.orEmpty(),
+                        )
+                    },
                     routeOptions = routes.map { it.id to it.label },
                     goodsOptions = goods.map { it.id to it.name },
                     routeLabel = routes.firstOrNull { it.id == routeId }?.label ?: state.routeLabel,
@@ -136,6 +199,14 @@ class BookingFormViewModel @Inject constructor(
             peekReserved(session.companyId, session.branchId)
             recompute()
         }
+    }
+
+    /** S19: the article rows write through so a background kill cannot lose a 12-article manifest. */
+    private fun persistArticles() {
+        val state = _uiState.value
+        savedStateHandle["bf_art_d"] = state.extraItems.map { it.description }
+        savedStateHandle["bf_art_p"] = state.extraItems.map { it.packages }
+        savedStateHandle["bf_art_w"] = state.extraItems.map { it.weightKg }
     }
 
     /**
@@ -172,13 +243,15 @@ class BookingFormViewModel @Inject constructor(
             BookingFormEvent.StartConsignorSearch -> _uiState.update { it.copy(isSearchingConsignor = true) }
             BookingFormEvent.StartConsigneeSearch -> _uiState.update { it.copy(isSearchingConsignee = true) }
             is BookingFormEvent.SelectConsignor -> _uiState.update {
+                savedStateHandle["bf_consignor"] = event.party.id
                 it.copy(consignor = event.party, isSearchingConsignor = false, searchQuery = "", searchResults = emptyList())
             }
             is BookingFormEvent.SelectConsignee -> _uiState.update {
+                savedStateHandle["bf_consignee"] = event.party.id
                 it.copy(consignee = event.party, isSearchingConsignee = false, searchQuery = "", searchResults = emptyList())
             }
-            BookingFormEvent.ClearConsignor -> _uiState.update { it.copy(consignor = null) }
-            BookingFormEvent.ClearConsignee -> _uiState.update { it.copy(consignee = null) }
+            BookingFormEvent.ClearConsignor -> _uiState.update { savedStateHandle["bf_consignor"] = null; it.copy(consignor = null) }
+            BookingFormEvent.ClearConsignee -> _uiState.update { savedStateHandle["bf_consignee"] = null; it.copy(consignee = null) }
             is BookingFormEvent.SearchConsignor -> searchParties(event.query) { results ->
                 _uiState.update { it.copy(isSearchingConsignor = true, searchQuery = event.query, searchResults = results) }
             }
@@ -191,24 +264,24 @@ class BookingFormViewModel @Inject constructor(
             }
             is BookingFormEvent.SelectGoods -> onGoodsSelected(event.goodsId)
             BookingFormEvent.ToggleRoutePicker -> _uiState.update { it.copy(showRoutePicker = !it.showRoutePicker) }
-            is BookingFormEvent.ChangeLengthCm -> _uiState.update { it.copy(lengthCm = event.value.filter { ch -> ch.isDigit() }) }.also { recompute() }
-            is BookingFormEvent.ChangeBreadthCm -> _uiState.update { it.copy(breadthCm = event.value.filter { ch -> ch.isDigit() }) }.also { recompute() }
-            is BookingFormEvent.ChangeHeightCm -> _uiState.update { it.copy(heightCm = event.value.filter { ch -> ch.isDigit() }) }.also { recompute() }
-            is BookingFormEvent.AddArticle -> _uiState.update { it.copy(extraItems = it.extraItems + com.example.transportapp.feature.booking.screen.ArticleRow()) }
+            is BookingFormEvent.ChangeLengthCm -> _uiState.update { it.copy(lengthCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_len"] = v }) }.also { recompute() }
+            is BookingFormEvent.ChangeBreadthCm -> _uiState.update { it.copy(breadthCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_brd"] = v }) }.also { recompute() }
+            is BookingFormEvent.ChangeHeightCm -> _uiState.update { it.copy(heightCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_hgt"] = v }) }.also { recompute() }
+            is BookingFormEvent.AddArticle -> _uiState.update { it.copy(extraItems = it.extraItems + com.example.transportapp.feature.booking.screen.ArticleRow()) }.also { persistArticles() }
             is BookingFormEvent.RemoveArticle -> _uiState.update { state ->
                 state.copy(extraItems = state.extraItems.filterIndexed { i, _ -> i != event.index })
-            }.also { recompute() }
+            }.also { persistArticles(); recompute() }
             is BookingFormEvent.ChangeArticleDescription -> _uiState.update { state ->
                 state.copy(extraItems = state.extraItems.mapIndexed { i, row -> if (i == event.index) row.copy(description = event.value) else row })
-            }
+            }.also { persistArticles() }
             is BookingFormEvent.ChangeArticlePackages -> _uiState.update { state ->
                 state.copy(extraItems = state.extraItems.mapIndexed { i, row -> if (i == event.index) row.copy(packages = event.value.filter { ch -> ch.isDigit() }) else row })
-            }.also { recompute() }
+            }.also { persistArticles(); recompute() }
             is BookingFormEvent.ChangeArticleWeight -> _uiState.update { state ->
                 state.copy(extraItems = state.extraItems.mapIndexed { i, row -> if (i == event.index) row.copy(weightKg = event.value.filter { ch -> ch.isDigit() }) else row })
-            }.also { recompute() }
+            }.also { persistArticles(); recompute() }
             is BookingFormEvent.ChangePackages -> _uiState.update {
-                it.copy(packages = event.value.filter { ch -> ch.isDigit() })
+                it.copy(packages = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_packages"] = v })
             }.also { recompute() }
             is BookingFormEvent.ChangeWeight -> _uiState.update {
                 val filtered = event.value.filter { ch -> ch.isDigit() }
@@ -217,12 +290,13 @@ class BookingFormViewModel @Inject constructor(
                 } else {
                     null
                 }
+                savedStateHandle["bf_weight"] = filtered
                 it.copy(actualWeightKg = filtered, weightError = weightError)
             }.also { recompute() }
-            is BookingFormEvent.ChangePaymentMode -> _uiState.update { it.copy(paymentMode = event.mode) }
-            is BookingFormEvent.ChangeRisk -> _uiState.update { it.copy(risk = event.risk) }
-            is BookingFormEvent.ChangeDelivery -> _uiState.update { it.copy(delivery = event.delivery) }
-            is BookingFormEvent.ChangeAmendReason -> _uiState.update { it.copy(amendReason = event.value) }
+            is BookingFormEvent.ChangePaymentMode -> _uiState.update { it.copy(paymentMode = event.mode).also { s -> savedStateHandle["bf_pay"] = s.paymentMode.name } }
+            is BookingFormEvent.ChangeRisk -> _uiState.update { it.copy(risk = event.risk).also { s -> savedStateHandle["bf_risk"] = s.risk.name } }
+            is BookingFormEvent.ChangeDelivery -> _uiState.update { it.copy(delivery = event.delivery).also { s -> savedStateHandle["bf_del"] = s.delivery.name } }
+            is BookingFormEvent.ChangeAmendReason -> _uiState.update { it.copy(amendReason = event.value).also { s -> savedStateHandle["bf_amend_reason"] = s.amendReason } }
             BookingFormEvent.ToggleMoreDetails -> _uiState.update { it.copy(showMoreDetails = !it.showMoreDetails) }
             is BookingFormEvent.RemoveCharge -> {
                 event.headCode?.let { removedHeadCodes += it }

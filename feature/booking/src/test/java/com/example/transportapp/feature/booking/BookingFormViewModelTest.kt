@@ -50,6 +50,7 @@ class BookingFormViewModelTest {
             ),
         )
 
+        override suspend fun signIn() {}
         override suspend fun signOut() {}
     }
 
@@ -103,6 +104,7 @@ class BookingFormViewModelTest {
             com.example.transportapp.core.common.Result.success(IssuedNumber("IND/2627/04189", provisional = false, rawValue = 4189))
         override suspend fun debugShrinkActiveLease(companyId: String, branchId: String, docType: String) {}
         override suspend fun debugSetGrantsEnabled(enabled: Boolean) {}
+        override suspend fun ensureSeries(companyId: String, branchId: String, docType: String, prefix: String) {}
     }
 
     private class FakeConsignmentRepository : ConsignmentRepository {
@@ -170,9 +172,16 @@ class BookingFormViewModelTest {
 
     private fun viewModel() = BookingFormViewModel(androidx.lifecycle.SavedStateHandle(), FakeSessionRepository(), rateRepo, numberingRepo, consignmentRepo, FakeMastersRepository())
 
+    /** S18: the form starts empty — the canonical row is typed, not defaulted. */
+    private fun BookingFormViewModel.typeCanonicalRow() {
+        onEvent(BookingFormEvent.ChangePackages("12"))
+        onEvent(BookingFormEvent.ChangeWeight("780"))
+    }
+
     @Test
     fun `canonical row reproduces the 10-6 figures on first frame`() = runTest {
         val vm = viewModel()
+        vm.typeCanonicalRow()
 
         assertEquals(351_000L, vm.uiState.value.charges.first { it.label == "Freight" }.amount.paise)
         assertEquals(9_600L, vm.uiState.value.charges.first { it.label == "Hamali" }.amount.paise)
@@ -192,6 +201,7 @@ class BookingFormViewModelTest {
     @Test
     fun `weight keystroke recomputes everything including the words`() = runTest {
         val vm = viewModel()
+        vm.typeCanonicalRow()
 
         vm.onEvent(BookingFormEvent.ChangeWeight("100"))
 
@@ -230,6 +240,7 @@ class BookingFormViewModelTest {
     @Test
     fun `removing a head drops its line and reprices`() = runTest {
         val vm = viewModel()
+        vm.typeCanonicalRow()
 
         vm.onEvent(BookingFormEvent.RemoveCharge("hamali"))
 
@@ -267,5 +278,26 @@ class BookingFormViewModelTest {
         assertEquals(1, consignmentRepo.booked)
         assertEquals("IND/2627/04189", vm.bookedBiltyNo.value)
         assertNull(vm.uiState.value.error)
+    }
+
+    @Test
+    fun `typed draft survives process death via the same SavedStateHandle`() = runTest {
+        val sharedHandle = androidx.lifecycle.SavedStateHandle()
+        val first = BookingFormViewModel(sharedHandle, FakeSessionRepository(), rateRepo, numberingRepo, consignmentRepo, FakeMastersRepository())
+
+        first.onEvent(BookingFormEvent.ChangePackages("12"))
+        first.onEvent(BookingFormEvent.ChangeWeight("780"))
+        first.onEvent(BookingFormEvent.ChangePaymentMode(com.example.transportapp.domain.transport.PaymentMode.PAID))
+        first.onEvent(BookingFormEvent.AddArticle)
+        first.onEvent(BookingFormEvent.ChangeArticleDescription(0, "Steel pipes"))
+
+        // "Process death": a brand-new ViewModel over the same handle restores the draft.
+        val reborn = BookingFormViewModel(sharedHandle, FakeSessionRepository(), rateRepo, numberingRepo, consignmentRepo, FakeMastersRepository())
+
+        assertEquals("12", reborn.uiState.value.packages)
+        assertEquals("780", reborn.uiState.value.actualWeightKg)
+        assertEquals(com.example.transportapp.domain.transport.PaymentMode.PAID, reborn.uiState.value.paymentMode)
+        assertEquals(1, reborn.uiState.value.extraItems.size)
+        assertEquals("Steel pipes", reborn.uiState.value.extraItems.first().description)
     }
 }

@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.settings.navigation
 
+import android.content.pm.ApplicationInfo
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -16,7 +17,22 @@ fun NavGraphBuilder.settingsNavGraph(navController: NavController) {
         SettingsHubScreen(
             onBack = { navController.popBackStack() },
             onProfile = { navController.navigate(Routes.PROFILE) },
-            onRowClick = { }
+            onRowClick = { label ->
+                when (label) {
+                    "Company profile" -> navController.navigate(Routes.COMPANY_PROFILE)
+                    "Branches" -> navController.navigate(Routes.BRANCHES)
+                    "Members and roles" -> navController.navigate(Routes.MEMBERS)
+                    "Numbering series" -> navController.navigate(Routes.NUMBERING)
+                    "Templates" -> navController.navigate(Routes.TEMPLATES)
+                    "Template requests" -> navController.navigate(Routes.TEMPLATE_REQUESTS)
+                    "Version" -> navController.navigate(Routes.ACCOUNT_DATA)
+                }
+            },
+            onSignedOut = {
+                navController.navigate(Routes.SPLASH) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
         )
     }
     composable(Routes.COMPANY_PROFILE) {
@@ -32,6 +48,14 @@ fun NavGraphBuilder.settingsNavGraph(navController: NavController) {
         NumberingScreen(onBack = { navController.popBackStack() })
     }
     composable(Routes.ACCOUNT_DATA) {
-        AccountDataScreen(onBack = { navController.popBackStack() })
+        // D53: the dev screen map is reachable only from here, only in debug builds.
+        val isDebuggable = navController.context.applicationInfo.flags and
+            ApplicationInfo.FLAG_DEBUGGABLE != 0
+        AccountDataScreen(
+            onBack = { navController.popBackStack() },
+            onOpenScreenMap = if (isDebuggable) {
+                { navController.navigate(Routes.SCREEN_INDEX) }
+            } else null
+        )
     }
 }

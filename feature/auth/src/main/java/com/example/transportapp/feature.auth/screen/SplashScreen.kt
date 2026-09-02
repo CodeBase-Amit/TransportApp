@@ -40,14 +40,14 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
  */
 @Composable
 fun SplashScreen(
-    onResolved: () -> Unit,
+    onResolved: (SplashDestination) -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(state.phase, state.stepIndex) {
+    LaunchedEffect(state.phase, state.stepIndex, state.destination) {
         if (state.phase == SplashPhase.RESOLVING && state.stepIndex == 3) {
-            onResolved()
+            onResolved(state.destination)
         }
     }
 

@@ -44,7 +44,7 @@ class StatusRepositoryTest {
             .allowMainThreadQueries()
             .build()
         DemoSeeder(database).seedIfNeeded()
-        repository = StatusRepositoryImpl(database, fakeSession(role = "OWNER"), OutboxWriter(database.outboxDao()))
+        repository = StatusRepositoryImpl(database, fakeSession(role = "OWNER"), OutboxWriter(database.outboxDao()), PhotoImporter(ApplicationProvider.getApplicationContext()))
     }
 
     @After
@@ -61,6 +61,7 @@ class StatusRepositoryTest {
             ),
         )
 
+        override suspend fun signIn() {}
         override suspend fun signOut() {}
     }
 
@@ -135,7 +136,7 @@ class StatusRepositoryTest {
         // 04187 → At hub → Arrived → Delivered; no POD row exists.
         repository.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "ARRIVED"), now)
 
-        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "BOOKING_CLERK"), OutboxWriter(database.outboxDao()))
+        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "BOOKING_CLERK"), OutboxWriter(database.outboxDao()), PhotoImporter(ApplicationProvider.getApplicationContext()))
         val refused = clerkRepo.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "DELIVERED"), now + 1)
         assertEquals("a clerk cannot waive the POD", ErrorCode.POD_REQUIRED, (refused as Result.Failure).code)
 
@@ -149,7 +150,7 @@ class StatusRepositoryTest {
         repository.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "ARRIVED"), now)
         assertTrue(repository.recordPod("IND/2627/04187", "Nashik Hardware Mart", signatureRef = null, photoRef = null, remarks = null, now).isSuccess())
 
-        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "BOOKING_CLERK"), OutboxWriter(database.outboxDao()))
+        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "BOOKING_CLERK"), OutboxWriter(database.outboxDao()), PhotoImporter(ApplicationProvider.getApplicationContext()))
         val delivered = clerkRepo.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "DELIVERED"), now + 1)
         assertTrue(delivered.isSuccess())
     }
@@ -225,27 +226,37 @@ class StatusRepositoryTest {
         )!!
         assertEquals("the signed pad's file ref is stored", "signatures/sig-04187-test.png", pod.signature_ref)
 
-        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "DELIVERY_CLERK"), OutboxWriter(database.outboxDao()))
+        val clerkRepo = StatusRepositoryImpl(database, fakeSession(role = "DELIVERY_CLERK"), OutboxWriter(database.outboxDao()), PhotoImporter(ApplicationProvider.getApplicationContext()))
         val delivered = clerkRepo.append(NewStatusEvent(biltyNo = "IND/2627/04187", eventType = "DELIVERED"), now + 2)
         assertTrue("a clerk with a captured POD can deliver", delivered.isSuccess())
     }
 
+    /** The unreadable-provider refusal (PHOTO_QUALITY) is device-verified: Robolectric's
+     *  shadow BitmapFactory decodes any stream, so only the positive path runs here. */
     @Test
-    fun `an attachment enqueues its outbox row`() = runTest {
+    fun `a readable photo is imported and enqueued`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val src = java.io.File(context.cacheDir, "src-${System.currentTimeMillis()}.jpg")
+        android.graphics.Bitmap.createBitmap(24, 24, android.graphics.Bitmap.Config.ARGB_8888).compress(
+            android.graphics.Bitmap.CompressFormat.JPEG, 90, src.outputStream(),
+        )
         val before = database.outboxDao().getPendingCount()
-        repository.addAttachment(
+
+        val result = repository.addAttachment(
             biltyNo = "IND/2627/04187",
             kind = "GOODS",
-            fileRef = "attachments/att-demo.jpg",
-            sizeBytes = 1024,
+            source = android.net.Uri.fromFile(src),
             caption = "Packed state at loading",
             now = now,
         )
+        assertTrue("a real image imports cleanly", result.isSuccess())
+
         val rows = database.consignmentDao().getAttachments(
             database.consignmentDao().getConsignmentByBiltyNo(company, "IND/2627/04187")!!.local_id,
         )
         assertEquals(1, rows.size)
-        assertEquals("attachments/att-demo.jpg", rows.first().file_ref)
+        assertTrue("the file ref points into app files", rows.first().file_ref.startsWith("attachments/"))
+        assertTrue("the compressed payload is non-empty", rows.first().size_bytes > 0)
         assertEquals("the attachment is queued for upload", before + 1, database.outboxDao().getPendingCount())
     }
 

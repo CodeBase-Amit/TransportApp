@@ -69,6 +69,7 @@ class MasterEditorViewModelTest {
 
     private val sessionRepository = object : com.example.transportapp.data.transport.session.SessionRepository {
         override val session: kotlinx.coroutines.flow.Flow<com.example.transportapp.data.transport.session.UserSession> = sessionFlow
+        override suspend fun signIn() {}
         override suspend fun signOut() {}
     }
 

@@ -69,7 +69,8 @@ class DocumentRepositoryTest {
                     ),
                 )
 
-                override suspend fun signOut() {}
+                override suspend fun signIn() {}
+        override suspend fun signOut() {}
             },
             pdfPort,
             object : PdfActions {

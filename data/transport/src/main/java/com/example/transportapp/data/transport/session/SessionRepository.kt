@@ -37,12 +37,12 @@ fun SessionSnapshot.toUserSession() = UserSession(
 )
 
 /**
- * The signed-in membership, read-only for Phase 2 (mocked session; sign-out wipes the store).
- * Real auth replaces the backing store behind the seam — this interface is the only surface
- * ViewModels may see (Spec.md §6.1).
+ * The signed-in membership (§6: role + branch scope). Sign-in is the mock identity write;
+ * Phase 3.3's Credential Manager replaces the body of [signIn] behind this seam.
  */
 interface SessionRepository {
     val session: Flow<UserSession>
+    suspend fun signIn()
     suspend fun signOut()
 }
 
@@ -52,6 +52,12 @@ class SessionRepositoryImpl @Inject constructor(
 ) : SessionRepository {
 
     override val session: Flow<UserSession> = store.session.map { it.toUserSession() }
+
+    override suspend fun signIn() {
+        // Offline phase: the mock resolves instantly to the demo identity (S18 — the sign-in
+        // screen now actually writes it, so a release install is genuinely signed out first).
+        store.signIn(SessionSnapshot.DEMO)
+    }
 
     override suspend fun signOut() {
         // Offline phase: only the local mirror is cleared; company data is untouched (§17.4).

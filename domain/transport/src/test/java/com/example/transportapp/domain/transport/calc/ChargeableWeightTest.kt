@@ -53,4 +53,20 @@ class ChargeableWeightTest {
         assertNull(MinQty.parse("-5 kg"))
         assertNull(MinQty.parse("kg"))
     }
+
+    @Test
+    fun `fractional minimum quantities parse exactly - no floating point jitter (S18)`() {
+        // The §14.1 regression cases: decimal strings that Double rounding would corrupt.
+        assertEquals(1_500_000L, (MinQty.parse("1.5 t") as MinQty.Weight).grams)
+        assertEquals(2_250_000L, (MinQty.parse("2.25 t") as MinQty.Weight).grams)
+        assertEquals(500L, (MinQty.parse("0.5 kg") as MinQty.Weight).grams)
+        assertEquals(1_501L, (MinQty.parse("1.501 kg") as MinQty.Weight).grams)
+        assertEquals(999L, (MinQty.parse("0.999 kg") as MinQty.Weight).grams)
+        assertEquals(50_000L, (MinQty.parse("0.5 qtl") as MinQty.Weight).grams)
+        // Package floors are whole numbers; fractions of a package floor to nothing.
+        assertEquals(5L, (MinQty.parse("5.0 pkg") as MinQty.Packages).count)
+        assertNull(MinQty.parse("0.5 pkg"))
+        // More than three decimals has no unit meaning at gram precision — absent.
+        assertNull(MinQty.parse("1.50001 kg"))
+    }
 }

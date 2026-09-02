@@ -10,6 +10,7 @@ data class DashTile(
 )
 
 data class DashException(
+    val biltyNo: String = "",
     val title: String,
     val body: String,
     val isLate: Boolean = false,
@@ -31,6 +32,10 @@ data class DashboardUiState(
     val thisMonthFigures: List<Pair<String, String>> = emptyList(),
     val thisMonthDelta: String = "",
     val newBiltyLabel: String = "New bilty",
+    val openRegisterLabel: String = "Open register",
+    val openUnbilledLabel: String = "Open unbilled pool",
+    /** Design.md T4 empty frame: a brand-new company — nothing booked, ever. */
+    val isEmpty: Boolean = false,
 ) {
     val visibleExceptions: List<DashException>
         get() = exceptions.filterIndexed { i, _ -> i !in dismissedExceptions }
