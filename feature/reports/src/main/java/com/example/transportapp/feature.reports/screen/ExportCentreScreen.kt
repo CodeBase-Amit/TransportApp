@@ -3,6 +3,7 @@ package com.example.transportapp.feature.reports.screen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,12 +38,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.RouteLine
 import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.SegmentedControl
 import com.example.transportapp.core.designsystem.component.StepState
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
+import com.example.transportapp.core.designsystem.theme.AppShapes
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
@@ -76,55 +79,132 @@ fun ExportCentreContent(
             ExportBuildSheet(state = state, onCancel = { onEvent(ExportCentreEvent.CancelBuild) })
         } else {
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Dimens.screenPadding),
                 verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
             ) {
                 GroupHeading(state.buildHeading)
-                Column(
-                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
+
+                ContentCard(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(state.fy, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(Modifier.width(8.dp))
-                        Text(state.selectedQuarter, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            state.fy,
+                            style = TransportTypeScale.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.width(Dimens.chipGap))
+                        Text(
+                            state.selectedQuarter,
+                            style = TransportTypeScale.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { onEvent(ExportCentreEvent.SelectQuarter(state.selectedQuarter)) }) {
-                            Icon(Icons.Rounded.DateRange, contentDescription = "Change period", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Rounded.DateRange,
+                                contentDescription = "Change period",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text(state.includeHeading, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    Spacer(Modifier.height(Dimens.fieldGap))
+
+                    Text(
+                        state.includeHeading,
+                        style = TransportTypeScale.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
                     state.sheets.forEachIndexed { index, sheet ->
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 Icons.Rounded.CheckCircle,
                                 contentDescription = null,
-                                tint = if (index in state.includedIndices) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                modifier = Modifier.size(20.dp).clickable { onEvent(ExportCentreEvent.ToggleSheet(index)) }
+                                tint = if (index in state.includedIndices)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable { onEvent(ExportCentreEvent.ToggleSheet(index)) }
                             )
-                            Spacer(Modifier.width(12.dp))
-                            Text(sheet.name, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                            Text(sheet.count?.toString() ?: "—", style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(Dimens.fieldGap))
+                            Text(
+                                sheet.name,
+                                style = TransportTypeScale.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                sheet.count?.toString() ?: "—",
+                                style = TransportTypeScale.dataSmall,
+                                fontFamily = PlexMonoFamily,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
+
                     Row(modifier = Modifier.clickable { onEvent(ExportCentreEvent.UncheckAll) }) {
-                        Text(state.uncheckAll, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            state.uncheckAll,
+                            style = TransportTypeScale.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    Text("${state.sheets.size} sheets · about ${state.totalRows} rows", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-                    Spacer(Modifier.height(12.dp))
-                    Text(state.formatHeading, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    SegmentedControl(state.formats.map { it to it }, state.selectedFormat, { onEvent(ExportCentreEvent.SelectFormat(it)) })
-                    Text(state.formatNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                    Spacer(Modifier.height(16.dp))
-                    AppPrimaryButton(state.buildLabel, onClick = { onEvent(ExportCentreEvent.StartBuild) }, modifier = Modifier.fillMaxWidth())
+
+                    Spacer(Modifier.height(Dimens.chipGap))
+
+                    Text(
+                        "${state.sheets.size} sheets · about ${state.totalRows} rows",
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(Dimens.fieldGap))
+
+                    Text(
+                        state.formatHeading,
+                        style = TransportTypeScale.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SegmentedControl(
+                        state.formats.map { it to it },
+                        state.selectedFormat,
+                        { onEvent(ExportCentreEvent.SelectFormat(it)) }
+                    )
+
+                    Text(
+                        state.formatNote,
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+
+                    Spacer(Modifier.height(Dimens.sectionSpacing))
+
+                    AppPrimaryButton(
+                        state.buildLabel,
+                        onClick = { onEvent(ExportCentreEvent.StartBuild) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 GroupHeading(state.recentHeading)
-                Column(
-                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
+
+                ContentCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = Dimens.cardPaddingNested
                 ) {
                     state.recentExports.forEach { export ->
                         RecentExportRow(item = export)
@@ -138,11 +218,26 @@ fun ExportCentreContent(
 @Composable
 private fun RecentExportRow(item: RecentExportUi) {
     val timeFormat = remember { java.text.SimpleDateFormat("d MMM, h:mm a", java.util.Locale.ENGLISH) }
-    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Rounded.FileCopy, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(12.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = Dimens.chipGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Rounded.FileCopy,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(Dimens.fieldGap))
         Column(Modifier.weight(1f)) {
-            Text(item.filename, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                item.filename,
+                style = TransportTypeScale.dataSmall,
+                fontFamily = PlexMonoFamily,
+                color = MaterialTheme.colorScheme.onSurface
+            )
             Text(
                 "Built ${timeFormat.format(item.builtAt)} · ${item.sizeBytes / 1024} KB",
                 style = TransportTypeScale.bodySmall,
@@ -150,7 +245,11 @@ private fun RecentExportRow(item: RecentExportUi) {
             )
         }
         IconButton(onClick = {}) {
-            Icon(Icons.Rounded.Share, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Rounded.Share,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -168,29 +267,56 @@ private fun ExportBuildSheet(state: ExportCentreUiState, onCancel: () -> Unit) {
         )
     }
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(Dimens.sectionSpacing),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(28.dp)).padding(24.dp)) {
+        ContentCard(
+            modifier = Modifier.fillMaxWidth(),
+            elevated = true
+        ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(state.buildTitle, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.height(24.dp))
+                Text(
+                    state.buildTitle,
+                    style = TransportTypeScale.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(Dimens.sectionSpacing))
                 RouteLine(steps, showTruck = true, showLabels = false, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Dimens.screenPadding))
                 val currentSheet = state.sheets.getOrNull(state.progress)?.name ?: "…"
                 Text(
                     "Writing sheet ${state.progress + 1} of ${state.sheets.size} · $currentSheet",
                     style = TransportTypeScale.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(state.buildRowsNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                Box(modifier = Modifier.fillMaxWidth().background(transportColors().haulAmberContainer, RoundedCornerShape(12.dp)).padding(12.dp)) {
-                    Text(state.buildNote, style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber)
+                Text(
+                    state.buildRowsNote,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(Dimens.fieldGap))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(AppShapes.nestedCard)
+                        .background(transportColors().haulAmberContainer)
+                        .padding(Dimens.fieldGap)
+                ) {
+                    Text(
+                        state.buildNote,
+                        style = TransportTypeScale.bodySmall,
+                        color = transportColors().onHaulAmber
+                    )
                 }
-                Spacer(Modifier.height(16.dp))
-                AppOutlinedButton(state.buildCancel, onClick = onCancel, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(Dimens.screenPadding))
+                AppOutlinedButton(
+                    state.buildCancel,
+                    onClick = onCancel,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

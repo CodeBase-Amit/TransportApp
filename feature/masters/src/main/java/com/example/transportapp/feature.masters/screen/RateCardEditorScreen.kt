@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +23,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,6 +30,7 @@ import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
+import com.example.transportapp.core.designsystem.component.StickyActionBar
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
@@ -52,7 +53,7 @@ fun RateCardEditorContent(
     onEvent: (RateCardEditorEvent) -> Unit,
     onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    Column(modifier = Modifier.fillMaxSize()) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {})
         Text(
             state.subtitle,
@@ -62,26 +63,46 @@ fun RateCardEditorContent(
         )
 
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Dimens.screenPadding),
             verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
         ) {
+            // Resolution steps section
             GroupHeading(state.resolutionHeading)
-            ContentCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = Dimens.cardPaddingStandard
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.fieldGap)) {
                     state.resolutionSteps.forEachIndexed { i, step ->
                         Row(verticalAlignment = Alignment.Top) {
                             Box(
                                 modifier = Modifier
-                                    .width(2.dp)
+                                    .width(Dimens.routeLineThickness)
                                     .height(24.dp)
-                                    .background(if (i < state.resolutionSteps.lastIndex) MaterialTheme.colorScheme.outlineVariant else Color.Transparent)
+                                    .background(
+                                        if (i < state.resolutionSteps.lastIndex)
+                                            MaterialTheme.colorScheme.outlineVariant
+                                        else
+                                            MaterialTheme.colorScheme.surface
+                                    )
                             )
                             Spacer(Modifier.width(8.dp))
                             val sub = step.note
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(step.label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text(
+                                    step.label,
+                                    style = TransportTypeScale.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                                 if (sub != null) {
-                                    Text(sub, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        sub,
+                                        style = TransportTypeScale.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
@@ -95,58 +116,155 @@ fun RateCardEditorContent(
                 )
             }
 
-            GroupHeading(state.ratesHeading, trailing = { AppTextButton(state.addRate, onClick = { onEvent(RateCardEditorEvent.AddRate) }) })
-            ContentCard(modifier = Modifier.fillMaxWidth()) {
+            // Rates table section
+            GroupHeading(
+                state.ratesHeading,
+                trailing = {
+                    AppTextButton(
+                        state.addRate,
+                        onClick = { onEvent(RateCardEditorEvent.AddRate) }
+                    )
+                }
+            )
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = 0.dp
+            ) {
                 val scrollState = rememberScrollState()
-                Column(modifier = Modifier.horizontalScroll(scrollState)) {
-                    Row(Modifier.width(560.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(vertical = 8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .horizontalScroll(scrollState)
+                        .padding(horizontal = Dimens.cardPaddingNested)
+                ) {
+                    // Table header
+                    Row(
+                        Modifier
+                            .width(560.dp)
+                            .padding(vertical = Dimens.chipGap)
+                    ) {
                         state.tableHeaders.forEach {
-                            Text(it, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(headerWidth(it)))
+                            Text(
+                                it,
+                                style = TransportTypeScale.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.width(headerWidth(it))
+                            )
                         }
                     }
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    // Table rows
                     state.rateRows.forEach { rate ->
-                        Row(Modifier.width(560.dp).padding(vertical = 8.dp)) {
-                            Text(rate.route, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(140.dp))
-                            Text(rate.goods, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
-                            Text(rate.basis, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(90.dp))
-                            Text(rate.rate, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
-                            Text(rate.minQty, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.width(80.dp))
+                        Row(
+                            Modifier
+                                .width(560.dp)
+                                .padding(vertical = Dimens.chipGap)
+                        ) {
+                            Text(
+                                rate.route,
+                                style = TransportTypeScale.dataSmall,
+                                fontFamily = PlexMonoFamily,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.width(140.dp)
+                            )
+                            Text(
+                                rate.goods,
+                                style = TransportTypeScale.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.width(90.dp)
+                            )
+                            Text(
+                                rate.basis,
+                                style = TransportTypeScale.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.width(90.dp)
+                            )
+                            Text(
+                                rate.rate,
+                                style = TransportTypeScale.dataSmall,
+                                fontFamily = PlexMonoFamily,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.width(80.dp)
+                            )
+                            Text(
+                                rate.minQty,
+                                style = TransportTypeScale.dataSmall,
+                                fontFamily = PlexMonoFamily,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.width(80.dp)
+                            )
                         }
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     AppTextButton(state.viewAll, onClick = { onEvent(RateCardEditorEvent.ViewAllRates) })
                 }
             }
 
+            // Charges section
             GroupHeading(state.chargesHeading)
-            ContentCard {
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = Dimens.cardPaddingStandard
+            ) {
                 state.charges.forEachIndexed { index, charge ->
+                    if (index > 0) {
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
                     Row(
                         Modifier
                             .fillMaxWidth()
                             .clickable { onEvent(RateCardEditorEvent.ToggleCharge(index)) }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = Dimens.fieldGap),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(charge.label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text(charge.value, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                charge.label,
+                                style = TransportTypeScale.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                charge.value,
+                                style = TransportTypeScale.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        Text(if (charge.enabled) "ON" else "OFF", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (charge.enabled) "ON" else "OFF",
+                            style = TransportTypeScale.labelMedium,
+                            color = if (charge.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 Text(
                     state.chargesNote,
                     style = TransportTypeScale.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = Dimens.fieldGap)
                 )
             }
         }
 
-        AppPrimaryButton(state.saveLabel, onClick = { onEvent(RateCardEditorEvent.SaveRateCard) }, modifier = Modifier.fillMaxWidth().padding(16.dp))
+        StickyActionBar {
+            AppPrimaryButton(
+                state.saveLabel,
+                onClick = { onEvent(RateCardEditorEvent.SaveRateCard) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 

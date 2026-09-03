@@ -1,13 +1,23 @@
 package com.example.transportapp.core.designsystem.component
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocalShipping
@@ -15,46 +25,45 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import kotlin.math.roundToInt
 
-/**
- * RouteLine step state.
- */
+/** RouteLine step state. */
 enum class StepState { DONE, CURRENT, UPCOMING }
 
-/**
- * A single step on the route line.
- */
+/** A single step on the route line. */
 data class RouteLineStep(
     val label: String,
     val state: StepState,
     val secondary: String? = null
 )
 
-/**
- * Orientation of the route line.
- */
+/** Orientation of the route line. */
 enum class RouteLineOrientation { HORIZONTAL, VERTICAL }
 
 /**
- * The route line — the single signature primitive used in 8 places (Design.md §A9.2).
+ * The route line — the single signature primitive (Design.md §A9.2).
  *
- * Horizontal form: 2dp rule, travelled segment in primary, 8dp ticks, 20dp truck glyph.
- * Vertical form: line down the left, events to the right, truck rotated 90°.
- *
- * @param steps The list of steps. Current step is the one with StepState.CURRENT.
- * @param orientation Horizontal or vertical
- * @param showTruck Whether to show the truck glyph
- * @param showLabels Whether to show tick labels
- * @param modifier Modifier
+ * S20 (D57) — the Night Haul Expressive rebuild:
+ *  - the **truck is really placed** on the current tick (B1's dead block is gone) and
+ *    *drives* there with a spring on first composition;
+ *  - the travelled segment **draws itself** with the emphasized easing;
+ *  - the truck idles with a gentle bob while the consignment is in motion (CURRENT).
  */
 @Composable
 fun RouteLine(
@@ -95,32 +104,50 @@ private fun HorizontalRouteLine(
     val onSurface = MaterialTheme.colorScheme.onSurface
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
+    // The travelled fraction animates from 0 — the road draws itself on open (S20).
+    val targetFraction = if (steps.size > 1) currentIndex.toFloat() / (steps.size - 1) else 0f
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val fraction by animateFloatAsState(
+        targetValue = if (started) targetFraction else 0f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "routeDraw",
+    )
+
+    // Gentle idle bob while the consignment is in motion.
+    val inMotion = steps.getOrNull(currentIndex)?.state == StepState.CURRENT
+    val bob = if (inMotion && showTruck) {
+        val idle = rememberInfiniteTransition(label = "truckIdle")
+        val v by idle.animateFloat(0f, -3f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "truckBob")
+        v
+    } else {
+        0f
+    }
+
     Column(modifier = modifier.fillMaxWidth()) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(Dimens.routeTruckSize + 4.dp),
             contentAlignment = Alignment.CenterStart
         ) {
+            val density = LocalDensity.current
+            val truckSize = Dimens.routeTruckSize
+            val truckSizePx = with(density) { truckSize.toPx() }
+            val maxX = with(density) { maxWidth.toPx() } - truckSizePx
+            val truckOffset = IntOffset((maxX * fraction).roundToInt(), bob.roundToInt())
+
             Canvas(modifier = Modifier.fillMaxWidth().height(2.dp).align(Alignment.CenterStart)) {
                 val lineY = size.height / 2
-                val truckOffset = if (steps.size > 1) currentIndex.toFloat() / (steps.size - 1) else 0f
-                // Background line
                 drawLine(outlineVariant, Offset(0f, lineY), Offset(size.width, lineY), strokeWidth = 2.dp.toPx())
-                // Travelled segment
-                if (steps.size > 1) {
-                    val travelledEnd = size.width * truckOffset
-                    drawLine(primary, Offset(0f, lineY), Offset(travelledEnd, lineY), strokeWidth = 2.dp.toPx())
+                if (fraction > 0f) {
+                    drawLine(primary, Offset(0f, lineY), Offset(size.width * fraction, lineY), strokeWidth = 2.dp.toPx())
                 }
-                // Ticks
                 steps.forEachIndexed { i, step ->
                     val x = if (steps.size > 1) size.width * i / (steps.size - 1) else size.width / 2
                     when (step.state) {
-                        StepState.DONE -> {
-                            drawCircle(primary, radius = 4.dp.toPx(), center = Offset(x, lineY))
-                        }
+                        StepState.DONE -> drawCircle(primary, radius = 4.dp.toPx(), center = Offset(x, lineY))
                         StepState.CURRENT -> {
-                            // Halo
                             drawCircle(primary.copy(alpha = 0.12f), radius = 10.dp.toPx(), center = Offset(x, lineY))
                             drawCircle(primary, radius = 4.dp.toPx(), center = Offset(x, lineY))
                         }
@@ -131,19 +158,17 @@ private fun HorizontalRouteLine(
                     }
                 }
             }
-            // Truck glyph
+            // The truck really stands on the current tick (B1 closed) and drove there (S20).
             if (showTruck && steps.isNotEmpty()) {
-                val truckFraction = if (steps.size > 1) currentIndex.toFloat() / (steps.size - 1) else 0f
-                Box(
+                Icon(
+                    Icons.Rounded.LocalShipping,
+                    contentDescription = null,
+                    tint = primary,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = (truckFraction * 0.8f).coerceIn(0f, 1f).toString().let { 0.dp }),
-                    // We'll use a simpler approach: position the truck at the current tick
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    // Actually, positioning the truck exactly requires BoxWithConstraints or layout.
-                    // For simplicity, place it at the current tick using padding
-                }
+                        .align(Alignment.CenterStart)
+                        .offset { IntOffset((maxX * fraction).roundToInt(), bob.roundToInt()) }
+                        .size(truckSize)
+                )
             }
         }
         // Tick labels
@@ -186,13 +211,11 @@ private fun VerticalRouteLine(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // Line + tick column
                 Box(
                     modifier = Modifier.width(24.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    // Vertical line
-                    androidx.compose.foundation.Canvas(
+                    Canvas(
                         modifier = Modifier.width(2.dp).height(if (isLast) 16.dp else 32.dp)
                     ) {
                         drawLine(
@@ -202,25 +225,23 @@ private fun VerticalRouteLine(
                             strokeWidth = 2.dp.toPx()
                         )
                     }
-                    // Tick
                     Box(
                         modifier = Modifier.padding(top = 4.dp)
                     ) {
                         when (step.state) {
-                            StepState.DONE -> androidx.compose.foundation.Canvas(
+                            StepState.DONE -> Canvas(
                                 modifier = Modifier.width(8.dp).height(8.dp)
                             ) {
                                 drawCircle(primary, radius = 4.dp.toPx(), center = Offset(size.width / 2, size.height / 2))
                             }
                             StepState.CURRENT -> {
-                                androidx.compose.foundation.Canvas(
+                                Canvas(
                                     modifier = Modifier.width(20.dp).height(20.dp)
                                 ) {
                                     val center = Offset(size.width / 2, size.height / 2)
                                     drawCircle(primary.copy(alpha = 0.12f), radius = 10.dp.toPx(), center = center)
                                     drawCircle(primary, radius = 4.dp.toPx(), center = center)
                                 }
-                                // Truck glyph rotated 90°
                                 if (i == currentIndex) {
                                     Icon(
                                         Icons.Rounded.LocalShipping,
@@ -229,11 +250,10 @@ private fun VerticalRouteLine(
                                         modifier = Modifier
                                             .width(20.dp)
                                             .height(20.dp)
-                                            .padding(start = 8.dp)
                                     )
                                 }
                             }
-                            StepState.UPCOMING -> androidx.compose.foundation.Canvas(
+                            StepState.UPCOMING -> Canvas(
                                 modifier = Modifier.width(8.dp).height(8.dp)
                             ) {
                                 val center = Offset(size.width / 2, size.height / 2)
@@ -243,7 +263,6 @@ private fun VerticalRouteLine(
                         }
                     }
                 }
-                // Event text
                 Column(
                     modifier = Modifier.weight(1f).padding(start = 8.dp)
                 ) {
@@ -269,38 +288,56 @@ private fun VerticalRouteLine(
 }
 
 /**
- * A simplified stylized route line for the Vehicle board card — compact, one line per vehicle.
+ * Compact route line for the Vehicle board card. S20: the travelled segment draws
+ * itself and the truck rides the current position (placed by width fraction).
  */
 @Composable
 fun CompactRouteLine(
     stopCount: Int,
     currentPosition: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    animate: Boolean = true,
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+    val target = if (stopCount > 1) currentPosition.toFloat() / (stopCount - 1) else 0f
+    var started by remember { mutableStateOf(!animate) }
+    LaunchedEffect(Unit) { started = true }
+    val fraction by animateFloatAsState(
+        targetValue = if (started) target else 0f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "compactRouteDraw",
+    )
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(12.dp),
+            .height(16.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier.fillMaxWidth().height(2.dp)
-        ) {
+        val density = LocalDensity.current
+        val truckSize = 12.dp
+        val maxX = with(density) { maxWidth.toPx() } - with(density) { truckSize.toPx() }
+
+        Canvas(modifier = Modifier.fillMaxWidth().height(2.dp)) {
             val lineY = size.height / 2
-            val truckFraction = if (stopCount > 1) currentPosition.toFloat() / (stopCount - 1) else 0f
-            // Background
             drawLine(outlineVariant, Offset(0f, lineY), Offset(size.width, lineY), strokeWidth = 2.dp.toPx())
-            // Travelled
-            if (truckFraction > 0) {
-                val travelledX = size.width * truckFraction
-                drawLine(primary, Offset(0f, lineY), Offset(travelledX, lineY), strokeWidth = 2.dp.toPx())
+            if (fraction > 0) {
+                drawLine(primary, Offset(0f, lineY), Offset(size.width * fraction, lineY), strokeWidth = 2.dp.toPx())
             }
-            // Current tick
             val tickX = if (stopCount > 1) size.width * currentPosition / (stopCount - 1) else size.width / 2
             drawCircle(primary, radius = 4.dp.toPx(), center = Offset(tickX, lineY))
+        }
+        if (currentPosition > 0) {
+            Icon(
+                Icons.Rounded.LocalShipping,
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset { IntOffset((maxX * fraction).roundToInt(), 0) }
+                    .size(truckSize)
+            )
         }
     }
 }

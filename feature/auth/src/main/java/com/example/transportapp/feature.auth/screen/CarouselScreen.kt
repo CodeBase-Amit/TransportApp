@@ -1,6 +1,9 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,15 +26,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
 import com.example.transportapp.core.designsystem.component.PaymentStamp
+import com.example.transportapp.core.designsystem.theme.AppShapes
+import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import kotlinx.coroutines.flow.collect
 
@@ -86,16 +98,30 @@ fun CarouselContent(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Page dots
+            // Page dots — active dot animates to an elongated pill in primary
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 repeat(state.panels.size) { i ->
+                    val active = i == state.currentPage
+                    val width by animateFloatAsState(
+                        targetValue = if (active) 24f else 8f,
+                        animationSpec = HaulMotion.snappy,
+                        label = "dotWidth"
+                    )
+                    val fill by animateColorAsState(
+                        targetValue = if (active) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                        animationSpec = HaulMotion.short(),
+                        label = "dotFill"
+                    )
                     Box(
                         modifier = Modifier
-                            .size(if (i == state.currentPage) 24.dp else 8.dp, 8.dp)
-                            .background(
-                                if (i == state.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                CircleShape
-                            )
+                            .width(width.dp)
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(percent = 100))
+                            .background(fill)
                     )
                 }
             }
@@ -118,15 +144,33 @@ fun CarouselContent(
 
 @Composable
 private fun CarouselPanel(panel: CarouselPanel) {
+    // Entrance animation on panel reveal
+    var show by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) { show = 1f }
+    val alpha by animateFloatAsState(show, HaulMotion.enterFloat(), label = "panelAlpha")
+    val slideY by animateFloatAsState(show, HaulMotion.enterFloat(), label = "panelSlide")
+
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 32.dp).padding(top = 48.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp)
+            .padding(top = 48.dp)
+            .graphicsLayer {
+                this.alpha = alpha
+                this.translationY = (1f - slideY) * 24f
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
         val stamp = panel.stamp
         if (stamp != null) {
             Box(
-                modifier = Modifier.size(280.dp).height(280.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(20.dp)),
+                modifier = Modifier
+                    .size(280.dp)
+                    .height(280.dp)
+                    .clip(AppShapes.contentCard)
+                    .background(MaterialTheme.colorScheme.primaryContainer, AppShapes.contentCard)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppShapes.contentCard),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -137,7 +181,12 @@ private fun CarouselPanel(panel: CarouselPanel) {
             }
         } else {
             Box(
-                modifier = Modifier.size(280.dp).height(280.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(20.dp)),
+                modifier = Modifier
+                    .size(280.dp)
+                    .height(280.dp)
+                    .clip(AppShapes.contentCard)
+                    .background(MaterialTheme.colorScheme.primaryContainer, AppShapes.contentCard)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppShapes.contentCard),
                 contentAlignment = Alignment.Center
             ) {
                 Text(panel.emoji ?: "", style = TransportTypeScale.displaySmall)
@@ -145,9 +194,19 @@ private fun CarouselPanel(panel: CarouselPanel) {
         }
         Spacer(Modifier.height(40.dp))
         if (panel.title.isNotEmpty()) {
-            Text(panel.title, style = TransportTypeScale.headlineMedium, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+            Text(
+                panel.title,
+                style = TransportTypeScale.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
             Spacer(Modifier.height(8.dp))
-            Text(panel.body, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(
+                panel.body,
+                style = TransportTypeScale.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

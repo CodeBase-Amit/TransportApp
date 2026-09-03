@@ -1,5 +1,6 @@
 package com.example.transportapp.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,24 +25,19 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.transportColors
 
 /**
- * Small top app bar (Design.md §B3): 64dp, surface, no elevation, no divider.
+ * Small top app bar: 64dp, surface, no elevation, no divider.
  * Built as a plain row — fully under the design's control.
- *
- * @param title The title text in titleLarge
- * @param navigationIcon Leading icon (arrow_back/close). Pass null for none.
- * @param navigationIconDesc Content description for the leading icon ("Navigate back" /
- *   "Open menu") — TalkBack reads it, so it must match the gesture, not the glyph.
- * @param onNavigationClick Click for the leading icon
- * @param trailingIcons Any trailing content (icon buttons, text button, reserved number, etc.)
  */
 @Composable
 fun TransportTopAppBar(
@@ -56,19 +53,26 @@ fun TransportTopAppBar(
             .fillMaxWidth()
             .height(Dimens.topAppBarHeight)
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (navigationIcon != null) {
             IconButton(onClick = onNavigationClick ?: {}) {
-                Icon(navigationIcon, contentDescription = navigationIconDesc, tint = MaterialTheme.colorScheme.onSurface)
+                Icon(
+                    navigationIcon,
+                    contentDescription = navigationIconDesc,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         Text(
             text = title,
             style = TransportTypeScale.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = if (navigationIcon != null) 4.dp else 16.dp)
         )
         trailingIcons?.invoke()
     }
@@ -82,8 +86,8 @@ data class NavDestination(
 )
 
 /**
- * Bottom navigation bar (Design.md §B3): 80dp, surfaceContainer, three destinations.
- * Active destination carries a pill indicator in secondaryContainer.
+ * Bottom navigation bar: 80dp, surfaceContainer, three destinations.
+ * Active destination carries a pill indicator in secondaryContainer with animated color transitions.
  */
 @Composable
 fun TransportBottomNavBar(
@@ -117,14 +121,16 @@ fun TransportBottomNavBar(
                             Icon(
                                 dest.activeIcon,
                                 contentDescription = dest.label,
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     } else {
                         Icon(
                             dest.icon,
                             contentDescription = dest.label,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 },
@@ -146,8 +152,8 @@ fun TransportBottomNavBar(
 }
 
 /**
- * Sticky bottom action bar (Design.md §A7): 72dp single action / 88dp multi-action,
- * surfaceContainer, 1dp top border. Content laid out horizontally inside 16dp padding.
+ * Sticky bottom action bar: 72dp single action / 88dp multi-action,
+ * surfaceContainer, 1dp top divider. Content laid out horizontally inside 16dp padding.
  */
 @Composable
 fun StickyActionBar(
@@ -155,26 +161,32 @@ fun StickyActionBar(
     multiAction: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(if (multiAction) 88.dp else 72.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (multiAction) 88.dp else 72.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            content()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                content()
+            }
         }
     }
 }
 
 /**
- * Extended FAB pill (Design.md §B3): 56dp, primary fill, leading icon + label. "New bilty".
+ * Extended FAB pill: 56dp, primary fill, leading icon + label. "New bilty".
  */
 @Composable
 fun TransportExtendedFab(
@@ -192,7 +204,7 @@ fun TransportExtendedFab(
 }
 
 /**
- * Offline bar (Design.md §A12): 32dp, haulAmberContainer fill, bodySmall
+ * Offline bar: 32dp, haulAmberContainer fill, bodySmall.
  * "Offline — N changes will sync when you reconnect".
  */
 @Composable
@@ -219,7 +231,7 @@ fun OfflineBar(
 }
 
 /**
- * Error banner (Design.md §B3): 16dp radius, errorContainer fill, message + optional Retry.
+ * Error banner: 16dp radius, errorContainer fill, message + optional Retry.
  */
 @Composable
 fun ErrorBanner(

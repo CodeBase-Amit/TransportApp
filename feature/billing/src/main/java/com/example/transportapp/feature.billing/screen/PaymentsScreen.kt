@@ -21,19 +21,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.common.Money
@@ -41,9 +38,12 @@ import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.JourneyChip
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.component.SummaryStrip
+import com.example.transportapp.core.designsystem.component.TransportExtendedFab
+import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.designsystem.theme.transportColors
 import com.example.transportapp.domain.transport.ConsignmentStatus
 import com.example.transportapp.domain.transport.PaymentMode
 import java.text.SimpleDateFormat
@@ -110,7 +110,7 @@ private fun PaymentsTabItem(label: String, selected: Boolean, onClick: () -> Uni
         Box(
             modifier = Modifier
                 .padding(top = 6.dp)
-                .height(3.dp)
+                .height(4.dp)
                 .width(if (selected) 48.dp else 0.dp)
                 .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(percent = 100)),
         )
@@ -205,13 +205,11 @@ private fun BillReceiptsTab(state: PaymentsUiState, onEvent: (PaymentsEvent) -> 
                 }
             }
         }
-        ExtendedFloatingActionButton(
+        TransportExtendedFab(
+            text = "Record a receipt",
+            icon = Icons.Rounded.Add,
             onClick = { onEvent(PaymentsEvent.OpenAllocation) },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            text = { Text("Record a receipt") },
-            icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
         )
     }
 }
@@ -252,10 +250,10 @@ private fun CollectSheet(sheet: CollectSheetState, onEvent: (PaymentsEvent) -> U
                     color = MaterialTheme.colorScheme.error,
                 )
                 if (sheet.isManager) {
-                    OutlinedTextField(
+                    TransportTextField(
                         value = sheet.waiverReason,
                         onValueChange = { onEvent(PaymentsEvent.SetWaiverReason(it)) },
-                        label = { Text("Waiver reason (Manager)") },
+                        label = "Waiver reason (Manager)",
                         modifier = Modifier.fillMaxWidth(),
                     )
                     AppPrimaryButton(
@@ -268,17 +266,17 @@ private fun CollectSheet(sheet: CollectSheetState, onEvent: (PaymentsEvent) -> U
             } else {
                 Text("HOW", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ModeButtons(selected = sheet.mode, onSelect = { onEvent(PaymentsEvent.SetCollectMode(it)) })
-                OutlinedTextField(
+                TransportTextField(
                     value = sheet.amountText,
                     onValueChange = { onEvent(PaymentsEvent.SetCollectAmount(it)) },
-                    label = { Text("Amount received") },
+                    label = "Amount received",
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (sheet.mode != "CASH") {
-                    OutlinedTextField(
+                    TransportTextField(
                         value = sheet.reference,
                         onValueChange = { onEvent(PaymentsEvent.SetCollectReference(it)) },
-                        label = { Text("Reference") },
+                        label = "Reference",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -318,17 +316,17 @@ private fun AllocationSheet(sheet: AllocationSheetState, onEvent: (PaymentsEvent
             } else {
                 Text(sheet.partyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                 ModeButtons(selected = sheet.mode, onSelect = { onEvent(PaymentsEvent.SetMode(it)) })
-                OutlinedTextField(
+                TransportTextField(
                     value = sheet.amountText,
                     onValueChange = { onEvent(PaymentsEvent.SetAmount(it)) },
-                    label = { Text("Amount") },
+                    label = "Amount",
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (sheet.mode != "CASH") {
-                    OutlinedTextField(
+                    TransportTextField(
                         value = sheet.reference,
                         onValueChange = { onEvent(PaymentsEvent.SetReference(it)) },
-                        label = { Text("Reference") },
+                        label = "Reference",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -344,9 +342,10 @@ private fun AllocationSheet(sheet: AllocationSheetState, onEvent: (PaymentsEvent
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        OutlinedTextField(
+                        TransportTextField(
                             value = appliedText,
                             onValueChange = { onEvent(PaymentsEvent.SetApplied(bill.localId, it)) },
+                            label = "Amount",
                             modifier = Modifier.width(120.dp),
                             singleLine = true,
                         )
@@ -357,7 +356,7 @@ private fun AllocationSheet(sheet: AllocationSheetState, onEvent: (PaymentsEvent
                     Text(
                         Money(sheet.unappliedPaise).formatted(),
                         style = TransportTypeScale.dataMedium,
-                        color = if (sheet.unappliedPaise == 0L) Color(0xFF04281B) else Color(0xFF8A5A00),
+                        color = if (sheet.unappliedPaise == 0L) MaterialTheme.colorScheme.primary else transportColors().haulAmber,
                     )
                 }
                 AppPrimaryButton(

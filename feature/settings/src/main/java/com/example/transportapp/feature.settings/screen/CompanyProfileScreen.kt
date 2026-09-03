@@ -17,10 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,11 +30,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.Caption
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.SegmentedControl
+import com.example.transportapp.core.designsystem.component.StickyActionBar
 import com.example.transportapp.core.designsystem.component.TransportTextField
+import com.example.transportapp.core.designsystem.component.TransportTopAppBar
+import com.example.transportapp.core.designsystem.theme.AppShapes
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
@@ -65,39 +69,73 @@ fun CompanyProfileContent(
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
-            Text(state.title, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            AppTextButton(state.saveLabel, onClick = { onEvent(CompanyProfileEvent.Save) })
-        }
+        TransportTopAppBar(
+            title = state.title,
+            onNavigationClick = onBack,
+            trailingIcons = {
+                AppTextButton(state.saveLabel, onClick = { onEvent(CompanyProfileEvent.Save) })
+            }
+        )
 
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(Dimens.screenPadding),
             verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
         ) {
-            Text(state.previewHeading, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Caption(state.previewHeading)
             Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp).background(PaperColors.paperWhite, RoundedCornerShape(2.dp)).border(1.dp, PaperColors.paperRule, RoundedCornerShape(2.dp)).padding(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(PaperColors.paperWhite, AppShapes.paper)
+                    .border(1.dp, PaperColors.paperRule, AppShapes.paper)
+                    .padding(Dimens.screenPadding)
             ) {
                 Column {
-                    Box(modifier = Modifier.size(64.dp).background(PaperColors.paperRule.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                        Text("SR", color = PaperColors.paperInk, fontWeight = FontWeight.Bold, style = TransportTypeScale.titleMedium)
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(PaperColors.paperRule.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "SR",
+                            color = PaperColors.paperInk,
+                            fontWeight = FontWeight.Bold,
+                            style = TransportTypeScale.titleMedium
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(state.legalName, color = PaperColors.paperInk, fontWeight = FontWeight.Bold, style = TransportTypeScale.titleMedium)
-                    Text("${state.address} · GSTIN: ${state.gstin} | PAN: ${state.pan}", color = PaperColors.paperInk, style = TransportTypeScale.bodySmall)
-                    Text("${state.phone} · ${state.email}", color = PaperColors.paperInk, style = TransportTypeScale.bodySmall)
+                    Text(
+                        state.legalName,
+                        color = PaperColors.paperInk,
+                        fontWeight = FontWeight.Bold,
+                        style = TransportTypeScale.titleMedium
+                    )
+                    Text(
+                        "${state.address} · GSTIN: ${state.gstin} | PAN: ${state.pan}",
+                        color = PaperColors.paperInk,
+                        style = TransportTypeScale.bodySmall
+                    )
+                    Text(
+                        "${state.phone} · ${state.email}",
+                        color = PaperColors.paperInk,
+                        style = TransportTypeScale.bodySmall
+                    )
                 }
             }
 
             GroupHeading(state.identityHeading)
             TransportTextField(state.legalName, { onEvent(CompanyProfileEvent.ChangeLegalName(it)) }, "Legal name")
             TransportTextField(state.tradeName, { onEvent(CompanyProfileEvent.ChangeTradeName(it)) }, "Trade name")
-            Text("Constitution", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SegmentedControl(state.constitutionOptions.map { it to it }, state.constitution, { onEvent(CompanyProfileEvent.ChangeConstitution(it)) })
+            Caption("Constitution")
+            SegmentedControl(
+                state.constitutionOptions.map { it to it },
+                state.constitution,
+                { onEvent(CompanyProfileEvent.ChangeConstitution(it)) }
+            )
 
             GroupHeading(state.addressHeading)
             TransportTextField(state.address, { onEvent(CompanyProfileEvent.ChangeAddress(it)) }, "Address", singleLine = false, maxLines = 3)
@@ -118,23 +156,45 @@ fun CompanyProfileContent(
 
             GroupHeading(state.logoHeading)
             Box(
-                modifier = Modifier.size(96.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)).padding(16.dp),
+                modifier = Modifier
+                    .size(96.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppShapes.nestedCard)
+                    .padding(Dimens.screenPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Rounded.AddPhotoAlternate, contentDescription = "Add logo", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Icon(
+                    Icons.Rounded.AddPhotoAlternate,
+                    contentDescription = "Add logo",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
-            Text(state.logoNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                state.logoNote,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             GroupHeading(state.footerHeading)
             TransportTextField(state.footerClause, { onEvent(CompanyProfileEvent.ChangeFooter(it)) }, "Footer clause", singleLine = false, maxLines = 4)
 
-            Column(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp)).padding(20.dp)
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
             ) {
-                Text(state.deleteTitle, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(state.deleteBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                Spacer(Modifier.height(12.dp))
-                com.example.transportapp.core.designsystem.component.AppOutlinedButton(
+                Text(
+                    state.deleteTitle,
+                    style = TransportTypeScale.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    state.deleteBody,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Spacer(Modifier.height(Dimens.fieldGap))
+                AppOutlinedButton(
                     state.deleteTitle,
                     onClick = { onEvent(CompanyProfileEvent.RequestDelete(state.legalName)) },
                     modifier = Modifier.fillMaxWidth(),
@@ -145,11 +205,20 @@ fun CompanyProfileContent(
             }
         }
 
-        Column(
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp)
-        ) {
-            AppPrimaryButton(state.saveAndUpdate, onClick = { onEvent(CompanyProfileEvent.Save) }, modifier = Modifier.fillMaxWidth())
-            Text(state.templateNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+        StickyActionBar {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                AppPrimaryButton(
+                    state.saveAndUpdate,
+                    onClick = { onEvent(CompanyProfileEvent.Save) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    state.templateNote,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }

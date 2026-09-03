@@ -1,7 +1,6 @@
 package com.example.transportapp.feature.templates.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddAPhoto
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,11 +34,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
-import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.ContentCard
+import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.RouteLine
 import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.StepState
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
+import com.example.transportapp.core.designsystem.theme.AppShapes
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
@@ -71,18 +71,23 @@ fun TemplateRequestsContent(
 
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(Dimens.screenPadding),
+                verticalArrangement = Arrangement.spacedBy(Dimens.fieldGap)
             ) {
                 item {
-                    Text(state.openHeading, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    GroupHeading(text = state.openHeading)
                     state.openRequests.forEach { request ->
                         OpenRequestCard(request, state, onEvent)
                     }
                 }
                 item {
-                    Text(state.pastHeading, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+                    GroupHeading(
+                        text = state.pastHeading,
+                        modifier = Modifier.padding(top = Dimens.sectionSpacing - Dimens.fieldGap)
+                    )
+                    ContentCard(
+                        modifier = Modifier.padding(top = Dimens.fieldGap)
+                    ) {
                         state.pastRequests.forEach { req ->
                             PastRequestRow(req)
                         }
@@ -91,7 +96,7 @@ fun TemplateRequestsContent(
             }
         }
 
-        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
+        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(Dimens.screenPadding)) {
             AppPrimaryButton(state.newRequest, onClick = { onEvent(TemplateRequestsEvent.OpenCapture) }, leadingIcon = Icons.Rounded.Add)
         }
     }
@@ -103,7 +108,7 @@ fun TemplateRequestsContent(
 
 @Composable
 private fun OpenRequestCard(request: TemplateRequest, state: TemplateRequestsUiState, onEvent: (TemplateRequestsEvent) -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+    ContentCard(modifier = Modifier.padding(top = Dimens.fieldGap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(request.id, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             Box(modifier = Modifier.background(transportColors().haulAmberContainer, RoundedCornerShape(percent = 100)).padding(horizontal = 8.dp, vertical = 2.dp)) {
@@ -111,7 +116,7 @@ private fun OpenRequestCard(request: TemplateRequest, state: TemplateRequestsUiS
             }
         }
         Text(request.description, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Dimens.fieldGap))
         val steps = state.stepLabels.mapIndexed { i, label ->
             RouteLineStep(
                 label,
@@ -123,24 +128,27 @@ private fun OpenRequestCard(request: TemplateRequest, state: TemplateRequestsUiS
             )
         }
         RouteLine(steps = steps, modifier = Modifier.fillMaxWidth())
-        Text("Sent ${request.sentDate} · quoted ${request.quotedDate}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-        Spacer(Modifier.height(12.dp))
+        Text("Sent ${request.sentDate} · quoted ${request.quotedDate}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
+        Spacer(Modifier.height(Dimens.fieldGap))
         Row(
-            modifier = Modifier.fillMaxWidth().background(transportColors().haulAmberContainer, RoundedCornerShape(12.dp)).padding(12.dp),
+            modifier = Modifier.fillMaxWidth().background(transportColors().haulAmberContainer, AppShapes.nestedCard).padding(Dimens.cardPaddingNested),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("${request.amountNote.orEmpty()} ${request.quotedAmount.orEmpty()}", style = TransportTypeScale.dataMedium, color = transportColors().onHaulAmber)
             Spacer(Modifier.width(8.dp))
             Text("one-time · 3 working days", style = TransportTypeScale.bodySmall, color = transportColors().onHaulAmber, modifier = Modifier.weight(1f))
-            AppPrimaryButton(state.approvePay, onClick = { onEvent(TemplateRequestsEvent.ApprovePay) }, height = 40.dp)
+            AppPrimaryButton(state.approvePay, onClick = { onEvent(TemplateRequestsEvent.ApprovePay) }, height = Dimens.segmentedButtonHeight)
         }
-        Text(state.seePreview, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+        Text(state.seePreview, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = Dimens.fieldGap))
     }
 }
 
 @Composable
 private fun PastRequestRow(req: PastRequest) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(req.id, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(req.description, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -148,7 +156,10 @@ private fun PastRequestRow(req: PastRequest) {
         }
         Text(req.amount, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.width(8.dp))
-        Box(modifier = Modifier.background(if (req.status == "INSTALLED") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(percent = 100)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+        Box(modifier = Modifier.background(
+            if (req.status == "INSTALLED") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+            RoundedCornerShape(percent = 100)
+        ).padding(horizontal = 8.dp, vertical = 2.dp)) {
             Text(req.status, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -160,8 +171,8 @@ private fun CaptureSheet(state: TemplateRequestsUiState, onEvent: (TemplateReque
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                .padding(20.dp)
+                .background(MaterialTheme.colorScheme.surface, AppShapes.dialog)
+                .padding(Dimens.cardPaddingStandard)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(state.captureTitle, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
@@ -172,12 +183,12 @@ private fun CaptureSheet(state: TemplateRequestsUiState, onEvent: (TemplateReque
                 }
             }
             Text(state.captureBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Dimens.screenPadding))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(240.dp)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)),
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, AppShapes.nestedCard),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.AddAPhoto, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
@@ -191,12 +202,12 @@ private fun CaptureSheet(state: TemplateRequestsUiState, onEvent: (TemplateReque
                     Text(state.captureWarning, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.height(Dimens.screenPadding))
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.fieldGap), modifier = Modifier.fillMaxWidth()) {
                 AppOutlinedButton(state.captureRetake, onClick = { onEvent(TemplateRequestsEvent.Retake) }, modifier = Modifier.weight(1f))
                 AppOutlinedButton(state.captureAddPhoto, onClick = { onEvent(TemplateRequestsEvent.AddPhoto) }, modifier = Modifier.weight(1f))
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Dimens.fieldGap))
             AppPrimaryButton(state.captureSend, onClick = { onEvent(TemplateRequestsEvent.SendForChecking) }, modifier = Modifier.fillMaxWidth())
         }
     }

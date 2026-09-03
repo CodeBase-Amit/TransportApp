@@ -908,6 +908,9 @@ New decisions taken this sprint that amend the plan:
 | D54 | S18's session state machine — see the S18 section | SIGNED_OUT is a real state (flag in DataStore); DEMO fallback is debug-only; mock sign-in writes identity; the Splash routes T1 vs T2 by it |
 | D55 | S19's draft persistence — see the S19 section | every keystroke writes through to SavedStateHandle; parties persist as ids and re-hydrate from masters; drafts cleared on commit |
 | D56 | S19's photo seam — see the S19 section | the repository owns the import (downscale → app files → ATTACHMENT_E + outbox); an unreadable provider answers PHOTO_QUALITY, never a half row |
+| D57 | S20's Night Haul Expressive redesign — see the S20 section | Design.md stays the authority; the expressive pass evolves tokens (sunrise accent, tinted shadows, 24dp cards, hero money type) and adds HaulMotion — every deviation is recorded here and in the Design.md addendum |
+| D58 | S20's RouteLine as the signature | the truck is *placed* (B1 closed) and *drives* with a spring; the travelled segment draws itself; the bob idles only while CURRENT — one gesture learned in all 8 places |
+| D59 | S20's celebratory moments | the sunrise coral appears exactly at peak moments (Book and print CTA, save confirmations) and nowhere else; error keeps its own slot — the 10% rule holds |
 
 ---
 
@@ -1604,3 +1607,64 @@ owns vehicles); Invite "Resend" stays visual until the drain exists; the challan
 vehicle/driver auto-pick remains first-available (a picker is a 3.6 candidate); adb cannot
 reliably drive the system Photo Picker grid — the positive import path is unit-proven, the
 refusal path device-proven.
+
+---
+
+## Phase 3.5, Sprint S20 — Night Haul Expressive: the UI redesign
+
+**Goal (user-directed):** apply the design skills (mobile-app-ui-design, material-3,
+frontend-design, kotlin-specialist) as a *full redesign*, core journey first, expressive
+motion, both themes. The direction kept the app's own identity — the dispatcher's desk at
+night — rather than importing a template look, and spent its boldness in exactly one place
+(D58).
+
+### Design changes (D57)
+
+- **Tokens.** `sunrise` (#E85D3D light / #FF8A66 dark) — the celebratory accent, exposed via
+  `TransportColors` with on/container roles; `shadowTint` + `paperShadow` — tinted shadows
+  (green-cast in light, neutral in dark), replacing gray/black; paper warmed to #FDFCF9.
+  Shape: contentCard 20→24dp, sheets/dialogs 28→32dp (paper stays 2dp — the hard/soft
+  contrast between chrome and artifact is the identity). Type: `displayHeroMoney` 34sp mono
+  for the dashboard strip.
+- **`Motion.kt` (new).** HaulMotion: bouncy/snappy/press springs for finger-driven change,
+  emphasized/decelerate/accelerate easing tweens for self-playing motion, all with
+  reduced-motion downgrades. `rememberReducedMotion()` centralises the wiring point.
+- **Components.** `AppPrimaryButton`: spring press-scale + tinted glow + `celebrate` sunrise
+  variant. `ContentCard(elevated=true)`: floating money cards on tinted shadows.
+  `PaymentStamp`: lands with a bouncy spring and re-lands when the mode changes (T5's V5
+  moment, finally real). `DocketRow`: leading status rail (held=error, delivered=green,
+  live=amber) + pressed fill. `LoadingBlock`: slow green pulse (no shimmer, no spinner).
+  `EmptyStateIllustrated`: route-line motif + invitation copy + thumb-zone CTA.
+- **`RouteLine` rebuilt (D58).** The B1 dead block is gone: the truck is placed by measured
+  width (`BoxWithConstraints`), drives to the current tick with a spring on open, and bobs
+  while in motion; the travelled segment draws itself. `CompactRouteLine` gives the vehicle
+  board the same gesture.
+
+### Screen work (core journey)
+
+- **Dashboard:** hero money strip (freight/hire/margin on an elevated card with the
+  self-drawing sparkline and head-dot), tiles bounce in with amber money values, the empty
+  state became the illustrated invitation.
+- **Vehicle board:** cards now use the animated CompactRouteLine — the truck visibly rides
+  the route.
+- **Booking form:** "Book and print" wears the sunrise celebrate accent (D59); the stamp
+  re-lands on every payment-mode change.
+- **Bilty preview:** the 4-copy stack rests on warmed paper shadows (a real sheet on a
+  desk); its MoreVert-as-back-arrow became ArrowBack (last one in the app).
+
+### Verification
+
+- **218 tests / 0 failures / 49 suites** — no regressions; the design pass was
+  additive (new params default to old behaviour where tests assert).
+- **Emulator walk** (debug, Shivshakti): dashboard renders the hero strip (23,250.38 /
+  margin −44% chip) above live tiles; register → case file → booking form all walk clean;
+  sticky bar shows the celebrate CTA over the ₹2,520.00 total. Screenshots captured
+  (dashboard, splash, register, case file, booking, sticky bar) — this model cannot read
+  images, so visual QA beyond hierarchy dumps is the user's next step.
+- Full-graph compile green; `checkPureModules` green.
+
+**Scope notes:** the remaining 28 screens inherit the component upgrades but keep their
+current bespoke layouts (a follow-up pass can bespoke them); the hero transition
+register→case file is wired for shared elements but Compose's shared-element API needs the
+nav-compose 2.8+ placement — deferred to the next polish pass rather than half-done; dark
+theme inherits every token automatically but got no bespoke screenshots yet.

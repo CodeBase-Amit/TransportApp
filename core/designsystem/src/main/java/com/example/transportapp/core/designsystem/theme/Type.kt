@@ -68,30 +68,46 @@ private fun plex(weight: FontWeight, size: Int, line: Int, tracking: Int = 0): T
         letterSpacing = tracking.sp
     )
 
-private fun mono(weight: FontWeight, size: Int, line: Int): TextStyle =
+private fun mono(weight: FontWeight, size: Int, line: Int, tracking: Int = 0): TextStyle =
     TextStyle(
         fontFamily = PlexMonoFamily,
         fontWeight = weight,
         fontSize = size.sp,
         lineHeight = line.sp,
-        letterSpacing = 0.sp
+        letterSpacing = tracking.sp
     )
 
-/** The fourteen-step type scale plus three named data styles (Design.md §A6.1). */
+/**
+ * Material 3 refined type scale for Transport app.
+ * Enhanced hierarchy with improved line heights and tracking for better readability.
+ * Maintains the transport identity with Anek Latin for display, IBM Plex for body/data.
+ */
 object TransportTypeScale {
-    val displaySmall: TextStyle = anek(FontWeight.Bold, 34, 40, -1)
-    val headlineMedium: TextStyle = anek(FontWeight.SemiBold, 28, 34, -1)
-    val headlineSmall: TextStyle = anek(FontWeight.SemiBold, 24, 30)
-    val titleLarge: TextStyle = anek(FontWeight.SemiBold, 22, 28)
-    val titleMedium: TextStyle = plex(FontWeight.SemiBold, 16, 22)
+    // Display — hero headlines and large numbers
+    val displaySmall: TextStyle = anek(FontWeight.Bold, 36, 42, -1)
+    val displayHeroMoney: TextStyle = mono(FontWeight.Medium, 36, 42, 0)
+
+    // Headline — section headers, screen titles
+    val headlineMedium: TextStyle = anek(FontWeight.SemiBold, 28, 36, -1)
+    val headlineSmall: TextStyle = anek(FontWeight.SemiBold, 24, 32, 0)
+
+    // Title — card titles, subsection headers
+    val titleLarge: TextStyle = anek(FontWeight.SemiBold, 22, 28, 0)
+    val titleMedium: TextStyle = plex(FontWeight.SemiBold, 16, 24, 0)
     val titleSmall: TextStyle = plex(FontWeight.SemiBold, 14, 20, 1)
-    val bodyLarge: TextStyle = plex(FontWeight.Normal, 16, 24)
-    val bodyMedium: TextStyle = plex(FontWeight.Normal, 14, 20)
-    val bodySmall: TextStyle = plex(FontWeight.Normal, 12, 16)
-    val labelLarge: TextStyle = plex(FontWeight.Medium, 14, 20)
-    val labelMedium: TextStyle = plex(FontWeight.Medium, 12, 16)
+
+    // Body — primary reading text
+    val bodyLarge: TextStyle = plex(FontWeight.Normal, 16, 26, 0)
+    val bodyMedium: TextStyle = plex(FontWeight.Normal, 14, 22, 0)
+    val bodySmall: TextStyle = plex(FontWeight.Normal, 12, 18, 0)
+
+    // Label — buttons, chips, captions, navigation
+    val labelLarge: TextStyle = plex(FontWeight.Medium, 14, 20, 1)
+    val labelMedium: TextStyle = plex(FontWeight.Medium, 12, 16, 1)
+
+    // Data — figures, monetary values, identifiers (monospace for alignment)
     val dataLarge: TextStyle = mono(FontWeight.Medium, 20, 26)
-    val dataMedium: TextStyle = mono(FontWeight.Normal, 15, 20)
+    val dataMedium: TextStyle = mono(FontWeight.Normal, 15, 22)
     val dataSmall: TextStyle = mono(FontWeight.Normal, 12, 16)
 }
 

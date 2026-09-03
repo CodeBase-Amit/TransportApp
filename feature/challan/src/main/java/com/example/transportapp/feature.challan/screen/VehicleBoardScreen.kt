@@ -238,29 +238,14 @@ private fun VehicleCard(vehicle: VehicleRow, loadIt: String, onLoad: () -> Unit)
                 Text(loadIt, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            // Route line
+            // Route line — the shared animated primitive (S20: the truck rides the route).
             val stops = vehicle.stops
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp)
-                    .height(12.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (stops.size > 1) {
-                    Canvas(
-                        modifier = Modifier.fillMaxWidth().height(2.dp)
-                    ) {
-                        val lineY = size.height / 2
-                        val fraction = vehicle.currentStop.toFloat() / (stops.size - 1)
-                        drawLine(outlineVariant, start = Offset(0f, lineY), end = Offset(size.width, lineY), strokeWidth = 2.dp.toPx())
-                        if (fraction > 0) {
-                            drawLine(primary, start = Offset(0f, lineY), end = Offset(size.width * fraction, lineY), strokeWidth = 2.dp.toPx())
-                        }
-                        val tickX = size.width * fraction
-                        drawCircle(primary, radius = 4.dp.toPx(), center = Offset(tickX, lineY))
-                    }
-                }
+            if (stops.size > 1) {
+                com.example.transportapp.core.designsystem.component.CompactRouteLine(
+                    stopCount = stops.size,
+                    currentPosition = vehicle.currentStop,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),

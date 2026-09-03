@@ -31,8 +31,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.FilterChip
+import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
+import com.example.transportapp.core.designsystem.theme.AppShapes
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.PaperColors
 import com.example.transportapp.core.designsystem.theme.TransportAppTheme
@@ -69,15 +72,18 @@ fun TemplatesContent(
         TransportTopAppBar(title = state.title, onNavigationClick = onBack)
         Text(state.subtitle, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Dimens.chipGap),
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = Dimens.chipGap)
+        ) {
             filters.forEach { (filter, label) ->
                 FilterChip(label, selected = state.selectedFilter == filter, onClick = { onEvent(TemplatesEvent.Filter(filter)) })
             }
         }
 
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Dimens.screenPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimens.fieldGap)
         ) {
             visible.forEach { template ->
                 TemplateCard(template)
@@ -86,8 +92,8 @@ fun TemplatesContent(
                 AppTextButton(state.requestTemplate, onClick = { onEvent(TemplatesEvent.RequestTemplate) })
             }
 
-            Text(state.versionHistoryHeading, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+            GroupHeading(text = state.versionHistoryHeading, modifier = Modifier.padding(top = Dimens.screenPadding))
+            ContentCard(modifier = Modifier.padding(top = Dimens.fieldGap)) {
                 state.versionHistory.forEach { version ->
                     VersionHistoryRow(version)
                 }
@@ -98,13 +104,15 @@ fun TemplatesContent(
 
 @Composable
 private fun TemplateCard(template: TemplateRow) {
-    Column(
-        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(12.dp)
-    ) {
+    ContentCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Paper thumbnail
             Box(
-                modifier = Modifier.size(width = 96.dp, height = 136.dp).background(PaperColors.paperWhite, RoundedCornerShape(2.dp)).border(1.dp, PaperColors.paperRule, RoundedCornerShape(2.dp)).padding(8.dp)
+                modifier = Modifier
+                    .size(width = Dimens.thumbnailSmall, height = Dimens.thumbnailLarge)
+                    .background(PaperColors.paperWhite, AppShapes.paper)
+                    .border(1.dp, PaperColors.paperRule, AppShapes.paper)
+                    .padding(8.dp)
             ) {
                 Column {
                     Box(modifier = Modifier.fillMaxWidth().height(10.dp).background(PaperColors.paperRule.copy(alpha = 0.25f)))
@@ -134,7 +142,7 @@ private fun TemplateCard(template: TemplateRow) {
                     }
                 }
                 Text("${template.type} · ${template.copies} · ${template.paper}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.chipGap), modifier = Modifier.padding(top = Dimens.grid)) {
                     Box(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(percent = 100)).padding(horizontal = 6.dp, vertical = 2.dp)) {
                         Text(template.version, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurface)
                     }
@@ -145,12 +153,12 @@ private fun TemplateCard(template: TemplateRow) {
                     }
                 }
                 if (template.description.isNotEmpty()) {
-                    Text(template.description, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text(template.description, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
                 }
                 if (template.neverPrinted) {
-                    Text("Never printed. Preview it before making it the default.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text("Never printed. Preview it before making it the default.", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
                 } else if (!template.archived && template.status.isNotEmpty()) {
-                    Text("In use · ${template.status}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text("In use · ${template.status}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
                 }
             }
             IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -169,7 +177,7 @@ private fun VersionHistoryRow(version: VersionHistory) {
             Text(version.date, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             Text(version.author, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(version.change, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+        Text(version.change, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
     }
 }
 

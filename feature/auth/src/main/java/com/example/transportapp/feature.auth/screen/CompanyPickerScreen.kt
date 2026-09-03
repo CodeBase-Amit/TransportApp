@@ -2,7 +2,6 @@ package com.example.transportapp.feature.auth.screen
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,15 +30,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.GroupHeading
+import com.example.transportapp.core.designsystem.theme.AppShapes
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.designsystem.theme.transportColors
 
 /**
  * T2 — Company and branch picker. Branch is chosen inside the company card.
@@ -71,7 +73,7 @@ fun CompanyPickerContent(
             .padding(horizontal = Dimens.screenPadding)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp),
+            modifier = Modifier.fillMaxWidth().height(Dimens.topAppBarHeight),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(state.title, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
@@ -97,7 +99,7 @@ fun CompanyPickerContent(
             Spacer(Modifier.height(12.dp))
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(Dimens.sectionSpacing))
         GroupHeading(state.invitationsHeading, modifier = Modifier.padding(bottom = 12.dp))
         state.invitations.forEachIndexed { index, invitation ->
             InvitationCard(
@@ -110,7 +112,7 @@ fun CompanyPickerContent(
             Spacer(Modifier.height(12.dp))
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(Dimens.sectionSpacing))
         AppOutlinedButton(
             state.registerLabel,
             onClick = onRegisterCompany,
@@ -118,7 +120,7 @@ fun CompanyPickerContent(
             modifier = Modifier.fillMaxWidth(),
             labelColor = MaterialTheme.colorScheme.primary
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(Dimens.sectionSpacing))
     }
 }
 
@@ -136,20 +138,28 @@ private fun CompanyCard(
 ) {
     val border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     val fill = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(fill, RoundedCornerShape(20.dp))
-            .border(border, RoundedCornerShape(20.dp))
-            .clickable(onClick = onSelect)
-            .padding(Dimens.cardPaddingStandard)
+
+    ContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        fill = fill,
+        border = border,
+        onClick = onSelect
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        AppShapes.nestedCard
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(company.initials, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
+                Text(
+                    company.initials,
+                    style = TransportTypeScale.titleMedium,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -162,7 +172,12 @@ private fun CompanyCard(
         }
         if (isSelected && company.branches.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
             Spacer(Modifier.height(12.dp))
             Text(workSection, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
@@ -196,11 +211,12 @@ private fun InvitationCard(
     onAccept: () -> Unit,
     onDecline: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(20.dp))
-            .padding(Dimens.cardPaddingStandard)
+    val shadowTint = transportColors().shadowTint
+    ContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        fill = MaterialTheme.colorScheme.primaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevated = true
     ) {
         Text(invitation.companyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
         Text(

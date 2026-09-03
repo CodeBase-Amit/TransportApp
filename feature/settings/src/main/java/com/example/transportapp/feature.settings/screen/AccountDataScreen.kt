@@ -1,11 +1,8 @@
 package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,14 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,12 +31,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.transportapp.core.designsystem.component.AppDestructiveButton
 import com.example.transportapp.core.designsystem.component.AppOutlinedButton
 import com.example.transportapp.core.designsystem.component.AppTextButton
+import com.example.transportapp.core.designsystem.component.Caption
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
+import com.example.transportapp.core.designsystem.component.StickyActionBar
 import com.example.transportapp.core.designsystem.component.SyncChip
 import com.example.transportapp.core.designsystem.component.SyncState
 import com.example.transportapp.core.designsystem.component.TransportTextField
@@ -81,75 +80,137 @@ fun AccountDataContent(
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).verticalScroll(rememberScrollState())) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack)
 
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding, vertical = Dimens.chipGap),
+            verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
+        ) {
             // Section A — This phone
             GroupHeading("This phone")
-            Column(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)
-                    .combinedClickable(onClick = {}, onLongClick = onOpenScreenMap ?: {})
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                onLongClick = onOpenScreenMap
             ) {
                 InfoRow("Records stored", state.records)
                 InfoRow("Space used", state.space)
                 InfoRow("Documents cached", state.cachedPdfs)
                 InfoRow("Last full sync", state.lastSync)
-                Spacer(Modifier.height(8.dp))
-                Text(state.waiting, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(Dimens.chipGap))
+                Caption(state.waiting)
                 state.syncQueue.forEach { item ->
                     SyncQueueRow(item)
                 }
-                Text(state.syncNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    state.syncNote,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
                 AppTextButton(state.tryNow, onClick = { onEvent(AccountDataEvent.TrySync) })
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(state.clearLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(state.clearNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(vertical = Dimens.chipGap)
+                )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        state.clearLabel,
+                        style = TransportTypeScale.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        state.clearNote,
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = Dimens.fieldGap)
+                    )
                 }
             }
 
             // Section B — Your data
             GroupHeading("Your data")
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+            ContentCard(modifier = Modifier.fillMaxWidth()) {
                 DataRow(state.downloadLabel, state.downloadSub)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 DataRow(state.privacyLabel, null)
             }
 
             // Section C — Sign out
             GroupHeading("Sign out")
-            Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(20.dp)) {
+            ContentCard(modifier = Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(state.signOutLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        Icons.Rounded.Logout,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(Dimens.fieldGap))
+                    Text(
+                        state.signOutLabel,
+                        style = TransportTypeScale.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
-                Text(state.signOutNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    state.signOutNote,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
 
             // Section D — Leaving
             GroupHeading("Leaving")
-            Column(
-                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp)).padding(20.dp)
+            ContentCard(
+                modifier = Modifier.fillMaxWidth(),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error)
             ) {
-                Text(state.leaveTitle, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(state.leaveBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-                Spacer(Modifier.height(12.dp))
-                AppOutlinedButton(state.leaveAction, onClick = { onEvent(AccountDataEvent.Leave) }, modifier = Modifier.fillMaxWidth(), borderColor = MaterialTheme.colorScheme.error, labelColor = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(16.dp))
-                Text(state.deleteTitle, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(state.deleteBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    state.leaveTitle,
+                    style = TransportTypeScale.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    state.leaveBody,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Spacer(Modifier.height(Dimens.fieldGap))
+                AppOutlinedButton(
+                    state.leaveAction,
+                    onClick = { onEvent(AccountDataEvent.Leave) },
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = MaterialTheme.colorScheme.error,
+                    labelColor = MaterialTheme.colorScheme.error
+                )
+                Spacer(Modifier.height(Dimens.sectionSpacing))
+                Text(
+                    state.deleteTitle,
+                    style = TransportTypeScale.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    state.deleteBody,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
                 state.destroyLines.forEach { line ->
-                    Text("> $line", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        "> $line",
+                        style = TransportTypeScale.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { onEvent(AccountDataEvent.RequestDelete) }.background(MaterialTheme.colorScheme.error, RoundedCornerShape(percent = 100)).padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(state.deleteAction, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onError)
-                }
+                Spacer(Modifier.height(Dimens.fieldGap))
+                AppDestructiveButton(
+                    text = state.deleteAction,
+                    onClick = { onEvent(AccountDataEvent.RequestDelete) },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(Dimens.sectionSpacing))
         }
     }
 
@@ -160,7 +221,10 @@ fun AccountDataContent(
 
 @Composable
 private fun SyncQueueRow(item: SyncQueueRowUi) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = Dimens.chipGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(item.description, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
             Text(item.atText, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -175,14 +239,23 @@ private fun DeleteDialog(state: AccountDataUiState, onEvent: (AccountDataEvent) 
 
     AlertDialog(
         onDismissRequest = { onEvent(AccountDataEvent.CancelDelete) },
-        title = { Text(state.deleteDialogTitle) },
+        title = { Text(state.deleteDialogTitle, style = TransportTypeScale.titleMedium) },
         text = {
             Column {
-                Text(state.deleteDialogBody, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    state.deleteDialogBody,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 state.deleteCounts.forEach { count ->
-                    Text("· $count", style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        "· $count",
+                        style = TransportTypeScale.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(Dimens.fieldGap))
                 TransportTextField(
                     value = confirmName,
                     onValueChange = { confirmName = it },
@@ -208,20 +281,41 @@ private fun DeleteDialog(state: AccountDataUiState, onEvent: (AccountDataEvent) 
 
 @Composable
 private fun InfoRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = TransportTypeScale.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-        Text(value, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = Dimens.chipGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = TransportTypeScale.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            value,
+            style = TransportTypeScale.dataSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun DataRow(label: String, sub: String?) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = Dimens.chipGap),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            if (sub != null) Text(sub, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (sub != null) {
+                Text(sub, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(
+            Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

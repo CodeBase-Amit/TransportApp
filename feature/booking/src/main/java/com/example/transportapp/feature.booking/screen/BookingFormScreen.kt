@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +59,7 @@ import com.example.transportapp.core.designsystem.component.TransportTextField
 import com.example.transportapp.core.designsystem.theme.Dimens
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
+import com.example.transportapp.core.designsystem.theme.transportColors
 import com.example.transportapp.core.ui.sample.DeliveryType
 import com.example.transportapp.core.ui.sample.Party
 import com.example.transportapp.core.ui.sample.Risk
@@ -643,14 +644,14 @@ private fun ProvisionalBanner(message: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7DFA6))
+            .background(transportColors().haulAmberContainer)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             message,
             style = TransportTypeScale.bodySmall,
-            color = Color(0xFF4A3600),
+            color = transportColors().onHaulAmber,
             modifier = Modifier.weight(1f)
         )
     }
@@ -662,18 +663,18 @@ private fun RateCardBanner(message: String, onSetRate: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7DFA6))
+            .background(transportColors().haulAmberContainer)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             message,
             style = TransportTypeScale.bodySmall,
-            color = Color(0xFF4A3600),
+            color = transportColors().onHaulAmber,
             modifier = Modifier.weight(1f)
         )
         androidx.compose.material3.TextButton(onClick = onSetRate) {
-            Text("Set a rate", style = TransportTypeScale.labelLarge, color = Color(0xFF4A3600))
+            Text("Set a rate", style = TransportTypeScale.labelLarge, color = transportColors().onHaulAmber)
         }
     }
 }
@@ -681,13 +682,15 @@ private fun RateCardBanner(message: String, onSetRate: () -> Unit) {
 @Composable
 private fun BookingStickyBar(state: BookingFormUiState, onBookAndPrint: () -> Unit) {
     // §7.1 amendment mode (S15): the reason is required before the successor is booked.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         Column(modifier = Modifier.weight(1f)) {
             if (state.amending != null) {
                 Text(
@@ -713,8 +716,10 @@ private fun BookingStickyBar(state: BookingFormUiState, onBookAndPrint: () -> Un
         AppPrimaryButton(
             text = "Book and print",
             onClick = onBookAndPrint,
-            leadingIcon = Icons.Rounded.Print
+            leadingIcon = Icons.Rounded.Print,
+            celebrate = true, // S20: booking is the app's peak moment — sunrise accent.
         )
+        }
     }
 }
 

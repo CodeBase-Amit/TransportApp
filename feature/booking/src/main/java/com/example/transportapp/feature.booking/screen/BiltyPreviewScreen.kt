@@ -1,8 +1,11 @@
 package com.example.transportapp.feature.booking.screen
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,20 +39,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.RouteLine
 import com.example.transportapp.core.designsystem.component.RouteLineStep
 import com.example.transportapp.core.designsystem.component.StepState
+import com.example.transportapp.core.designsystem.component.TransportTopAppBar
+import com.example.transportapp.core.designsystem.theme.AppShapes
+import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.PaperColors
+import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.designsystem.theme.transportColors
 import com.example.transportapp.core.ui.PrintStatus
 import com.example.transportapp.core.ui.sample.BiltyPaperData
 
@@ -96,37 +104,46 @@ fun BiltyPreviewContent(
     val front = copies.getOrElse(currentCopy) { copies.first() }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.MoreVert, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
-            Text("Bilty ${state.biltyNo}", style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
-        }
+        TransportTopAppBar(
+            title = "Bilty ${state.biltyNo}",
+            onNavigationClick = onBack,
+            trailingIcons = {
+                IconButton(onClick = {}) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        )
 
         Box(
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = Dimens.screenPadding),
             contentAlignment = Alignment.Center
         ) {
+            val paperShadow = transportColors().paperShadow
+            // Stacked paper copies behind the front sheet
             for (i in 3 downTo 1) {
                 Box(
                     modifier = Modifier
-                        .offset(x = (i * 6).dp, y = (i * 6).dp)
+                        .offset(x = Dimens.paperStackOffset * i, y = Dimens.paperStackOffset * i)
                         .fillMaxWidth()
                         .aspectRatio(0.71f)
-                        .shadow(1.dp, shape = RoundedCornerShape(2.dp), ambientColor = Color(0x14111111), spotColor = Color(0x14111111))
-                        .background(paperColors.getOrElse(i) { PaperColors.paperWhite }, RoundedCornerShape(2.dp))
+                        .shadow(Dimens.paperShadowOffset * 6, shape = AppShapes.paper, ambientColor = paperShadow, spotColor = paperShadow)
+                        .background(paperColors.getOrElse(i) { PaperColors.paperWhite }, AppShapes.paper)
                 ) {
-                    Text(copies.getOrElse(i) { front }.label, modifier = Modifier.align(Alignment.BottomEnd).rotate(90f).padding(end = 4.dp, bottom = 8.dp), color = PaperColors.paperInk, fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text(
+                        copies.getOrElse(i) { front }.label,
+                        modifier = Modifier.align(Alignment.BottomEnd).rotate(90f).padding(end = 4.dp, bottom = 8.dp),
+                        color = PaperColors.paperInk,
+                        style = TransportTypeScale.dataSmall
+                    )
                 }
             }
+            // Front sheet
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(0.71f)
-                    .shadow(1.dp, shape = RoundedCornerShape(2.dp), ambientColor = Color(0x14111111), spotColor = Color(0x14111111))
-                    .background(paperColors.getOrElse(currentCopy) { PaperColors.paperWhite }, RoundedCornerShape(2.dp))
+                    .shadow(10.dp, shape = AppShapes.paper, ambientColor = paperShadow, spotColor = paperShadow)
+                    .background(paperColors.getOrElse(currentCopy) { PaperColors.paperWhite }, AppShapes.paper)
                     .padding(12.dp)
             ) {
                 BiltyPaperContent(paper = state.paper, copyLabel = front.label)
@@ -134,18 +151,20 @@ fun BiltyPreviewContent(
         }
 
         val pagerSteps = List(4) { i -> RouteLineStep("", when { i == currentCopy -> StepState.CURRENT; i < currentCopy -> StepState.DONE; else -> StepState.UPCOMING }) }
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = Dimens.fieldGap), horizontalAlignment = Alignment.CenterHorizontally) {
             RouteLine(pagerSteps, showTruck = false, showLabels = false, modifier = Modifier.width(88.dp))
-            Text("${front.caption} · ${currentCopy + 1} of 4", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            Text("${front.caption} · ${currentCopy + 1} of 4", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
         }
 
-        // S13: render/share status — a beat of work, never a spinner without a way out.
+        // Render/share status
         when (val status = printStatus) {
             is PrintStatus.Rendering -> LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 4.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding).padding(bottom = 4.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
             )
             is PrintStatus.Error -> Row(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissPrintStatus).padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismissPrintStatus).padding(horizontal = Dimens.screenPadding, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(status.message, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
@@ -155,7 +174,7 @@ fun BiltyPreviewContent(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(vertical = 12.dp, horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(vertical = Dimens.fieldGap, horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -171,18 +190,24 @@ fun BiltyPreviewContent(
 fun BiltyPaperContent(paper: BiltyPaperData, copyLabel: String) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text(paper.companyName, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PaperColors.paperInk, letterSpacing = 0.5.sp)
-            Text(paper.addressLine, fontSize = 8.sp, color = PaperColors.paperInk, textAlign = TextAlign.Center)
-            Text(paper.contactLine, fontSize = 8.sp, color = PaperColors.paperInk, textAlign = TextAlign.Center)
+            Text(paper.companyName, style = TransportTypeScale.bodySmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp), color = PaperColors.paperInk)
+            Text(paper.addressLine, style = TransportTypeScale.bodySmall.copy(fontSize = 8.sp), color = PaperColors.paperInk, textAlign = TextAlign.Center)
+            Text(paper.contactLine, style = TransportTypeScale.bodySmall.copy(fontSize = 8.sp), color = PaperColors.paperInk, textAlign = TextAlign.Center)
             Box(Modifier.fillMaxWidth().height(1.dp).padding(vertical = 4.dp).background(PaperColors.paperRule))
-            Text("CONSIGNMENT NOTE", fontSize = 10.sp, letterSpacing = 2.sp, fontWeight = FontWeight.SemiBold, color = PaperColors.paperInk)
-            Text(copyLabel, fontSize = 8.sp, letterSpacing = 1.sp, color = PaperColors.paperInk)
+            Text("CONSIGNMENT NOTE", style = TransportTypeScale.labelMedium.copy(fontSize = 10.sp, letterSpacing = 2.sp), color = PaperColors.paperInk)
+            Text(copyLabel, style = TransportTypeScale.bodySmall.copy(fontSize = 8.sp, letterSpacing = 1.sp), color = PaperColors.paperInk)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column { PaperText("GR No: ${paper.docNo}"); PaperText("Date: ${paper.date}") }
-            Column(horizontalAlignment = Alignment.End) { PaperText("From: ${paper.fromStation}"); PaperText("To: ${paper.toStation}") }
+            Column {
+                PaperText("GR No: ${paper.docNo}")
+                PaperText("Date: ${paper.date}")
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                PaperText("From: ${paper.fromStation}")
+                PaperText("To: ${paper.toStation}")
+            }
         }
-        Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, RoundedCornerShape(1.dp)).padding(6.dp)) {
+        Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, AppShapes.paper).padding(6.dp)) {
             Row {
                 Column(Modifier.weight(1f)) {
                     PaperText("CONSIGNOR", bold = true); PaperText(paper.consignorName)
@@ -194,44 +219,98 @@ fun BiltyPaperContent(paper: BiltyPaperData, copyLabel: String) {
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, RoundedCornerShape(1.dp)).padding(6.dp)) {
+        Box(Modifier.fillMaxWidth().border(1.dp, PaperColors.paperRule, AppShapes.paper).padding(6.dp)) {
             Column {
-                Row { paper.goodsHeaders.forEach { Text(it, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
+                Row {
+                    paper.goodsHeaders.forEach {
+                        Text(it, style = TransportTypeScale.labelMedium.copy(fontSize = 8.sp), color = PaperColors.paperInk, modifier = Modifier.weight(1f))
+                    }
+                }
                 Box(Modifier.fillMaxWidth().height(1.dp).padding(vertical = 2.dp).background(PaperColors.paperRule))
-                Row { paper.goodsValues.forEach { Text(it, fontSize = 8.sp, color = PaperColors.paperInk, modifier = Modifier.weight(1f)) } }
+                Row {
+                    paper.goodsValues.forEach {
+                        Text(it, style = TransportTypeScale.bodySmall.copy(fontSize = 8.sp), color = PaperColors.paperInk, modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) { Text(paper.amountInWords, fontSize = 8.sp, color = PaperColors.paperInk) }
+            Column(Modifier.weight(1f)) {
+                Text(paper.amountInWords, style = TransportTypeScale.bodySmall.copy(fontSize = 8.sp), color = PaperColors.paperInk)
+            }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                PaperText("Hamali  ${paper.hamali}"); PaperText("Door delivery  ${paper.doorDelivery}"); PaperText("Taxable  ${paper.taxable}")
-                PaperText("GST 5%  ${paper.gst}"); PaperText("Rounding  ${paper.rounding}")
+                PaperText("Hamali  ${paper.hamali}")
+                PaperText("Door delivery  ${paper.doorDelivery}")
+                PaperText("Taxable  ${paper.taxable}")
+                PaperText("GST 5%  ${paper.gst}")
+                PaperText("Rounding  ${paper.rounding}")
                 Box(Modifier.fillMaxWidth(0.6f).align(Alignment.End).height(1.dp).padding(vertical = 2.dp).background(PaperColors.paperRule))
-                Text("${paper.totalLabel}  ${paper.grandTotal}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PaperColors.paperInk)
+                Text(
+                    "${paper.totalLabel}  ${paper.grandTotal}",
+                    style = TransportTypeScale.bodySmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                    color = PaperColors.paperInk
+                )
             }
         }
+        // Payment stamp — violet ink stamp rotated 3 degrees on the paper
         Box(
             modifier = Modifier
                 .rotate(-3f)
-                .border(2.dp, PaperColors.stampViolet, RoundedCornerShape(4.dp))
+                .border(2.dp, PaperColors.stampViolet, AppShapes.stamp)
                 .padding(horizontal = 10.dp, vertical = 2.dp)
         ) {
-            Text(paper.stamp, color = PaperColors.stampViolet, fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
+            Text(
+                paper.stamp,
+                style = TransportTypeScale.labelMedium.copy(
+                    fontFamily = PlexMonoFamily,
+                    letterSpacing = 1.2.sp
+                ),
+                color = PaperColors.stampViolet
+            )
         }
-        Text(paper.footer, fontSize = 7.sp, color = PaperColors.paperInk)
+        Text(paper.footer, style = TransportTypeScale.bodySmall.copy(fontSize = 7.sp), color = PaperColors.paperInk)
     }
 }
 
 @Composable
 private fun PaperText(text: String, bold: Boolean = false) {
-    Text(text, fontSize = 9.sp, fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal, color = PaperColors.paperInk)
+    Text(
+        text,
+        style = TransportTypeScale.bodySmall.copy(
+            fontSize = 9.sp,
+            fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal
+        ),
+        color = PaperColors.paperInk
+    )
 }
 
 @Composable
 private fun BiltyActionItem(icon: ImageVector, label: String, isPrimary: Boolean = false, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick).padding(8.dp)) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.92f else 1f,
+        animationSpec = HaulMotion.press,
+        label = "actionPressScale",
+    )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .scale(scale)
+            .clickable(
+                onClick = onClick,
+                interactionSource = interaction,
+                indication = null
+            )
+            .padding(8.dp)
+    ) {
         if (isPrimary) {
-            Box(modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(percent = 100)), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(percent = 100)),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
             }
         } else {

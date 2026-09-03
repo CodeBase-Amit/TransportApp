@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.dashboard.screen
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
@@ -35,29 +37,36 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
 import com.example.transportapp.core.designsystem.component.NavDestination
 import com.example.transportapp.core.designsystem.component.TransportBottomNavBar
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
+import com.example.transportapp.core.designsystem.theme.transportColors
 import com.example.transportapp.core.ui.AppNavDrawer
 import com.example.transportapp.core.ui.DrawerDestination
 import com.example.transportapp.core.ui.rememberAppDrawerState
 import kotlinx.coroutines.launch
 
 /**
- * T4 — Dashboard. Exception strip above the numbers, 2-column tiles, one sparkline.
- * S17: app shell — hamburger drawer, person→settings, tiles/strip navigate (§6.6).
- * The dev screen map is no longer linked from here (D53).
+ * Dashboard — the home screen. Exception strip above the numbers, 2-column tiles,
+ * one sparkline. App shell with hamburger drawer, tiles navigate to detail screens.
  */
 @Composable
 fun DashboardScreen(
@@ -129,91 +138,69 @@ fun DashboardContent(
     ) {
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Top app bar: hamburger + identity + person (settings)
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                        Icon(Icons.Rounded.Menu, contentDescription = "Open menu", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.size(36.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                        Text(state.companyInitials, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(state.companyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                        Text(state.branchName, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = onSettings) { Icon(Icons.Rounded.Person, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
+                DashboardTopBar(
+                    initials = state.companyInitials,
+                    companyName = state.companyName,
+                    branchName = state.branchName,
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onSettingsClick = onSettings
+                )
 
                 Text(
                     state.asOf,
                     style = TransportTypeScale.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                     textAlign = TextAlign.End
                 )
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     if (state.isEmpty) {
-                        // Design.md T4 empty frame: a brand-new company — no strip, no tiles.
                         item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(top = 96.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("Nothing booked yet", style = TransportTypeScale.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-                                Text(
-                                    "Book your first bilty and its four copies print straight away. The dashboard fills in from there.",
-                                    style = TransportTypeScale.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                                AppPrimaryButton("Book the first bilty", onClick = onNewBilty)
-                            }
+                            com.example.transportapp.core.designsystem.component.EmptyStateIllustrated(
+                                title = "Nothing booked yet",
+                                body = "Book your first bilty and its four copies print straight away. The dashboard fills in from there.",
+                                buttonText = "Book the first bilty",
+                                onButtonClick = onNewBilty,
+                            )
                         }
                     } else {
+                        // Hero money strip — the month's position at hero size on an elevated card
+                        item { HeroMoneyStrip(state) }
+
+                        // Exception cards with slide-in animation
                         item {
                             state.visibleExceptions.forEachIndexed { visibleIndex, exc ->
                                 val index = state.exceptions.indexOfFirst { it == exc }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp)).padding(16.dp)
-                                        .clickable(enabled = exc.biltyNo.isNotEmpty()) { onException(exc.biltyNo) },
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Icon(if (exc.isLate) Icons.Rounded.Schedule else Icons.Rounded.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(exc.title, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                                        Text(exc.body, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                                    }
-                                    IconButton(onClick = { onEvent(DashboardEvent.DismissException(index)) }) {
-                                        Icon(Icons.Rounded.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
-                                    }
-                                }
+                                ExceptionCard(
+                                    title = exc.title,
+                                    body = exc.body,
+                                    isLate = exc.isLate,
+                                    hasAction = exc.biltyNo.isNotEmpty(),
+                                    onCardClick = if (exc.biltyNo.isNotEmpty()) { { onException(exc.biltyNo) } } else null,
+                                    onDismiss = { onEvent(DashboardEvent.DismissException(index)) }
+                                )
                             }
                         }
 
-                        state.tiles.chunked(2).forEach { rowTiles ->
+                        // Dashboard tiles in 2-column grid with staggered animation
+                        state.tiles.chunked(2).forEachIndexed { rowIndex, rowTiles ->
                             item {
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    rowTiles.forEach { tile ->
+                                    rowTiles.forEachIndexed { colIndex, tile ->
                                         DashboardTile(
-                                            tile,
+                                            tile = tile,
                                             onClick = when (tile.label) {
                                                 "Unbilled freight" -> onUnbilled
                                                 "Vehicles idle" -> onVehicles
                                                 "Exceptions" -> onRegister
                                                 else -> null
                                             },
+                                            staggerDelay = (rowIndex * 2 + colIndex) * 40,
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
@@ -221,17 +208,20 @@ fun DashboardContent(
                                 }
                             }
                         }
-                        item { ThisMonthTile(state) }
                     }
                 }
             }
 
-            // Extended FAB
+            // Extended FAB — floating above the bottom nav
             Box(modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 96.dp)) {
-                AppPrimaryButton(state.newBiltyLabel, onClick = onNewBilty, leadingIcon = Icons.Rounded.Add)
+                AppPrimaryButton(
+                    text = state.newBiltyLabel,
+                    onClick = onNewBilty,
+                    leadingIcon = Icons.Rounded.Add
+                )
             }
 
-            // Bottom nav
+            // Bottom navigation
             TransportBottomNavBar(
                 destinations = listOf(
                     NavDestination("Home", Icons.Outlined.Home, Icons.Rounded.Home),
@@ -247,48 +237,218 @@ fun DashboardContent(
 }
 
 @Composable
-private fun DashboardTile(tile: DashTile, onClick: (() -> Unit)? = null, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .height(116.dp)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp))
-            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+private fun DashboardTopBar(
+    initials: String,
+    companyName: String,
+    branchName: String,
+    onMenuClick: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(tile.label.uppercase(), style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(tile.value, style = if (tile.money) TransportTypeScale.dataLarge else TransportTypeScale.titleLarge, fontFamily = if (tile.money) PlexMonoFamily else null, color = MaterialTheme.colorScheme.onSurface)
-        Text(tile.qualifier, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        IconButton(onClick = onMenuClick) {
+            Icon(Icons.Rounded.Menu, contentDescription = "Open menu", tint = MaterialTheme.colorScheme.onSurface)
+        }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                initials,
+                style = TransportTypeScale.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(companyName, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(branchName, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = onSettingsClick) {
+            Icon(Icons.Rounded.Person, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
 @Composable
-private fun ThisMonthTile(state: DashboardUiState) {
-    val primary = MaterialTheme.colorScheme.primary
-    Column(
-        modifier = Modifier.fillMaxWidth().height(132.dp).background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp)).padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+private fun ExceptionCard(
+    title: String,
+    body: String,
+    isLate: Boolean,
+    hasAction: Boolean,
+    onCardClick: (() -> Unit)?,
+    onDismiss: () -> Unit
+) {
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val offset by animateFloatAsState(
+        targetValue = if (appeared) 0f else 24f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "excOffset",
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "excAlpha",
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { translationY = offset; this.alpha = alpha }
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.errorContainer)
+            .then(if (hasAction) Modifier.clickable { onCardClick?.invoke() } else Modifier)
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            if (isLate) Icons.Rounded.Schedule else Icons.Rounded.ErrorOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = TransportTypeScale.titleSmall, color = MaterialTheme.colorScheme.onErrorContainer)
+            Text(body, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f))
+        }
+        IconButton(onClick = onDismiss) {
+            Icon(Icons.Rounded.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/**
+ * The hero money strip: this month's freight/hire/margin at hero size on an
+ * elevated card, with a self-drawing sparkline beneath.
+ */
+@Composable
+private fun HeroMoneyStrip(state: DashboardUiState) {
+    com.example.transportapp.core.designsystem.component.ContentCard(
+        modifier = Modifier.fillMaxWidth(),
+        elevated = true,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("THIS MONTH", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text(state.thisMonthDelta, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(percent = 100)).padding(horizontal = 8.dp, vertical = 2.dp))
+            Text(
+                "THIS MONTH",
+                style = TransportTypeScale.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                state.thisMonthDelta,
+                style = TransportTypeScale.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(percent = 100))
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            )
         }
+        Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             state.thisMonthFigures.forEach { (value, label) ->
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(value, style = TransportTypeScale.dataMedium, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
+                    Text(value, style = TransportTypeScale.dataLarge, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.onSurface)
                     Text(label, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Canvas(modifier = Modifier.width(64.dp).height(32.dp)) {
-                val points = listOf(0.85f, 0.75f, 0.8f, 0.6f, 0.7f, 0.5f, 0.55f, 0.35f, 0.45f, 0.25f)
-                val step = size.width / (points.size - 1)
-                points.forEachIndexed { i, p ->
-                    if (i > 0) {
-                        drawLine(primary, start = Offset((i - 1) * step, size.height * points[i - 1]), end = Offset(i * step, size.height * p), strokeWidth = 2.dp.toPx())
-                    }
-                }
-            }
+            AnimatedSparkline(modifier = Modifier.width(96.dp).height(36.dp))
         }
+    }
+}
+
+/** The sparkline draws itself left-to-right on open, with a soft primary fill. */
+@Composable
+private fun AnimatedSparkline(modifier: Modifier = Modifier) {
+    val primary = MaterialTheme.colorScheme.primary
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { started = true }
+    val progress by animateFloatAsState(
+        targetValue = if (started) 1f else 0f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "sparkDraw",
+    )
+    Canvas(modifier = modifier) {
+        val points = listOf(0.85f, 0.75f, 0.8f, 0.6f, 0.7f, 0.5f, 0.55f, 0.35f, 0.45f, 0.25f)
+        val step = size.width / (points.size - 1)
+        val visiblePoints = (points.size * progress).toInt().coerceIn(1, points.size)
+        if (visiblePoints > 1) {
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, size.height)
+                for (i in 0 until visiblePoints) {
+                    lineTo(i * step, size.height * points[i])
+                }
+                lineTo((visiblePoints - 1) * step, size.height)
+                close()
+            }
+            drawPath(path, primary.copy(alpha = 0.10f))
+        }
+        points.subList(1, visiblePoints).forEachIndexed { i, p ->
+            drawLine(
+                primary,
+                start = Offset(i * step, size.height * points[i]),
+                end = Offset((i + 1) * step, size.height * points[i + 1]),
+                strokeWidth = 2.dp.toPx(),
+            )
+        }
+        if (visiblePoints in 2..points.size) {
+            drawCircle(primary, radius = 3.dp.toPx(), center = Offset((visiblePoints - 1) * step, size.height * points[visiblePoints - 1]))
+        }
+    }
+}
+
+@Composable
+private fun DashboardTile(
+    tile: DashTile,
+    onClick: (() -> Unit)? = null,
+    staggerDelay: Int = 0,
+    modifier: Modifier = Modifier
+) {
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(staggerDelay.toLong())
+        appeared = true
+    }
+    val appearScale by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0.92f,
+        animationSpec = HaulMotion.bouncy,
+        label = "tileIn",
+    )
+    val appearAlpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = HaulMotion.enterFloat(),
+        label = "tileAlpha",
+    )
+    Column(
+        modifier = modifier
+            .graphicsLayer { scaleX = appearScale; scaleY = appearScale; alpha = appearAlpha }
+            .height(116.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            tile.label.uppercase(),
+            style = TransportTypeScale.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            tile.value,
+            style = if (tile.money) TransportTypeScale.dataLarge else TransportTypeScale.titleLarge,
+            fontFamily = if (tile.money) PlexMonoFamily else null,
+            color = if (tile.amberBar) transportColors().haulAmber else MaterialTheme.colorScheme.onSurface
+        )
+        Text(tile.qualifier, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

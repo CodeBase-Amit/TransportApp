@@ -1,10 +1,9 @@
 package com.example.transportapp.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,12 +35,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.transportapp.core.designsystem.theme.Dimens
+import com.example.transportapp.core.designsystem.theme.HaulMotion
 import com.example.transportapp.core.designsystem.theme.PlexMonoFamily
 import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 /**
- * Outlined text field (Design.md §B3): 12dp radius, 56dp tall, resting/ focused/ filled/ error/ disabled.
- * Colors: resting outline, focused 2dp primary border, error 2dp error border with trailing icon.
+ * Outlined text field: 12dp radius, 56dp tall, resting/focused/filled/error/disabled.
+ * Animated focus state with smooth color transitions on border and label.
  */
 @Composable
 fun TransportTextField(
@@ -63,6 +64,16 @@ fun TransportTextField(
     maxLines: Int = 1,
     monospace: Boolean = false
 ) {
+    val focusBorder by animateColorAsState(
+        targetValue = when {
+            isError -> MaterialTheme.colorScheme.error
+            enabled -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+        },
+        animationSpec = HaulMotion.short(),
+        label = "fieldBorder",
+    )
+
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = value,
@@ -82,7 +93,11 @@ fun TransportTextField(
             trailingIcon = if (trailingIcon != null) {
                 {
                     IconButton(onClick = onTrailingIconClick ?: {}) {
-                        Icon(trailingIcon, contentDescription = null, tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(
+                            trailingIcon,
+                            contentDescription = null,
+                            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             } else null,
@@ -95,20 +110,25 @@ fun TransportTextField(
             keyboardActions = keyboardActions,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedBorderColor = focusBorder,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                 errorBorderColor = MaterialTheme.colorScheme.error,
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 errorContainerColor = Color.Transparent,
                 cursorColor = MaterialTheme.colorScheme.primary,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = focusBorder,
                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 errorLabelColor = MaterialTheme.colorScheme.error,
                 errorTextColor = MaterialTheme.colorScheme.onSurface,
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f),
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,8 +153,8 @@ fun TransportTextField(
 }
 
 /**
- * Search field (Design.md §B3): 56dp, 12dp radius, surfaceContainer fill, no border, leading search icon.
- * Focused: 2dp primary border.
+ * Search field: 56dp, 12dp radius, surfaceContainer fill, no border, leading search icon.
+ * Focused: primary border with smooth color transition.
  */
 @Composable
 fun SearchField(
@@ -149,22 +169,38 @@ fun SearchField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
-        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+        placeholder = {
+            Text(
+                placeholder,
+                style = TransportTypeScale.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Rounded.Search,
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
         trailingIcon = if (value.isNotEmpty() && onClear != null) {
             {
                 IconButton(onClick = onClear) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = "Clear search",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         } else null,
         singleLine = true,
         textStyle = TransportTypeScale.bodyLarge,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
             cursorColor = MaterialTheme.colorScheme.primary,
             focusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -177,7 +213,7 @@ fun SearchField(
 }
 
 /**
- * The summary strip used on the register, vehicle board, unbilled pool (Design.md §B7).
+ * The summary strip used on the register, vehicle board, unbilled pool.
  * 64dp nested card with three figures divided by vertical rules.
  */
 @Composable
@@ -196,14 +232,27 @@ fun SummaryStrip(
     ) {
         figures.forEachIndexed { i, (label, value) ->
             if (i > 0) {
-                Spacer(Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                Spacer(
+                    Modifier
+                        .width(1.dp)
+                        .height(24.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                )
             }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(label.uppercase(), style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    label,
+                    style = TransportTypeScale.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    value,
+                    style = TransportTypeScale.dataMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }
@@ -232,7 +281,11 @@ fun MoneyField(
         )
         if (unit != null) {
             Spacer(Modifier.width(4.dp))
-            Text(unit, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                unit,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

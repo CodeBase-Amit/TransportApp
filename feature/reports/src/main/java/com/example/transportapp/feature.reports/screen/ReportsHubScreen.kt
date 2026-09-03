@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DateRange
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.transportapp.core.designsystem.component.ContentCard
 import com.example.transportapp.core.designsystem.component.GroupHeading
 import com.example.transportapp.core.designsystem.component.TransportTopAppBar
 import com.example.transportapp.core.designsystem.theme.Dimens
@@ -56,46 +57,106 @@ fun ReportsHubContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.History, contentDescription = "History", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.Rounded.History,
+                    contentDescription = "History",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         })
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
-            Text(state.period, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text("  ${state.scope}", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = Dimens.screenPadding)
+        ) {
+            Text(
+                state.period,
+                style = TransportTypeScale.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "  ${state.scope}",
+                style = TransportTypeScale.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { onEvent(ReportsHubEvent.ChangePeriod) }) { Icon(Icons.Rounded.DateRange, contentDescription = "Change period", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            IconButton(onClick = { onEvent(ReportsHubEvent.ChangePeriod) }) {
+                Icon(
+                    Icons.Rounded.DateRange,
+                    contentDescription = "Change period",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-        Text(state.periodNote, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = Dimens.screenPadding, vertical = 4.dp))
+
+        Text(
+            state.periodNote,
+            style = TransportTypeScale.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(
+                horizontal = Dimens.screenPadding,
+                vertical = Dimens.chipGap
+            )
+        )
 
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(Dimens.screenPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimens.fieldGap)
         ) {
             state.groups.forEach { group ->
-                GroupHeading(group.heading, modifier = Modifier.padding(top = 8.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 20.dp)
+                GroupHeading(
+                    group.heading,
+                    modifier = Modifier.padding(top = Dimens.chipGap)
+                )
+
+                ContentCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = Dimens.cardPaddingNested
                 ) {
-                    group.reports.forEach { report ->
+                    group.reports.forEachIndexed { reportIndex, report ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onReportClick(report.id) }
-                                .padding(vertical = 14.dp),
+                                .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(report.label, style = TransportTypeScale.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                                Text(report.desc, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    report.label,
+                                    style = TransportTypeScale.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    report.desc,
+                                    style = TransportTypeScale.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                             report.figure?.let {
-                                Text(it, style = TransportTypeScale.dataSmall, fontFamily = PlexMonoFamily, color = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    it,
+                                    style = TransportTypeScale.dataSmall,
+                                    fontFamily = PlexMonoFamily,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(Dimens.chipGap))
                             }
-                            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                Icons.Rounded.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (reportIndex < group.reports.lastIndex) {
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
                         }
                     }
                 }
