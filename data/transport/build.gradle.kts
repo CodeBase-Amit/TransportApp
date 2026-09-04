@@ -23,6 +23,7 @@ android {
 dependencies {
     api(project(":domain:transport"))
     implementation(project(":core:common"))
+    implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(project(":export-engine"))
@@ -39,5 +40,6 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.androidx.paging.testing)
 }

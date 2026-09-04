@@ -53,6 +53,7 @@ class NumberingRepositoryImpl @Inject constructor(
     private val database: TransportDatabase,
     private val numberingDao: NumberingDao,
     private val deviceIdProvider: DeviceIdProvider,
+    private val numberingApi: com.example.transportapp.core.network.NumberingApi,
 ) : NumberingRepository {
 
     @Volatile
@@ -74,7 +75,12 @@ class NumberingRepositoryImpl @Inject constructor(
             val series = numberingDao.getSeries(companyId, branchId, docType)
                 ?: return@withTransaction Result.failure(ErrorCode.LEASE_INVALID, "No number series for $docType at this branch")
             val lease = numberingDao.getActiveLeases(series.local_id, now).firstOrNull()
-                ?: (if (grantsEnabled) grantLease(series, now) else null)
+                ?: (if (grantsEnabled) {
+                    // S24: try the server lease first (atomic, cross-device safe). Any
+                    // failure — offline, no server series — falls through to the local
+                    // block grant, preserving the offline-first contract (D62).
+                    serverLeaseInto(docType, series, now)
+                } else null) ?: (if (grantsEnabled) grantLease(series, now) else null)
 
             if (lease != null) {
                 val value = lease.next_value
@@ -89,6 +95,30 @@ class NumberingRepositoryImpl @Inject constructor(
                 Result.success(IssuedNumber(provisionalNumber(companyId, now), provisional = true, rawValue = null))
             }
         }
+
+    /**
+     * S24: lease one number from the server and park it on a one-number local lease so
+     * the existing consumption path is unchanged. Null when the server is unreachable —
+     * the caller falls back to the local grant (D62: the app never waits on a network).
+     */
+    private suspend fun serverLeaseInto(docType: String, series: com.example.transportapp.core.database.entity.NumberSeriesEntity, now: Long): com.example.transportapp.core.database.entity.NumberLeaseEntity? {
+        val remote = when (val result = numberingApi.lease(docType)) {
+            is Result.Success -> result.value
+            is Result.Failure -> return null
+        }
+        // Parse the trailing digits from the server's formatted number ("IND/2627/04191").
+        val value = remote.substringAfterLast('/').toLongOrNull() ?: return null
+        val lease = com.example.transportapp.core.database.entity.NumberLeaseEntity(
+            local_id = "lease-" + java.util.UUID.randomUUID().toString(),
+            server_id = null, updated_at_local = now, updated_at_server = now,
+            sync_state = SyncState.SYNCED, deleted_at = null,
+            series_id = series.local_id, device_id = "server",
+            range_start = value, range_end = value, next_value = value,
+            expires_at = now + LEASE_EXPIRY_MS,
+        )
+        numberingDao.upsertLease(lease)
+        return lease
+    }
 
     override suspend fun debugShrinkActiveLease(companyId: String, branchId: String, docType: String) {
         val series = numberingDao.getSeries(companyId, branchId, docType) ?: return

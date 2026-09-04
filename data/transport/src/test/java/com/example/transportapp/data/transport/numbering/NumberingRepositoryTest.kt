@@ -45,6 +45,8 @@ class NumberingRepositoryTest {
             database,
             database.numberingDao(),
             deviceIdProvider = { "TEST1" },
+            numberingApi = com.example.transportapp.core.network.NumberingApi(
+                com.example.transportapp.core.network.ApiClient("http://127.0.0.1:1/", { null })),
         )
         database.numberingDao().upsertSeries(
             NumberSeriesEntity(

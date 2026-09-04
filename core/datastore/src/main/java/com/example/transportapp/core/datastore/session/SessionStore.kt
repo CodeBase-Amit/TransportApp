@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,6 +36,7 @@ class SessionStore @Inject constructor(@ApplicationContext private val context: 
         val BRANCH_ID = stringPreferencesKey("branch_id")
         val BRANCH_NAME = stringPreferencesKey("branch_name")
         val SIGNED_OUT = stringPreferencesKey("signed_out")
+        val TOKEN = stringPreferencesKey("auth_token")
     }
 
     val session: Flow<SessionSnapshot> = context.sessionStore.data.map { prefs ->
@@ -79,6 +81,16 @@ class SessionStore @Inject constructor(@ApplicationContext private val context: 
             prefs[Keys.BRANCH_ID] = branchId
             prefs[Keys.BRANCH_NAME] = branchName
         }
+    }
+
+    /** S23: the JWT for the auth interceptor (TokenProvider). */
+    suspend fun saveToken(token: String) {
+        context.sessionStore.edit { prefs -> prefs[Keys.TOKEN] = token }
+    }
+
+    /** Blocking read is acceptable: DataStore serves from memory after the first read. */
+    fun token(): String? = kotlinx.coroutines.runBlocking {
+        context.sessionStore.data.map { it[Keys.TOKEN] }.first()
     }
 
     /** S21: the profile's Save — the display name rides the stored identity. */

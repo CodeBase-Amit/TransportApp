@@ -50,7 +50,9 @@ class TripRepositoryTest {
             .allowMainThreadQueries()
             .build()
         DemoSeeder(database).seedIfNeeded()
-        val numbering = NumberingRepositoryImpl(database, database.numberingDao(), deviceIdProvider = { "TEST1" })
+        val numbering = NumberingRepositoryImpl(database, database.numberingDao(), deviceIdProvider = { "TEST1" },
+            numberingApi = com.example.transportapp.core.network.NumberingApi(
+                com.example.transportapp.core.network.ApiClient("http://127.0.0.1:1/", { null })))
         repository = TripRepositoryImpl(
             database = database,
             tripDao = database.tripDao(),
@@ -75,6 +77,7 @@ class TripRepositoryTest {
         )
 
         override suspend fun signIn() {}
+        override suspend fun signInWithPassword(email: String, password: String) = com.example.transportapp.core.common.Result.success(Unit)
         override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
     }

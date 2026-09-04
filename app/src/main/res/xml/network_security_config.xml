@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- S23: release builds are HTTPS-only (the debug overlay allows cleartext to the
+     test backend on the host loopback). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

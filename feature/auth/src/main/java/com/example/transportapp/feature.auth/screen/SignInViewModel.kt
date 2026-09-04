@@ -3,7 +3,6 @@ package com.example.transportapp.feature.auth.screen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.data.transport.session.SessionRepository
-import com.example.transportapp.data.transport.session.UserSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +12,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * T1 — sign in (Phase 3 S16): the Google button resolves the mocked offline session
- * behind `AuthTokenProvider` — the seam the online tier replaces with Credential Manager.
+ * T1 — sign in (S23): the Google button uses the mock seam (offline-first: the app always
+ * opens); the email/password path talks to the real backend through the same session
+ * repository. A network failure degrades to the mock identity so the app still opens
+ * (D62: offline-first with or without the backend).
  */
 @HiltViewModel
 class SignInViewModel @Inject constructor(
@@ -33,7 +34,7 @@ class SignInViewModel @Inject constructor(
                 if (_uiState.value.loading) return
                 _uiState.update { it.copy(loading = true) }
                 viewModelScope.launch {
-                    sessionRepository.signIn() // Credential Manager's slot — mock resolves instantly
+                    sessionRepository.signIn()
                     _uiState.update { it.copy(loading = false) }
                     _signedIn.value = true
                 }

@@ -913,6 +913,8 @@ New decisions taken this sprint that amend the plan:
 | D59 | S20's celebratory moments | the sunrise coral appears exactly at peak moments (Book and print CTA, save confirmations) and nowhere else; error keeps its own slot — the 10% rule holds |
 | D60 | S22's logo + schema v12 — see the S22 section | COMPANY_E.logo_ref (migration 11→12) carries the relative file ref; the logo rides COMPANY updates in the outbox; PhotoImporter owns the image import |
 | D61 | S22's operational documents — see the S22 section | challan/bill/receipt/statement are **fixed-format inline HTML** (OperationalDocuments), unlike the bilty's user-serviceable doc-engine template; they render through the same pdf-android byte path |
+| D62 | S23's offline-first networking — see the S23 section | the app works identically without the backend: `OFFLINE_UNAVAILABLE` is a typed state, sign-in degrades to the mock identity when the server is unreachable, and Room remains the only read source |
+| D63 | S24's refresh + lease reconciliation — see the S24 section | `MastersRefresher` upserts by `server_id` (local-only rows untouched — they belong to S25's drain); the server lease parks on a one-number local lease so the consumption path is unchanged, and any server failure falls back to the local block grant |
 
 ---
 
@@ -1752,3 +1754,106 @@ open and belonged to the offline tier).
 **Scope notes:** receipt printing needs the receipt id surfaced from the save flow (the
 render method exists); the letterhead preview shows the logo once the profile re-reads
 COMPANY_E; statement periods stay FY-to-date until the period control lands.
+
+---
+
+## Phase 3.3-lite, Sprint S23 — Network foundation (offline-first)
+
+**Goal:** `:core:network` as the app's single typed HTTP boundary, real email/password
+sign-in behind the S18 session seam, and the D62 contract: **the app works identically
+without the backend**.
+
+### What was built
+
+- **`:core:network`** (new pure JVM module): OkHttp + kotlinx-serialization (the D47
+  amendment — serialization now lives here and in `:doc-engine`). `ApiClient` is the only
+  HTTP surface: Bearer-token interceptor, `get/post/put/patch/delete` returning typed
+  `Result<JsonObject>`, `*Raw` variants for string bodies, and `postJson/putJson/patchJson`
+  builder helpers.
+- **Error mapping.** 401→`AUTH_EXPIRED`, 403→`AUTH_NO_ACCESS`, 404→`MASTER_IN_USE`,
+  409→`DUP_CLIENT_OP`, other codes→`OFFLINE_UNAVAILABLE` with the backend's `error` body
+  copy, and any `IOException`→`OFFLINE_UNAVAILABLE`. A dead network is never an exception
+  past this layer.
+- **AuthApi.** `login(email, password)` and `devLogin()` parse into `AuthResponse`
+  (token + identity + tenant context).
+- **Real sign-in.** `SessionRepository.signInWithPassword` posts credentials; on success
+  the JWT and identity persist via `SessionStore.saveToken`/`signIn`. **Offline-first
+  behaviour (D62):** an `OFFLINE_UNAVAILABLE` failure degrades to the mock identity so the
+  app still opens — sync reconciles when there's signal.
+- **TokenProvider.** `SessionStore` implements the interceptor's supply (`token()` reads the
+  stored JWT); bound in `NetworkModule` (`data/transport/di`, base URL `http://10.0.2.2:3000/`
+  — the emulator's host loopback).
+- **Manifest.** `INTERNET` permission + `network_security_config`: release is HTTPS-only;
+  the debug overlay permits cleartext to `10.0.2.2`/`localhost` only.
+
+### Verification
+
+- **225 tests / 0 failures / 51 suites** — 6 new MockWebServer tests: bearer header attach,
+  JSON parse, and the full 401/403/404/409 mapping table with backend copy.
+- **Backend smoke (live):** local MongoDB up, `npm run dev` serving on :3000, `curl
+  /api/health` returning `{"ok":true,"db":"connected"}`, `POST /api/auth/dev-login` returning
+  a real JWT with Shivshakti Roadlines/OWNER. The emulator walks Splash, sign-in, picker
+  unchanged with the backend running.
+
+### Decisions taken this sprint (D62)
+
+| # | Decision | Why |
+|---|---|---|
+| D62 | Offline-first over the online tier: no backend required to run; sign-in degrades on OFFLINE_UNAVAILABLE; Room stays the only read source | the product's promise is "works without signal"; the server is a mirror to build toward, never a dependency to gate on |
+
+**Scope notes:** the sign-in screen still uses the mock path (real email/password UI lands
+with S24's credential entry); no pulls happen yet — S24 wires masters refresh, S25 the
+outbox drain; the base URL is hardcoded to the emulator host and moves to BuildConfig or a
+flavour when the first real deployment target exists.
+
+---
+
+## Phase 3.3-lite, Sprint S24 — Online reads & real number lease
+
+**Goal:** the server starts feeding the app — masters refresh into Room, and booking
+consumes a real server-leased number when online — without ever breaking the D62
+offline-first contract.
+
+### What was built
+
+- **`MastersApi` / `NumberingApi`** (`:core:network`). Six master list endpoints answering
+  `RemoteMaster` rows (server `_id` + name + raw fields), and `numbering/lease|next`
+  returning the formatted number.
+- **`MastersRefresher`** (`data/transport`). `refreshAll/refreshParties/refreshStations`
+  pull the remote docs and upsert into Room **keyed by `server_id`**: an existing mirrored
+  row updates in place, a new server doc inserts a SYNCED row, and rows the clerk created
+  offline (`server_id = null`) are never touched — they belong to S25's outbox drain. Every
+  failure answers `OFFLINE_UNAVAILABLE` and changes nothing (D62).
+- **Real number lease (D63).** `NumberingRepositoryImpl.issueNext` now tries the server
+  lease first (`POST /api/numbering/{type}/lease` — atomic server-side). The server's
+  formatted number parks on a **one-number local lease** so the existing consumption path,
+  the last_issued high-water mark, and the printed format are all unchanged. Any server
+  failure falls straight through to the local block grant, exactly as before — the clerk
+  never waits on a network.
+- **Sign-in trigger.** The company picker fires `refreshAll()` in the background on entry;
+  failures are silent because Room already holds what the UI reads.
+- **`ApiClient.callRaw` hardened:** catches all exceptions at the boundary (a malformed
+  URL on a misconfigured backend is still an offline state, not a crash) and the offline
+  copy moved to a constant (`OFFLINE_MESSAGE`).
+
+### Verification
+
+- **229 tests / 0 failures / 52 suites.** New `MastersRefresherTest` (4): remote party
+  upsert keyed by server_id, second-refresh updates-in-place (no duplicates), the offline
+  refresh changes nothing + answers OFFLINE_UNAVAILABLE, and the number-lease fallback to
+  the local grant on a dead server. Existing numbering tests (c-1/b-1 fixture) updated for
+  the new constructor param.
+- **Live shapes verified** against the running backend: `lease` returned `IND/2627/04191`,
+  `next` returned `IND/2627/04192`, and the parties list carries `_id`/name/phone/gstin.
+- `checkPureModules` green; installed on emulator-5554.
+
+### Decisions taken this sprint (D63)
+
+| # | Decision | Why |
+|---|---|---|
+| D63 | Refresh upserts by `server_id` with local-only rows untouched; the server lease parks on a local one-number lease with offline fallback | two writers to one row is how sync bugs become permanent; the consumption path staying identical is what makes the fallback invisible to the clerk |
+
+**Scope notes:** the refresher so far maps parties and stations — routes/goods/vehicles/
+drivers follow the identical pattern when their screens need them; masters rows updated
+remotely still carry `sync_state = SYNCED`; conflict handling waits for S25's drain and the
+production backend's idempotency endpoints.

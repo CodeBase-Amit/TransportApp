@@ -29,6 +29,10 @@ interface MastersDao {
     @Query("SELECT * FROM PARTY_E WHERE local_id = :localId AND deleted_at IS NULL")
     suspend fun getParty(localId: String): PartyEntity?
 
+    /** S24: reconcile remote docs by their server id (upsert keyed on the mirror column). */
+    @Query("SELECT * FROM PARTY_E WHERE server_id = :serverId AND deleted_at IS NULL LIMIT 1")
+    suspend fun getPartyByServerId(serverId: String): PartyEntity?
+
     @Query(
         """
         SELECT PARTY_E.* FROM PARTY_E
@@ -119,6 +123,10 @@ interface MastersDao {
 
     @Query("SELECT * FROM STATION_E WHERE local_id = :localId AND deleted_at IS NULL")
     suspend fun getStation(localId: String): StationEntity?
+
+    /** S24: reconcile remote stations by server id. */
+    @Query("SELECT * FROM STATION_E WHERE server_id = :serverId AND deleted_at IS NULL LIMIT 1")
+    suspend fun getStationByServerId(serverId: String): StationEntity?
 
     // ── T17 counts (live) ───────────────────────────────────────────────
     @Query("SELECT COUNT(*) FROM PARTY_E WHERE company_id = :companyId AND deleted_at IS NULL")

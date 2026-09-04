@@ -51,6 +51,7 @@ class ReportsRepositoryTest {
                 )
 
                 override suspend fun signIn() {}
+        override suspend fun signInWithPassword(email: String, password: String) = com.example.transportapp.core.common.Result.success(Unit)
         override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
             },
