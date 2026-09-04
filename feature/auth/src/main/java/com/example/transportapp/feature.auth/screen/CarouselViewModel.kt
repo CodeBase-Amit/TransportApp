@@ -21,7 +21,6 @@ class CarouselViewModel @Inject constructor() : ViewModel() {
             is CarouselEvent.SelectPage -> _uiState.update {
                 it.copy(currentPage = event.page.coerceIn(0, it.panels.lastIndex))
             }
-            CarouselEvent.GetStarted, CarouselEvent.Skip -> Unit
         }
     }
 }

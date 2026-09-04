@@ -23,7 +23,7 @@ fun NavGraphBuilder.consignmentNavGraph(navController: NavController) {
             onMasters = { navController.navigate(Routes.MASTERS_HUB) },
             onExports = { navController.navigate(Routes.EXPORT_CENTRE) },
             onSettings = { navController.navigate(Routes.SETTINGS_HUB) },
-            onAccountData = { navController.navigate(Routes.ACCOUNT_DATA) }
+            onAccountData = { navController.navigate(Routes.ACCOUNT_DATA) },
         )
     }
     composable(
@@ -38,8 +38,8 @@ fun NavGraphBuilder.consignmentNavGraph(navController: NavController) {
             onAmend = { navController.navigate("booking_form?amends=" + android.net.Uri.encode(biltyNo)) },
             onCancel = {},
             onHold = { navController.navigate(Routes.statusSheet(biltyNo)) },
-            onRaiseBill = {},
-            onFullHistory = {}
+            onRaiseBill = { navController.navigate(Routes.UNBILLED_POOL) },
+            onFullHistory = { navController.navigate(Routes.statusSheet(biltyNo)) }
         )
     }
     composable(

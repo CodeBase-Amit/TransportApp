@@ -37,6 +37,8 @@ data class CompanyProfileUiState(
     val deleteBody: String = "Only a sole Owner can delete the company. Issued documents are retained for the statutory period.",
     val logoNote: String = "PNG or JPG, square. It prints 90×90 pt on every document.",
     val saved: Boolean = false,
+    val logoRef: String? = null,
+    val error: String? = null,
 )
 
 sealed interface CompanyProfileEvent {
@@ -56,5 +58,7 @@ sealed interface CompanyProfileEvent {
     data class ChangeWebsite(val value: String) : CompanyProfileEvent
     data class ChangeFooter(val value: String) : CompanyProfileEvent
     data object Save : CompanyProfileEvent
+    // S22 - the logo picker answered (D60)
+    data class LogoPicked(val uri: android.net.Uri) : CompanyProfileEvent
     data class RequestDelete(val value: String) : CompanyProfileEvent
 }

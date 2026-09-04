@@ -80,6 +80,9 @@ interface MastersRepository {
     suspend fun autoCharges(companyId: String): List<AutoCharge>
 
     suspend fun saveRateRow(localId: String, ratePaise: Long): Result<Unit>
+
+    /** S21: add a new rate row for a party (copies basis/scope from the party's existing rows). */
+    suspend fun addRateRow(companyId: String, partyId: String, ratePaise: Long): Result<Unit>
 }
 
 @Singleton
@@ -315,6 +318,35 @@ class MastersRepositoryImpl @Inject constructor(
             mastersDao.updateRatePaise(localId, ratePaise, now)
             outboxWriter.enqueue(
                 op = OutboxOp.UPDATE,
+                entityType = OutboxEntityType.RATE_CARD,
+                entityLocalId = localId,
+                payloadJson = """{"rate_paise":$ratePaise}""",
+                now = now,
+            )
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun addRateRow(companyId: String, partyId: String, ratePaise: Long): Result<Unit> {
+        val session = orgDao.getBranchesForCompany(companyId).firstOrNull() // company exists check
+        val now = System.currentTimeMillis()
+        val template = mastersDao.getRateRowsForParty(partyId).firstOrNull()
+        val localId = "rc-" + java.util.UUID.randomUUID().toString()
+        database.withTransaction {
+            mastersDao.upsertRateCard(
+                com.example.transportapp.core.database.entity.RateCardEntity(
+                    local_id = localId, server_id = null, updated_at_local = now, updated_at_server = null,
+                    sync_state = SyncState.PENDING, deleted_at = null,
+                    company_id = companyId, party_id = partyId,
+                    route_id = template?.route_id, goods_id = template?.goods_id,
+                    basis = template?.basis ?: "PER_KG", rate_paise = ratePaise,
+                    min_qty_label = template?.min_qty_label, min_freight_paise = template?.min_freight_paise,
+                    max_freight_paise = template?.max_freight_paise, note = null,
+                    sort_order = (template?.sort_order ?: 0) + 1,
+                ),
+            )
+            outboxWriter.enqueue(
+                op = OutboxOp.INSERT,
                 entityType = OutboxEntityType.RATE_CARD,
                 entityLocalId = localId,
                 payloadJson = """{"rate_paise":$ratePaise}""",

@@ -8,6 +8,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
@@ -122,9 +125,50 @@ fun JourneyChip(
 }
 
 /**
- * The payment stamp. Not a chip: a 4dp-radius rectangle,
+ * S21 — the shared filter bottom sheet: a title, a column of option rows, and a Done
+ * action. The Tune icon on list screens opens this; the options are the screen's own
+ * existing filter events, consolidated in one place instead of a dead icon.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun FilterSheet(
+    title: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = AppShapesSheet.sheet,
+    ) {
+        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    Text("Done", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            content()
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** Sheet shape accessor kept here to avoid a theme circular import in this file. */
+private object AppShapesSheet {
+    val sheet = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+}
+
+/**
+ * Family 2 — The payment stamp (Design.md §A8). Not a chip: a 4dp-radius rectangle,
  * 2dp border, no fill, mono 12dp caps tracked 1.2, rotated 3° anticlockwise.
- * The stamp lands — scales up from 0.6 with a bouncy spring and settles at 3°.
+ * S20 (D57): the stamp *lands* — scales up from 0.6 with a bouncy spring and settles
+ * at 3° the first time it appears (Design.md T5's V5 moment).
  */
 @Composable
 fun PaymentStamp(

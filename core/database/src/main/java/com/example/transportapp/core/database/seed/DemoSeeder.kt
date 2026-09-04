@@ -81,6 +81,7 @@ class DemoSeeder @Inject constructor(
             transporter_id = null,
             gst_treatment = "FORWARD",
             display_bilty_series = "IND/2627 · next number 04189",
+                logo_ref = null,
         )
         val bharatCargo = CompanyEntity(
             local_id = ID_BHARAT_CARGO,
@@ -97,6 +98,7 @@ class DemoSeeder @Inject constructor(
             transporter_id = null,
             gst_treatment = "FORWARD",
             display_bilty_series = null,
+                logo_ref = null,
         )
         val malwa = CompanyEntity(
             local_id = ID_MALWA,
@@ -113,6 +115,7 @@ class DemoSeeder @Inject constructor(
             transporter_id = null,
             gst_treatment = "FORWARD",
             display_bilty_series = null,
+                logo_ref = null,
         )
         orgDao.upsertCompany(shivshakti)
         orgDao.upsertCompany(bharatCargo)

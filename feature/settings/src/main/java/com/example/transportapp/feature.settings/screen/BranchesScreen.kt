@@ -53,6 +53,49 @@ fun BranchesScreen(
         onEvent = viewModel::onEvent,
         onBack = onBack
     )
+    // S21: the add-branch dialog — name + code required, address optional.
+    if (state.showAddBranch) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.onEvent(BranchesEvent.DismissAddBranch) },
+            title = { Text("Add a branch", style = TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = state.branchName,
+                        onValueChange = { viewModel.onEvent(BranchesEvent.ChangeBranchName(it)) },
+                        label = "Branch name"
+                    )
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = state.branchCode,
+                        onValueChange = { viewModel.onEvent(BranchesEvent.ChangeBranchCode(it)) },
+                        label = "Branch code (e.g. NAG)",
+                        monospace = true,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = state.branchAddress,
+                        onValueChange = { viewModel.onEvent(BranchesEvent.ChangeBranchAddress(it)) },
+                        label = "Address (optional)",
+                        singleLine = false,
+                        maxLines = 2,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    if (state.error != null) {
+                        Text(state.error ?: "", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = state.branchValid && !state.isSaving,
+                    onClick = { viewModel.onEvent(BranchesEvent.SaveBranch) }
+                ) { Text("Add branch", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.onEvent(BranchesEvent.DismissAddBranch) }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -113,13 +156,6 @@ private fun BranchCard(branch: BranchRow, headOfficeChip: String) {
                 }
             }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) {
-                Icon(
-                    Icons.Rounded.MoreVert,
-                    contentDescription = "More",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
         Text(
             branch.address,

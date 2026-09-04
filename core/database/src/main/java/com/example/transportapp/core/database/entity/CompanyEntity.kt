@@ -27,4 +27,6 @@ data class CompanyEntity(
     /** FORWARD / REVERSE / EXEMPT — the company default GTA GST treatment (§10.5). */
     val gst_treatment: String,
     val display_bilty_series: String?,
+    /** S22 (D60): relative file ref of the company logo, or null. Prints in letterheads. */
+    val logo_ref: String?,
 )

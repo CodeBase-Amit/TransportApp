@@ -81,6 +81,15 @@ class SessionStore @Inject constructor(@ApplicationContext private val context: 
         }
     }
 
+    /** S21: the profile's Save — the display name rides the stored identity. */
+    suspend fun updateDisplayName(name: String) {
+        context.sessionStore.edit { prefs ->
+            if (prefs[Keys.USER_ID] != null || prefs[Keys.COMPANY_ID] != null) {
+                prefs[Keys.NAME] = name
+            }
+        }
+    }
+
     suspend fun clear() {
         context.sessionStore.edit { prefs ->
             prefs.clear()

@@ -105,6 +105,8 @@ class BookingFormViewModel @Inject constructor(
     private var resolvedRate: ResolvedRate? = null
     private var heads: List<ChargeHeadDef> = emptyList()
     private val removedHeadCodes = LinkedHashSet<String>()
+    /** S21: manual charge lines the clerk adds via the Add-charge dialog. */
+    private val manualCharges = MutableStateFlow<List<com.example.transportapp.domain.transport.calc.ManualCharge>>(emptyList())
 
     /** The picker scope (S14): route + goods ids the rate resolves against. */
     private var routeId: String = SeedIds.ROUTE_INDORE_NASHIK
@@ -303,6 +305,21 @@ class BookingFormViewModel @Inject constructor(
                 recompute()
             }
             BookingFormEvent.Submit -> submit()
+            // S21 - the Add-charge dialog (manual charge lines)
+            BookingFormEvent.ToggleAddCharge -> _uiState.update { it.copy(showAddCharge = !it.showAddCharge, chargeLabel = "", chargeAmount = "") }
+            BookingFormEvent.DismissAddCharge -> _uiState.update { it.copy(showAddCharge = false) }
+            is BookingFormEvent.ChangeChargeLabel -> _uiState.update { it.copy(chargeLabel = event.value) }
+            is BookingFormEvent.ChangeChargeAmount -> _uiState.update { it.copy(chargeAmount = event.value.filter { ch -> ch.isDigit() }) }
+            BookingFormEvent.SaveManualCharge -> {
+                val s = _uiState.value
+                val paise = (s.chargeAmount.toLongOrNull() ?: 0L) * 100
+                if (s.chargeLabel.isBlank() || paise <= 0L) return
+                val updated = manualCharges.value + com.example.transportapp.domain.transport.calc.ManualCharge(
+                    code = null, label = s.chargeLabel.trim(), amountPaise = paise, taxable = true)
+                manualCharges.value = updated
+                _uiState.update { it.copy(showAddCharge = false, chargeLabel = "", chargeAmount = "") }
+                recompute()
+            }
         }
     }
 
@@ -352,6 +369,7 @@ class BookingFormViewModel @Inject constructor(
                 rate = resolvedRate,
                 heads = heads,
                 removedHeadCodes = removedHeadCodes.toSet(),
+                manualCharges = manualCharges.value,
                 gst = GstConfig(
                     treatment = s?.gstTreatment ?: GstTreatment.FORWARD,
                     rateBp = s?.gstRateBp ?: DEFAULT_GST_RATE_BP,
@@ -418,6 +436,7 @@ class BookingFormViewModel @Inject constructor(
                 rate = resolvedRate,
                 heads = heads,
                 removedHeadCodes = removedHeadCodes.toSet(),
+                manualCharges = manualCharges.value,
                 gst = GstConfig(
                     treatment = s?.gstTreatment ?: GstTreatment.FORWARD,
                     rateBp = s?.gstRateBp ?: DEFAULT_GST_RATE_BP,

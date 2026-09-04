@@ -44,6 +44,8 @@ interface SessionRepository {
     val session: Flow<UserSession>
     suspend fun signIn()
     suspend fun signOut()
+    /** S21: the profile's Save — updates the stored display name. */
+    suspend fun updateDisplayName(name: String)
 }
 
 @Singleton
@@ -62,5 +64,9 @@ class SessionRepositoryImpl @Inject constructor(
     override suspend fun signOut() {
         // Offline phase: only the local mirror is cleared; company data is untouched (§17.4).
         store.clear()
+    }
+
+    override suspend fun updateDisplayName(name: String) {
+        store.updateDisplayName(name)
     }
 }

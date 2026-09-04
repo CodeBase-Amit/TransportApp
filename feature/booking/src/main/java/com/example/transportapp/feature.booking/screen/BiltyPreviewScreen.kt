@@ -104,12 +104,27 @@ fun BiltyPreviewContent(
     val front = copies.getOrElse(currentCopy) { copies.first() }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+        var showCopyMenu by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
         TransportTopAppBar(
             title = "Bilty ${state.biltyNo}",
             onNavigationClick = onBack,
             trailingIcons = {
-                IconButton(onClick = {}) {
-                    Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface)
+                // S21: the menu jumps straight to a copy — the four copies are the point.
+                Box {
+                    IconButton(onClick = { showCopyMenu = !showCopyMenu }) {
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "Choose copy", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    androidx.compose.material3.DropdownMenu(expanded = showCopyMenu, onDismissRequest = { showCopyMenu = false }) {
+                        copies.forEachIndexed { index, copy ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(copy.label, style = TransportTypeScale.bodyMedium) },
+                                onClick = {
+                                    currentCopy = index
+                                    showCopyMenu = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         )

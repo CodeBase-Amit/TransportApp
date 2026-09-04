@@ -172,6 +172,7 @@ class CompanyRepositoryImpl @Inject constructor(
                     name = request.companyName, legal_name = request.companyName, address = request.address,
                     gstin = request.gstin, pan = null, transporter_id = null, gst_treatment = "FORWARD",
                     display_bilty_series = null,
+                logo_ref = null,
                 ),
             )
 

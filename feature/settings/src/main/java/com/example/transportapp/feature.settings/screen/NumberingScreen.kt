@@ -116,7 +116,6 @@ private fun SeriesCard(series: SeriesRow, editLabel: String, isOwner: Boolean, o
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(series.label, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         Spacer(Modifier.height(8.dp))
         Row(

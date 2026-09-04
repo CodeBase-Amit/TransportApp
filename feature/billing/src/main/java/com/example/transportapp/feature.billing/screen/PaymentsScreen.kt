@@ -29,12 +29,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
+import com.example.transportapp.core.designsystem.component.FilterChip
 import com.example.transportapp.core.designsystem.component.JourneyChip
 import com.example.transportapp.core.designsystem.component.PaymentStamp
 import com.example.transportapp.core.designsystem.component.SummaryStrip
@@ -71,9 +75,11 @@ fun PaymentsContent(
     onEvent: (PaymentsEvent) -> Unit,
     onBack: () -> Unit,
 ) {
+    var showFilterSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = "Payments", onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
+            // S21: the sheet switches the two money tabs without a second scroll back up.
+            IconButton(onClick = { showFilterSheet = true }) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -101,6 +107,16 @@ fun PaymentsContent(
 
     state.collectSheet?.let { sheet -> CollectSheet(sheet, onEvent) }
     state.allocationSheet?.let { sheet -> AllocationSheet(sheet, onEvent) }
+    if (showFilterSheet) {
+        com.example.transportapp.core.designsystem.component.FilterSheet(
+            title = "Payments",
+            onDismiss = { showFilterSheet = false },
+        ) {
+            Text("Show", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FilterChip("To Pay collections", selected = state.tab == PaymentsTab.TOPAY, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.TOPAY)) })
+            FilterChip("Bill receipts", selected = state.tab == PaymentsTab.BILL_RECEIPTS, onClick = { onEvent(PaymentsEvent.SelectTab(PaymentsTab.BILL_RECEIPTS)) })
+        }
+    }
 }
 
 @Composable

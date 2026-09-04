@@ -40,7 +40,9 @@ data class ProfileUiState(
         NotificationSetting("A freight bill I raised is paid", false)
     ),
     val signOutLabel: String = "Sign out of this phone",
-    val signOutCaption: String = "Data on this device will be kept"
+    val signOutCaption: String = "Data on this device will be kept",
+    /** S21: one-shot feedback after Save. */
+    val saveNotice: String? = null,
 ) {
     /** Shown when the ViewModel hasn't spoken yet; never in a migrated screen. */
     val isLoadingIdentity: Boolean get() = email.isEmpty()

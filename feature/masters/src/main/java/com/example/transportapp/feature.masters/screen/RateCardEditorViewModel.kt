@@ -34,6 +34,10 @@ class RateCardEditorViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RateCardEditorUiState())
     val uiState: StateFlow<RateCardEditorUiState> = _uiState.asStateFlow()
 
+    /** S21: the add-rate dialog's rupee field. */
+    private val _newRate = MutableStateFlow("")
+    val newRate: StateFlow<String> = _newRate.asStateFlow()
+
     private var rows: List<RateRow> = emptyList()
 
     init {
@@ -85,7 +89,34 @@ class RateCardEditorViewModel @Inject constructor(
             is RateCardEditorEvent.ToggleCharge -> _uiState.update {
                 it.copy(charges = it.charges.mapIndexed { i, c -> if (i == event.index) c.copy(enabled = !c.enabled) else c })
             }
-            RateCardEditorEvent.AddRate -> Unit
+            // S21: AddRate really adds a row — it copies the party's existing basis/scope
+            // and prices at the entered value once the dialog fires AddRateConfirmed.
+            RateCardEditorEvent.AddRate -> _uiState.update { it.copy(showAddRate = true) }.also { _newRate.value = "" }
+            RateCardEditorEvent.DismissAddRate -> _uiState.update { it.copy(showAddRate = false) }.also { _newRate.value = "" }
+            is RateCardEditorEvent.ChangeNewRate -> _newRate.value = event.value.filter { ch -> ch.isDigit() }
+            RateCardEditorEvent.ConfirmAddRate -> viewModelScope.launch {
+                val paise = (_newRate.value.toLongOrNull() ?: 0L) * 100
+                if (paise <= 0L) return@launch
+                val session = sessionRepository.session.first()
+                val party = mastersRepository.resolveParty(partyIdOrName) ?: return@launch
+                val result = mastersRepository.addRateRow(session.companyId, party.localId, paise)
+                when (result) {
+                    is com.example.transportapp.core.common.Result.Success -> {
+                        rows = mastersRepository.rateRowsForParty(party.localId)
+                        _uiState.update {
+                            it.copy(
+                                showAddRate = false,
+                                subtitle = "${party.name} · Rate card 2026-27 · ${rows.size} rates",
+                                ratesHeading = "Rates · ${rows.size}",
+                                viewAll = "View all ${rows.size} rates",
+                                rateRows = rows.take(VISIBLE_ROWS).map(::toRowState),
+                            )
+                        }
+                    }
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        _uiState.update { it.copy(showAddRate = false) }
+                }
+            }
             RateCardEditorEvent.ViewAllRates -> _uiState.update {
                 it.copy(showAllRates = !it.showAllRates, rateRows = if (it.showAllRates) rows.take(VISIBLE_ROWS).map(::toRowState) else rows.map(::toRowState))
             }

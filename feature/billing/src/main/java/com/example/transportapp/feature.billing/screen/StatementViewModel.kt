@@ -28,12 +28,17 @@ import javax.inject.Inject
 class StatementViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val billingRepository: BillingRepository,
+    private val documentRepository: com.example.transportapp.data.transport.documents.DocumentRepository,
 ) : ViewModel() {
 
     private val partyId: String = savedStateHandle.get<String>("partyId").orEmpty()
 
     private val _uiState = MutableStateFlow(StatementUiState())
     val uiState: StateFlow<StatementUiState> = _uiState.asStateFlow()
+
+    /** S22: the statement render status. */
+    private val _printStatus = MutableStateFlow<com.example.transportapp.core.ui.PrintStatus>(com.example.transportapp.core.ui.PrintStatus.Idle)
+    val printStatus: StateFlow<com.example.transportapp.core.ui.PrintStatus> = _printStatus.asStateFlow()
 
     init {
         // The period control: this financial year to date (1 April → today).
@@ -48,15 +53,34 @@ class StatementViewModel @Inject constructor(
         viewModelScope.launch {
             val result = billingRepository.statement(partyId, fyStart.timeInMillis, now.timeInMillis, now.timeInMillis)
             when (result) {
-                is Result.Success -> _uiState.update { it.toLoaded(result.value) }
+                is Result.Success -> {
+                    _uiState.update { it.toLoaded(result.value) }
+                    statementPeriod = fyStart.timeInMillis to now.timeInMillis
+                }
                 is Result.Failure -> _uiState.update { it.copy(loading = false, error = ErrorCopy.resolve(result)) }
             }
         }
     }
 
+    private var statementPeriod: Pair<Long, Long> = 0L to 0L
+
     fun onEvent(event: StatementEvent) {
         when (event) {
-            StatementEvent.SendPdf -> Unit // exports land in S10 (§14); the share affordance stays.
+            // S22 (D60): the statement renders through the fixed-format template and shares.
+            StatementEvent.SendPdf -> {
+                if (_printStatus.value is com.example.transportapp.core.ui.PrintStatus.Rendering) return
+                _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Rendering("Preparing the statement...")
+                viewModelScope.launch {
+                    when (val result = documentRepository.renderStatement(partyId, statementPeriod.first, statementPeriod.second)) {
+                        is Result.Success -> {
+                            _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Idle
+                            documentRepository.share(result.value, "Statement of account")
+                        }
+                        is Result.Failure ->
+                            _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Error(result.message ?: "The statement could not be rendered")
+                    }
+                }
+            }
         }
     }
 }

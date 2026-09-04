@@ -161,7 +161,6 @@ private fun TemplateCard(template: TemplateRow) {
                     Text("In use · ${template.status}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
                 }
             }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }

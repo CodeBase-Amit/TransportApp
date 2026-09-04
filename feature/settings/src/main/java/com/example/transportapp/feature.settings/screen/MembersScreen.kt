@@ -227,7 +227,8 @@ private fun InvitedMemberRow(member: MemberRow, onEvent: (MembersEvent) -> Unit)
             Text("Invited ${member.invitedDate} by ${member.invitedBy} · ${member.role} · ${member.scope}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         IconButton(onClick = { onEvent(MembersEvent.Resend) }) { Icon(Icons.Rounded.Refresh, contentDescription = "Resend", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-        IconButton(onClick = {}) { Icon(Icons.Rounded.Close, contentDescription = "Cancel", tint = MaterialTheme.colorScheme.error) }
+        // S21: the X now really cancels the invitation (tombstone + outbox).
+        IconButton(onClick = { onEvent(MembersEvent.CancelInvite(member.email)) }) { Icon(Icons.Rounded.Close, contentDescription = "Cancel invitation", tint = MaterialTheme.colorScheme.error) }
     }
 }
 

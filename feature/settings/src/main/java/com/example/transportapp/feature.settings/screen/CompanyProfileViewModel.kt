@@ -46,6 +46,7 @@ class CompanyProfileViewModel @Inject constructor(
                     gstin = profile.gstin ?: "",
                     pan = profile.pan ?: "",
                     transporterId = profile.transporterId ?: "",
+                    logoRef = profile.logoRef,
                 )
             }
         }
@@ -69,6 +70,17 @@ class CompanyProfileViewModel @Inject constructor(
             is CompanyProfileEvent.ChangeWebsite -> _uiState.update { it.copy(website = event.value) }.also { persistDraft() }
             is CompanyProfileEvent.ChangeFooter -> _uiState.update { it.copy(footerClause = event.value) }.also { persistDraft() }
             CompanyProfileEvent.Save -> save()
+            // S22 (D60): the picked logo is imported + compressed into app files, COMPANY_E
+            // gets logo_ref, and the letterhead preview picks it up on the next read.
+            is CompanyProfileEvent.LogoPicked -> viewModelScope.launch {
+                val s = sessionRepository.session.first()
+                when (val result = settingsRepository.saveLogo(s.companyId, event.uri)) {
+                    is com.example.transportapp.core.common.Result.Success ->
+                        _uiState.update { it.copy(logoRef = result.value) }
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        _uiState.update { it.copy(error = result.message ?: result.code.name) }
+                }
+            }
             is CompanyProfileEvent.RequestDelete -> _uiState.update { it }
         }
     }

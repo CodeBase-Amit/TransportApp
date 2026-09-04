@@ -72,7 +72,6 @@ fun ExportCentreContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.History, contentDescription = "History", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
         if (state.building) {
@@ -242,13 +241,6 @@ private fun RecentExportRow(item: RecentExportUi) {
                 "Built ${timeFormat.format(item.builtAt)} · ${item.sizeBytes / 1024} KB",
                 style = TransportTypeScale.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = {}) {
-            Icon(
-                Icons.Rounded.Share,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -47,7 +47,15 @@ class ProfileViewModel @Inject constructor(
 
     fun onEvent(event: ProfileEvent) {
         when (event) {
-            ProfileEvent.Save -> Unit
+            // S21: Save writes the display name through the session seam (membership
+            // name update rides the outbox when the drain lands).
+            ProfileEvent.Save -> viewModelScope.launch {
+                val name = _uiState.value.displayName.trim()
+                if (name.isNotEmpty()) {
+                    sessionRepository.updateDisplayName(name)
+                    _uiState.update { it.copy(saveNotice = "Saved") }
+                }
+            }
             ProfileEvent.SignOut -> viewModelScope.launch { sessionRepository.signOut() }
             ProfileEvent.Clear, ProfileEvent.Redraw -> _uiState.update { it.copy(clearSignal = it.clearSignal + 1) }
             is ProfileEvent.ChangeLanguage -> _uiState.update { it.copy(language = event.language) }

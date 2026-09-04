@@ -51,6 +51,7 @@ class BookingFormViewModelTest {
         )
 
         override suspend fun signIn() {}
+        override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
     }
 
@@ -153,6 +154,7 @@ class BookingFormViewModelTest {
         override suspend fun mergeParties(keepId: String, mergeId: String) = com.example.transportapp.core.common.Result.success(Unit)
         override suspend fun rateRowsForParty(partyId: String) = emptyList<com.example.transportapp.domain.transport.masters.RateRow>()
         override suspend fun autoCharges(companyId: String) = emptyList<com.example.transportapp.domain.transport.masters.AutoCharge>()
+        override suspend fun addRateRow(companyId: String, partyId: String, ratePaise: Long) = com.example.transportapp.core.common.Result.success(Unit)
         override suspend fun saveRateRow(localId: String, ratePaise: Long) = com.example.transportapp.core.common.Result.success(Unit)
     }
 

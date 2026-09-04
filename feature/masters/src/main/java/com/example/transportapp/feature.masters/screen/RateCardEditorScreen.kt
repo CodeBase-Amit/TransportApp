@@ -40,11 +40,44 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 @Composable
 fun RateCardEditorScreen(onBack: () -> Unit, viewModel: RateCardEditorViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsState()
+    val newRate by viewModel.newRate.collectAsState()
     RateCardEditorContent(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack
     )
+    // S21: the Add-rate dialog — rupee amount, copies basis/scope from existing rows.
+    if (state.showAddRate) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.onEvent(RateCardEditorEvent.DismissAddRate) },
+            title = { Text("Add a rate", style = TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    Text(
+                        "The new rate follows this party's existing route and goods scope.",
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = newRate,
+                        onValueChange = { viewModel.onEvent(RateCardEditorEvent.ChangeNewRate(it)) },
+                        label = "Rate (₹)",
+                        monospace = true,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = (newRate.toLongOrNull() ?: 0L) > 0,
+                    onClick = { viewModel.onEvent(RateCardEditorEvent.ConfirmAddRate) }
+                ) { Text("Add rate", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.onEvent(RateCardEditorEvent.DismissAddRate) }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable

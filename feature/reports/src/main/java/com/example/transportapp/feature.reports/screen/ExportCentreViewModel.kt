@@ -74,6 +74,35 @@ class ExportCentreViewModel @Inject constructor(
         }
     }
 
+    /**
+     * S21 — the Register's export icon: the freight register as a single CSV in the
+     * export centre's directory (it then appears in Recent exports). Distinct from
+     * [buildPack], which builds the multi-sheet zip.
+     */
+    fun requestRegisterCsv() {
+        if (_uiState.value.building) return
+        _uiState.update { it.copy(building = true, notice = null) }
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val from = now - 150L * 24 * 60 * 60 * 1000
+            val csv = reportsRepository.registerCsvForPeriod(from, now)
+            val result = reportsRepository.buildCsvExport("Freight register", csv, now)
+            when (result) {
+                is Result.Success -> _uiState.update { s ->
+                    s.copy(
+                        building = false,
+                        builtFile = result.value.name,
+                        notice = "Saved to Downloads · ${result.value.name}",
+                        recentExports = listOf(
+                            RecentExportUi(result.value.name, result.value.lastModified(), result.value.length(), isPack = false),
+                        ) + s.recentExports,
+                    )
+                }
+                is Result.Failure -> _uiState.update { it.copy(building = false, notice = ErrorCopy.resolve(result)) }
+            }
+        }
+    }
+
     private fun buildPack() {
         val state = _uiState.value
         if (state.building || state.includedIndices.isEmpty()) return

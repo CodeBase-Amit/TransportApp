@@ -64,7 +64,15 @@ fun FreightBillScreen(
     viewModel: FreightBillViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    FreightBillContent(state = state, onEvent = viewModel::onEvent, onBack = onBack, onRecordReceipt = onRecordReceipt)
+    FreightBillContent(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onBack = onBack,
+        onRecordReceipt = onRecordReceipt,
+        onPrint = viewModel::printBill,
+        onShare = viewModel::shareBill,
+        printStatus = viewModel.printStatus.collectAsState().value
+    )
 }
 
 @Composable
@@ -73,6 +81,9 @@ fun FreightBillContent(
     onEvent: (FreightBillEvent) -> Unit,
     onBack: () -> Unit,
     onRecordReceipt: () -> Unit,
+    onPrint: () -> Unit = {},
+    onShare: () -> Unit = {},
+    printStatus: com.example.transportapp.core.ui.PrintStatus = com.example.transportapp.core.ui.PrintStatus.Idle,
 ) {
     val bill = state.bill
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -87,7 +98,6 @@ fun FreightBillContent(
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
         }
 
         if (state.stage == FreightBillUiState.Stage.DRAFT || state.stage == FreightBillUiState.Stage.PREVIEW) {
@@ -136,10 +146,10 @@ fun FreightBillContent(
                     }
                 }
                 FreightBillUiState.Stage.ISSUED -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                    IssuedAction(Icons.Rounded.Print, "Print", onClick = {})
-                    IssuedAction(Icons.Rounded.Share, "Share", onClick = {})
+                    // S22 (D60): print/share render the issued bill through the document path.
+                    IssuedAction(Icons.Rounded.Print, "Print", onClick = onPrint, enabled = printStatus !is com.example.transportapp.core.ui.PrintStatus.Rendering)
+                    IssuedAction(Icons.Rounded.Share, "Share", onClick = onShare, enabled = printStatus !is com.example.transportapp.core.ui.PrintStatus.Rendering)
                     IssuedAction(Icons.Rounded.Payments, "Receipt", onClick = onRecordReceipt)
-                    IssuedAction(Icons.Rounded.MoreVert, "More", onClick = {})
                 }
             }
         }
@@ -340,9 +350,17 @@ private fun BillFigure(label: String, value: String) {
 }
 
 @Composable
-private fun IssuedAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun IssuedAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    // S21: actions whose rendering lands in S22 (print/share) answer honestly —
+    // disabled with the theme's variant colour, never a dead tap.
+    val tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
-        Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-        Text(label, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
+        Text(label, style = TransportTypeScale.labelMedium, color = tint)
     }
 }

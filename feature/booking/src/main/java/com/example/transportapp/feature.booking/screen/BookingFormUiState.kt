@@ -56,6 +56,10 @@ data class BookingFormUiState(
     val amending: String? = null,
     val amendReason: String = "",
     val bookedBy: String = "",
+    /** S21 - the Add-charge dialog */
+    val showAddCharge: Boolean = false,
+    val chargeLabel: String = "",
+    val chargeAmount: String = "",
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -90,6 +94,12 @@ sealed interface BookingFormEvent {
     data object ToggleMoreDetails : BookingFormEvent
     /** Removing a charge row disables that head; computed rows are never removable. */
     data class RemoveCharge(val headCode: String?) : BookingFormEvent
+    // S21 - the Add-charge dialog (manual charge lines the clerk adds on the form)
+    data object ToggleAddCharge : BookingFormEvent
+    data object DismissAddCharge : BookingFormEvent
+    data class ChangeChargeLabel(val value: String) : BookingFormEvent
+    data class ChangeChargeAmount(val value: String) : BookingFormEvent
+    data object SaveManualCharge : BookingFormEvent
     data object Submit : BookingFormEvent
 }
 

@@ -29,7 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -101,6 +104,7 @@ fun RegisterContent(
 ) {
     val drawerState = rememberAppDrawerState()
     val scope = rememberCoroutineScope()
+    var showFilterSheet by remember { mutableStateOf(false) }
     AppNavDrawer(
         drawerState = drawerState,
         companyInitials = state.companyInitials,
@@ -124,9 +128,20 @@ fun RegisterContent(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             TransportTopAppBar(title = "Register", navigationIcon = Icons.Rounded.Menu, navigationIconDesc = "Open menu", onNavigationClick = { scope.launch { drawerState.open() } }, trailingIcons = {
-                IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
-                IconButton(onClick = {}) { Icon(Icons.Rounded.FileDownload, contentDescription = "Export", tint = MaterialTheme.colorScheme.onSurface) }
+                // S21: the Tune icon opens the filter sheet; the download icon exports
+                // the freight register to CSV (lands in the Export centre's recent list).
+                IconButton(onClick = { showFilterSheet = true }) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
+                IconButton(onClick = { onEvent(RegisterEvent.ExportCsv) }, enabled = !state.isExporting) { Icon(Icons.Rounded.FileDownload, contentDescription = "Export CSV", tint = MaterialTheme.colorScheme.onSurface) }
             })
+
+            if (state.exportNote != null) {
+                Text(
+                    state.exportNote,
+                    style = TransportTypeScale.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding)
+                )
+            }
 
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Dimens.screenPadding)) {
                 SearchField(
@@ -207,6 +222,27 @@ fun RegisterContent(
     }
         }
     )
+    // S21 — the filter sheet: the same chips the bar shows, consolidated for one-hand reach.
+    if (showFilterSheet) {
+        com.example.transportapp.core.designsystem.component.FilterSheet(
+            title = "Filter the register",
+            onDismiss = { showFilterSheet = false },
+        ) {
+            state.chips.forEach { chip ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        label = chip.label,
+                        selected = chip.selected,
+                        onClick = { onEvent(RegisterEvent.ToggleChip(chip.kind)) }
+                    )
+                }
+            }
+            AppTextButton("Clear all filters", onClick = { onEvent(RegisterEvent.ClearFilters) }, modifier = Modifier.padding(top = 8.dp))
+        }
+    }
 }
 
 private fun LazyListScope.registerList(

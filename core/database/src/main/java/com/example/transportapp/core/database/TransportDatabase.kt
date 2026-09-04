@@ -97,7 +97,7 @@ import com.example.transportapp.core.database.seed.SeedVersionEntity
         PartyFtsEntity::class,
         ConsignmentFtsEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -937,7 +937,7 @@ abstract class TransportDatabase : RoomDatabase() {
         }
 
         /**
-         * S14 → S15: CONSIGNMENT_E gains amendment_reason (§16.1 — an amendment is another
+         * S14 - S15: CONSIGNMENT_E gains amendment_reason (§16.1 - an amendment is another
          * consignment row with its reason carried on the amendment itself).
          */
         val MIGRATION_10_11: Migration = object : Migration(10, 11) {
@@ -946,6 +946,16 @@ abstract class TransportDatabase : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+        /**
+         * S22 (D60): COMPANY_E gains logo_ref — the relative file ref of the company's
+         * logo, printed in letterheads. Null until the Owner uploads one.
+         */
+        val MIGRATION_11_12: Migration = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN logo_ref TEXT")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
     }
 }

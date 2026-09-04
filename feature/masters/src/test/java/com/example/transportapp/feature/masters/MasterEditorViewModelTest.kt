@@ -57,6 +57,7 @@ class MasterEditorViewModelTest {
         override suspend fun rateRowsForParty(partyId: String): List<RateRow> = emptyList()
         override suspend fun autoCharges(companyId: String): List<AutoCharge> = emptyList()
         override suspend fun saveRateRow(localId: String, ratePaise: Long): Result<Unit> = Result.success(Unit)
+        override suspend fun addRateRow(companyId: String, partyId: String, ratePaise: Long): Result<Unit> = Result.success(Unit)
         override suspend fun searchPartiesOnce(companyId: String, query: String) = emptyList<com.example.transportapp.domain.transport.masters.PartyListRow>()
     }
 
@@ -70,6 +71,7 @@ class MasterEditorViewModelTest {
     private val sessionRepository = object : com.example.transportapp.data.transport.session.SessionRepository {
         override val session: kotlinx.coroutines.flow.Flow<com.example.transportapp.data.transport.session.UserSession> = sessionFlow
         override suspend fun signIn() {}
+        override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
     }
 

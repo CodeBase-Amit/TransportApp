@@ -61,6 +61,20 @@ interface DocumentRepository {
     fun saveToDownloads(document: RenderedDocument): Uri?
 
     fun renderFromFile(file: File): ByteArray = if (file.exists()) file.readBytes() else ByteArray(0)
+
+    // ── S22 (D60): the fixed-format operational documents ──────────────────
+
+    /** Render the loading challan for one trip (§11). */
+    suspend fun renderChallan(challanNo: String): Result<RenderedDocument>
+
+    /** Render an issued freight bill (§12). */
+    suspend fun renderFreightBill(billId: String): Result<RenderedDocument>
+
+    /** Render a money receipt (§12.2). */
+    suspend fun renderReceipt(receiptId: String): Result<RenderedDocument>
+
+    /** Render the party statement of account for a period (§12.3). */
+    suspend fun renderStatement(partyId: String, from: Long, to: Long): Result<RenderedDocument>
 }
 
 @Singleton
@@ -133,6 +147,166 @@ class DocumentRepositoryImpl @Inject constructor(
 
     override fun saveToDownloads(document: RenderedDocument): Uri? =
         pdfActions.saveToDownloads(document.pdfBytes, document.fileName)
+
+    // ── S22 (D60): the fixed-format operational documents ──────────────────
+
+    private suspend fun render(html: String, baseName: String): Result<RenderedDocument> {
+        val bytes = pdfPort.render(html, baseName)
+        if (bytes.isEmpty()) {
+            return Result.failure(ErrorCode.EXPORT_TOO_LARGE, "The document could not be rendered - try again")
+        }
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.ENGLISH).format(java.util.Date(System.currentTimeMillis()))
+        return Result.success(RenderedDocument(bytes, "$baseName-$stamp.pdf", html.hashCode().toString(16)))
+    }
+
+    private suspend fun companyHead(): Pair<String, String> {
+        val s = sessionRepository.session.first()
+        val company = database.orgDao().getCompany(s.companyId)
+        return (company?.name ?: "TransportApp") to (company?.address ?: "")
+    }
+
+    override suspend fun renderChallan(challanNo: String): Result<RenderedDocument> {
+        val s = sessionRepository.session.first()
+        val trip = database.tripDao().getTripByChallanNo(s.companyId, challanNo)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No challan $challanNo on this device")
+        val vehicle = database.tripDao().getVehicle(trip.vehicle_id)
+        val driver = database.tripDao().getDriver(trip.driver_id)
+        val legs = database.tripDao().getLegRows(trip.local_id)
+        val (company, address) = companyHead()
+        fun fmt(paise: Long) = com.example.transportapp.core.common.Money(paise).formatted()
+        val html = OperationalDocuments.challan(
+            challanNo = challanNo,
+            companyName = company,
+            companyAddress = address,
+            vehicle = vehicle?.number ?: "",
+            driver = driver?.name ?: "",
+            driverLicence = driver?.licence ?: "",
+            from = database.orgDao().getBranchesForCompany(s.companyId).firstOrNull { it.local_id == trip.origin_branch_id }?.name ?: "",
+            to = database.mastersDao().getStation(trip.dest_station_id)?.name ?: "",
+            via = trip.via_stations?.split(",")?.mapNotNull { database.mastersDao().getStation(it)?.name } ?: emptyList(),
+            consignments = legs.map { leg ->
+                OperationalDocuments.ChallanLine(
+                    bilty = leg.display_no,
+                    consignee = leg.consignee_name,
+                    from = "",
+                    to = leg.to_station,
+                    packages = 0,
+                    weightKg = leg.weight_kg,
+                    amount = fmt(0),
+                )
+            },
+            hire = fmt(trip.hire_paise),
+            advance = fmt(trip.advance_paise),
+            balance = fmt(trip.balance_paise),
+            created = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH).format(java.util.Date(trip.created_at)),
+        )
+        return render(html, "Challan-${challanNo.replace("/", "-")}")
+    }
+
+    override suspend fun renderFreightBill(billId: String): Result<RenderedDocument> {
+        val s = sessionRepository.session.first()
+        val dao = database.billingDao()
+        val bill = dao.getBillWithParty(billId)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No bill on this device")
+        val lines = dao.getBillConsignments(billId)
+        val (company, address) = companyHead()
+        fun fmt(paise: Long) = com.example.transportapp.core.common.Money(paise).formatted()
+        val df = SimpleDateFormat("d MMM", Locale.ENGLISH)
+        val html = OperationalDocuments.freightBill(
+            billNo = bill.bill_no ?: "(provisional)",
+            companyName = company,
+            companyAddress = address,
+            companyGstin = "",
+            partyName = bill.party_name,
+            partyGstin = bill.party_gstin ?: "",
+            from = lines.firstOrNull()?.from_station ?: "",
+            to = lines.firstOrNull()?.to_station ?: "",
+            period = "${df.format(java.util.Date(bill.period_start))} - ${df.format(java.util.Date(bill.period_end))}",
+            consignments = lines.map { row ->
+                OperationalDocuments.BillLine(
+                    bilty = row.display_no,
+                    date = df.format(java.util.Date(row.booked_at)),
+                    packages = 0,
+                    weightKg = 0,
+                    rate = "",
+                    amount = fmt(row.total_paise),
+                )
+            },
+            freight = fmt(bill.taxable_paise),
+            charges = listOf("Other charges" to fmt(bill.other_charges_paise)),
+            gst = fmt(bill.gst_paise),
+            total = fmt(bill.total_paise),
+            issued = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH).format(java.util.Date(bill.period_end)),
+        )
+        return render(html, "Bill-${(bill.bill_no ?: billId).replace("/", "-")}")
+    }
+
+    override suspend fun renderReceipt(receiptId: String): Result<RenderedDocument> {
+        val s = sessionRepository.session.first()
+        val dao = database.billingDao()
+        val receipt = dao.getReceipt(receiptId)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No receipt on this device")
+        val party = dao.getPartyNameGstin(receipt.party_id)
+        val (company, address) = companyHead()
+        fun fmt(paise: Long) = com.example.transportapp.core.common.Money(paise).formatted()
+        val html = OperationalDocuments.receipt(
+            receiptNo = receipt.receipt_no ?: "(provisional)",
+            companyName = company,
+            companyAddress = address,
+            partyName = party?.name ?: "",
+            amount = fmt(receipt.amount_paise),
+            inWords = com.example.transportapp.core.common.Money(receipt.amount_paise).inWords(),
+            mode = receipt.instrument,
+            towards = receipt.notes ?: "On account",
+            collected = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH).format(java.util.Date(receipt.received_at)),
+            collectedBy = receipt.received_by_name,
+        )
+        return render(html, "Receipt-${(receipt.receipt_no ?: receiptId).replace("/", "-")}")
+    }
+
+    override suspend fun renderStatement(partyId: String, from: Long, to: Long): Result<RenderedDocument> {
+        val s = sessionRepository.session.first()
+        val dao = database.billingDao()
+        val party = dao.getPartyNameGstin(partyId)
+            ?: return Result.failure(ErrorCode.MASTER_IN_USE, "No such party")
+        val bills = dao.getIssuedBillsForParty(s.companyId, partyId).filter { it.period_end in from..to }
+        val receipts = dao.getReceiptsForParty(s.companyId, partyId).filter { it.received_at in from..to }
+        val (company, address) = companyHead()
+        fun fmt(paise: Long) = com.example.transportapp.core.common.Money(paise).formatted()
+        val df = SimpleDateFormat("d MMM yyyy", Locale.ENGLISH)
+        val rows = buildList {
+            bills.forEach { b ->
+                add(OperationalDocuments.StatementLine(
+                    date = df.format(java.util.Date(b.period_end)),
+                    particulars = "Freight bill",
+                    doc = b.bill_no ?: "",
+                    debit = fmt(b.total_paise),
+                    credit = "",
+                ))
+            }
+            receipts.forEach { r ->
+                add(OperationalDocuments.StatementLine(
+                    date = df.format(java.util.Date(r.received_at)),
+                    particulars = "Receipt" + (r.notes?.let { " - $it" } ?: ""),
+                    doc = r.receipt_no ?: "",
+                    debit = "",
+                    credit = fmt(r.amount_paise),
+                ))
+            }
+        }
+        val debit = bills.sumOf { it.total_paise }
+        val credit = receipts.sumOf { it.amount_paise }
+        val html = OperationalDocuments.statement(
+            partyName = party.name,
+            companyName = company,
+            from = df.format(java.util.Date(from)),
+            to = df.format(java.util.Date(to)),
+            opening = fmt(0),
+            rows = rows,
+            closing = fmt(debit - credit),
+        )
+        return render(html, "Statement-${party.name.replace(" ", "-")}")
+    }
 
     companion object {
         val DEFAULT_COPIES = listOf("Copy 1 · Consignor", "Copy 2 · Consignee", "Copy 3 · Driver", "Copy 4 · Office")

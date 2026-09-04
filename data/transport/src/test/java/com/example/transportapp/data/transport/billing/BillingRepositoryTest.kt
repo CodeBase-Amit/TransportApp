@@ -63,6 +63,7 @@ class BillingRepositoryTest {
         val sessions = object : SessionRepository {
             override val session = sessionFlow
             override suspend fun signIn() {}
+        override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
         }
         repository = BillingRepositoryImpl(database, sessions, numbering, outbox)

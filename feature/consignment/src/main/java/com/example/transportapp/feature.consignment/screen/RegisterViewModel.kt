@@ -52,6 +52,9 @@ data class RegisterUiState(
     val companyInitials: String = "SR",
     val companyName: String = "",
     val branchName: String = "",
+    // S21: the export action's one-shot feedback
+    val isExporting: Boolean = false,
+    val exportNote: String? = null,
 ) {
     companion object {
         fun defaultChips(selected: Set<ChipKind> = emptySet()) =
@@ -71,6 +74,8 @@ sealed interface RegisterEvent {
     data class ChangeSearchQuery(val query: String) : RegisterEvent
     data class ToggleChip(val kind: ChipKind) : RegisterEvent
     data object ClearFilters : RegisterEvent
+    /** S21: the export icon — the freight register (FY-to-date, all branches) as CSV. */
+    data object ExportCsv : RegisterEvent
 }
 
 /**
@@ -83,6 +88,7 @@ sealed interface RegisterEvent {
 class RegisterViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val registerRepository: RegisterRepository,
+    private val reportsRepository: com.example.transportapp.data.transport.reports.ReportsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RegisterUiState())
@@ -162,6 +168,7 @@ class RegisterViewModel @Inject constructor(
 
     fun onEvent(event: RegisterEvent) {
         when (event) {
+            RegisterEvent.ExportCsv -> exportCsv()
             is RegisterEvent.ChangeSearchQuery -> {
                 _uiState.update { it.copy(searchQuery = event.query) }
                 searchJob?.cancel()
@@ -223,6 +230,26 @@ class RegisterViewModel @Inject constructor(
             dayOf(System.currentTimeMillis()) -> "TODAY · $stamp"
             dayOf(System.currentTimeMillis() - 86_400_000L) -> "YESTERDAY · $stamp"
             else -> stamp
+        }
+    }
+
+    /** S21: the export icon — freight register FY-to-date CSV into Recent exports. */
+    private fun exportCsv() {
+        if (_uiState.value.isExporting) return
+        _uiState.update { it.copy(isExporting = true, exportNote = null) }
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val from = now - 150L * 24 * 60 * 60 * 1000
+            val csv = reportsRepository.registerCsvForPeriod(from, now)
+            val result = reportsRepository.buildCsvExport("Freight register", csv, now)
+            _uiState.update {
+                when (result) {
+                    is com.example.transportapp.core.common.Result.Success ->
+                        it.copy(isExporting = false, exportNote = "Saved · ${result.value.name} — see Export centre")
+                    is com.example.transportapp.core.common.Result.Failure ->
+                        it.copy(isExporting = false, exportNote = result.message ?: result.code.name)
+                }
+            }
         }
     }
 

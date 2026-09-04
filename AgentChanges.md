@@ -911,6 +911,8 @@ New decisions taken this sprint that amend the plan:
 | D57 | S20's Night Haul Expressive redesign — see the S20 section | Design.md stays the authority; the expressive pass evolves tokens (sunrise accent, tinted shadows, 24dp cards, hero money type) and adds HaulMotion — every deviation is recorded here and in the Design.md addendum |
 | D58 | S20's RouteLine as the signature | the truck is *placed* (B1 closed) and *drives* with a spring; the travelled segment draws itself; the bob idles only while CURRENT — one gesture learned in all 8 places |
 | D59 | S20's celebratory moments | the sunrise coral appears exactly at peak moments (Book and print CTA, save confirmations) and nowhere else; error keeps its own slot — the 10% rule holds |
+| D60 | S22's logo + schema v12 — see the S22 section | COMPANY_E.logo_ref (migration 11→12) carries the relative file ref; the logo rides COMPANY updates in the outbox; PhotoImporter owns the image import |
+| D61 | S22's operational documents — see the S22 section | challan/bill/receipt/statement are **fixed-format inline HTML** (OperationalDocuments), unlike the bilty's user-serviceable doc-engine template; they render through the same pdf-android byte path |
 
 ---
 
@@ -1668,3 +1670,85 @@ current bespoke layouts (a follow-up pass can bespoke them); the hero transition
 register→case file is wired for shared elements but Compose's shared-element API needs the
 nav-compose 2.8+ placement — deferred to the next polish pass rather than half-done; dark
 theme inherits every token automatically but got no bespoke screenshots yet.
+
+---
+
+## Phase 3.5, Sprint S21 — Wire every dead control
+
+**Goal (user-directed):** triage `TransportApp/Project_Analysis_2.md`, resolve its Android-side
+problems, and complete the offline-first feature surface — every dead button either wired or
+removed, every no-op handler given a real action.
+
+### What was built
+
+- **Filter sheets** (`FilterSheet`, `:core:designsystem`, shared): the Tune icon on Register,
+  Unbilled pool, Payments and Vehicle board now opens a sheet consolidating each screen's
+  existing filters — one-hand reach instead of a dead icon.
+- **Register export**: the FileDownload icon exports the freight register (FY-to-date,
+  all branches) as CSV via `:export-engine` into Recent exports.
+- **Case file (T8)**: Share renders and shares the bilty PDF; Raise bill navigates to T13;
+  Full history opens T9; the MoreVert-as-back-arrow became ArrowBack.
+- **Booking form**: "Add charge" opens a dialog — manual `ManualCharge` lines flow through
+  the pure calc engine (taxed before GST) and recompute per keystroke.
+- **Rate card (T20)**: Add Rate dialog → new `MastersRepository.addRateRow` (copies the
+  party's existing basis/scope, outbox INSERT).
+- **Members (T27)**: an invitation's X cancels it — tombstone + outbox DELETE (§16.2).
+- **Branches (T26)**: Add a branch dialog → BRANCH_E + outbox (duplicate names refused,
+  Manager gate).
+- **Profile (T33)**: Save writes the display name through `SessionStore.updateDisplayName`.
+- **Challan detail**: Edit load navigates to the builder (visible only while ISSUED).
+- **Terms & Privacy**: static offline pages on a `legal_doc/{title}` route, wired from the
+  sign-in links.
+- **Removed as dead decoration**: Templates/Numbering/Branches redundant MoreVert menus,
+  Reports/ExportCentre dead history icons, the ExportCentre dead share icon, the dead
+  Carousel GetStarted/Skip events. States.kt's hardcoded illustration colour became a theme
+  token.
+
+**Verification:** 218 tests / 0 failures after the pass; every new write path compiles
+against its fake-based test fakes.
+
+---
+
+## Phase 3.5, Sprint S22 — Operational documents + company logo
+
+**Goal:** the last big offline feature gap — printing for challans, freight bills, receipts
+and statements, plus the company logo (the two items the analysis flagged that were still
+open and belonged to the offline tier).
+
+### What was built
+
+- **Schema v12 (D60).** `COMPANY_E.logo_ref TEXT` — migration `MIGRATION_11_12` with its
+  `Migration11to12Test` (nullable column, pre-S22 rows survive, logo can then be set).
+- **Operational documents (D61).** `OperationalDocuments` (data layer) renders four
+  fixed-format A4 HTML documents inline — loading challan, freight bill, money receipt,
+  statement of account — with the paper-ink print style, signature blocks and terms footer.
+  Unlike the bilty (a user-serviceable doc-engine template), these are company forms whose
+  layout never changes, so Kotlin string templates are the honest shape. `DocumentRepository`
+  gained `renderChallan/renderFreightBill/renderReceipt/renderStatement`, all through the
+  same `pdf-android` byte path.
+- **Logo (D60).** The Company profile's logo box launches the real Photo Picker; the image
+  is imported (downscaled + re-compressed) into `files/logos/`, `logo_ref` is set, and the
+  change rides the COMPANY outbox. `SettingsRepository.CompanyProfile` carries the ref.
+- **Wired everywhere:** ChallanDetail Print/Share → `renderChallan` (with its print-status
+  line, same shape as T8); FreightBill Print/Share → `renderFreightBill` (the honest-disabled
+  stubs are live); Statement "Send statement as PDF" → `renderStatement`; Payments receipt
+  printing rides `renderReceipt` for the next pass (the receipt save flow returns the id).
+
+### Verification
+
+- **219 tests / 0 failures / 50 suites** (new: `Migration11to12Test`); `checkPureModules`
+  green; installed on emulator-5554.
+- **Emulator demo:** case file → Share → the system share sheet opened carrying
+  `Bilty-IND-2627-04188-20260904-151241.pdf` — the full render → distribute pipeline works
+  on-device.
+
+### Decisions taken this sprint (D60, D61)
+
+| # | Decision | Why |
+|---|---|---|
+| D60 | `logo_ref` as a nullable column on COMPANY_E; import owned by PhotoImporter; change rides the COMPANY outbox | the logo is company identity data, not a standalone attachment; the import path already proved itself on POD photos |
+| D61 | Challan/bill/receipt/statement as fixed-format inline HTML, not doc-engine templates | these are company forms whose layout never changes; the doc-engine stays for the bilty, where businesses genuinely differ |
+
+**Scope notes:** receipt printing needs the receipt id surfaced from the save flow (the
+render method exists); the letterhead preview shows the logo once the profile re-reads
+COMPANY_E; statement periods stay FY-to-date until the period control lands.

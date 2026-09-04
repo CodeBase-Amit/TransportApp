@@ -93,6 +93,23 @@ class CaseFileViewModel @Inject constructor(
         }
     }
 
+    /** S21: Share — the same render, through the system share sheet. */
+    fun shareBilty() {
+        if (_printStatus.value is PrintStatus.Rendering) return
+        _printStatus.value = PrintStatus.Rendering("Preparing the document…")
+        viewModelScope.launch {
+            val labels = documentRepository.copyLabels(biltyNo)
+            when (val result = documentRepository.renderBilty(biltyNo, labels)) {
+                is com.example.transportapp.core.common.Result.Success -> {
+                    _printStatus.value = PrintStatus.Idle
+                    documentRepository.share(result.value, "Bilty $biltyNo")
+                }
+                is com.example.transportapp.core.common.Result.Failure ->
+                    _printStatus.value = PrintStatus.Error(result.message ?: "The document could not be shared")
+            }
+        }
+    }
+
     fun dismissPrintStatus() {
         _printStatus.value = PrintStatus.Idle
     }

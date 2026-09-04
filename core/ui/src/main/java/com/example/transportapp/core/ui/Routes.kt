@@ -55,6 +55,9 @@ object Routes {
     const val TEMPLATE_REQUESTS = "template_requests"   // T30
     const val ACCOUNT_DATA = "account_data"             // T31
 
+    // S21 - static legal pages
+    const val LEGAL_DOC = "legal_doc/{title}"
+
     // Dev / verification — every screen, one click away
     const val SCREEN_INDEX = "screen_index"
 
@@ -67,5 +70,6 @@ object Routes {
     fun masterList(type: String) = "master_list/${Uri.encode(type)}"
     fun masterEditor(type: String, id: String) = "master_editor/${Uri.encode(type)}/${Uri.encode(id)}"
     fun rateCardEditor(partyId: String) = "rate_card_editor/${Uri.encode(partyId)}"
+    fun legalDoc(title: String) = "legal_doc/${Uri.encode(title)}"
     fun reportViewer(reportId: String) = "report_viewer/${Uri.encode(reportId)}"
 }

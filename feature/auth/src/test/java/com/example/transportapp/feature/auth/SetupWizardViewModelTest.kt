@@ -40,7 +40,12 @@ class SetupWizardViewModelTest {
         private val state = MutableStateFlow(initial)
         override val session: Flow<UserSession> = state
         var signedIn = false
+        var updateDisplayNameCalled = false
+        override suspend fun updateDisplayName(name: String) {
+            updateDisplayNameCalled = true
+        }
         override suspend fun signIn() {
+            updateDisplayNameCalled = true
             signedIn = true
         }
         override suspend fun signOut() {

@@ -45,11 +45,18 @@ data class RateCardEditorUiState(
     val saveLabel: String = "Save rate card",
     val isLoading: Boolean = true,
     val justSaved: Boolean = false,
+    // S21 - the add-rate dialog
+    val showAddRate: Boolean = false,
+    val newRate: String = "",
 )
 
 sealed interface RateCardEditorEvent {
     data class ToggleCharge(val index: Int) : RateCardEditorEvent
     data object AddRate : RateCardEditorEvent
+    // S21 - the add-rate dialog
+    data object DismissAddRate : RateCardEditorEvent
+    data class ChangeNewRate(val value: String) : RateCardEditorEvent
+    data object ConfirmAddRate : RateCardEditorEvent
     data object ViewAllRates : RateCardEditorEvent
     data object SaveRateCard : RateCardEditorEvent
 }

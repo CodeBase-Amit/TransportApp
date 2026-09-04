@@ -87,6 +87,43 @@ fun BookingFormScreen(
         onBookAndPrint = { viewModel.onEvent(BookingFormEvent.Submit) },
         onSetRate = onSetRate ?: {},
     )
+    // S21: the Add-charge dialog — label + rupee amount, taxed as its own line.
+    if (state.showAddCharge) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { viewModel.onEvent(BookingFormEvent.DismissAddCharge) },
+            title = { Text("Add a charge", style = com.example.transportapp.core.designsystem.theme.TransportTypeScale.titleMedium) },
+            text = {
+                Column {
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = state.chargeLabel,
+                        onValueChange = { viewModel.onEvent(BookingFormEvent.ChangeChargeLabel(it)) },
+                        label = "Charge name (e.g. Loading, Waybill)"
+                    )
+                    com.example.transportapp.core.designsystem.component.TransportTextField(
+                        value = state.chargeAmount,
+                        onValueChange = { viewModel.onEvent(BookingFormEvent.ChangeChargeAmount(it)) },
+                        label = "Amount (₹)",
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    Text(
+                        "Added before GST on this booking.",
+                        style = com.example.transportapp.core.designsystem.theme.TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    enabled = state.chargeLabel.isNotBlank() && (state.chargeAmount.toLongOrNull() ?: 0L) > 0,
+                    onClick = { viewModel.onEvent(BookingFormEvent.SaveManualCharge) }
+                ) { Text("Add", color = MaterialTheme.colorScheme.primary) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.onEvent(BookingFormEvent.DismissAddCharge) }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
@@ -550,7 +587,7 @@ private fun TermsSection(state: BookingFormUiState, onEvent: (BookingFormEvent) 
 private fun ChargesSection(state: BookingFormUiState, onEvent: (BookingFormEvent) -> Unit) {
     Column {
         GroupHeading("CHARGES", trailing = {
-            AppTextButton("Add charge", onClick = {})
+            AppTextButton("Add charge", onClick = { onEvent(BookingFormEvent.ToggleAddCharge) })
         }, modifier = Modifier.padding(bottom = 12.dp))
         NestedCard(modifier = Modifier.fillMaxWidth()) {
             Column {

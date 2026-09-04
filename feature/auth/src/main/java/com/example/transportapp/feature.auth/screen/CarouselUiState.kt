@@ -46,6 +46,4 @@ data class CarouselUiState(
 sealed interface CarouselEvent {
     data object Next : CarouselEvent
     data class SelectPage(val page: Int) : CarouselEvent
-    data object GetStarted : CarouselEvent
-    data object Skip : CarouselEvent
 }

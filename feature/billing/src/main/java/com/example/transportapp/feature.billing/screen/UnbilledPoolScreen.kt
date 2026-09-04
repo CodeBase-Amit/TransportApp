@@ -32,6 +32,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,9 +72,11 @@ fun UnbilledPoolContent(
     onEvent: (UnbilledPoolEvent) -> Unit,
     onBack: () -> Unit,
 ) {
+    var showFilterSheet by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = "Unbilled", onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
+            // S21: the filter sheet consolidates the pool's period/branch/age filters.
+            IconButton(onClick = { showFilterSheet = true }) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
         })
 
         Row(
@@ -138,6 +143,19 @@ fun UnbilledPoolContent(
                 onClick = { onEvent(UnbilledPoolEvent.BuildBill) },
                 enabled = state.canBuild,
             )
+        }
+    }
+
+    // S21 — the filter sheet for the pool.
+    if (showFilterSheet) {
+        com.example.transportapp.core.designsystem.component.FilterSheet(
+            title = "Filter the pool",
+            onDismiss = { showFilterSheet = false },
+        ) {
+            FilterChip("This quarter", selected = state.thisQuarter, onClick = { onEvent(UnbilledPoolEvent.ToggleQuarter(!state.thisQuarter)) })
+            FilterChip("All branches", selected = state.allBranches, onClick = { onEvent(UnbilledPoolEvent.ToggleAllBranches(!state.allBranches)) })
+            FilterChip("Over 30 days", selected = state.minAgeDays == 30, onClick = { onEvent(UnbilledPoolEvent.SetAgeFilter(if (state.minAgeDays == 30) null else 30)) })
+            FilterChip("Over 60 days", selected = state.minAgeDays == 60, onClick = { onEvent(UnbilledPoolEvent.SetAgeFilter(if (state.minAgeDays == 60) null else 60)) })
         }
     }
 }

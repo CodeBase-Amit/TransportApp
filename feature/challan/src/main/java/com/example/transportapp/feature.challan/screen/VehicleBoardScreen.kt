@@ -1,6 +1,5 @@
 package com.example.transportapp.feature.challan.screen
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,11 +33,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.transportapp.core.designsystem.component.AppPrimaryButton
@@ -53,8 +56,8 @@ import com.example.transportapp.core.ui.rememberAppDrawerState
 import kotlinx.coroutines.launch
 
 /**
- * T12 (Phase2.md S7): every vehicle with its current trip. S17 adds the app shell —
- * hamburger drawer and the design-mandated bottom navigation (Design.md T4/T7/T12).
+ * T12 (Phase2.md S7): every vehicle with its current trip. S17 added the app shell;
+ * S21 wires the Tune icon to the filter sheet mirroring the chip row.
  */
 @Composable
 fun VehicleBoardScreen(
@@ -98,6 +101,7 @@ fun VehicleBoardContent(
 ) {
     val drawerState = rememberAppDrawerState()
     val scope = rememberCoroutineScope()
+    var showFilterSheet by remember { mutableStateOf(false) }
     AppNavDrawer(
         drawerState = drawerState,
         companyInitials = state.companyInitials,
@@ -120,9 +124,18 @@ fun VehicleBoardContent(
     ) {
         Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
             Column(modifier = Modifier.fillMaxSize()) {
-                TransportTopAppBar(title = state.title, navigationIcon = Icons.Rounded.Menu, navigationIconDesc = "Open menu", onNavigationClick = { scope.launch { drawerState.open() } }, trailingIcons = {
-                    IconButton(onClick = {}) { Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface) }
-                })
+                TransportTopAppBar(
+                    title = state.title,
+                    navigationIcon = Icons.Rounded.Menu,
+                    navigationIconDesc = "Open menu",
+                    onNavigationClick = { scope.launch { drawerState.open() } },
+                    trailingIcons = {
+                        // S21: the sheet mirrors the chip row below it.
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            Icon(Icons.Rounded.Tune, contentDescription = "Filter", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                )
 
                 Row(
                     modifier = Modifier.padding(horizontal = Dimens.screenPadding),
@@ -184,6 +197,20 @@ fun VehicleBoardContent(
             }
         }
     }
+
+    // S21 — the vehicle-board filter sheet mirrors the chip row.
+    if (showFilterSheet) {
+        com.example.transportapp.core.designsystem.component.FilterSheet(
+            title = "Filter the board",
+            onDismiss = { showFilterSheet = false },
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.filterChips.forEach { chip ->
+                    FilterChip(chip, selected = state.selectedFilter == chip, onClick = { onEvent(VehicleBoardEvent.SelectFilter(chip)) })
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -208,7 +235,7 @@ private fun VehicleCard(vehicle: VehicleRow, loadIt: String, onLoad: () -> Unit)
             Text(vehicle.number, style = TransportTypeScale.dataMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
             Text(vehicle.ownership, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (vehicle.isLate) {
-                Spacer(Modifier.padding(horizontal = 4.dp))
+                Spacer(Modifier.width(4.dp))
                 Box(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(percent = 100))

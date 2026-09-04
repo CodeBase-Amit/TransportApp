@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.ArrowRightAlt
 import androidx.compose.material.icons.rounded.Cancel
@@ -107,6 +108,7 @@ fun CaseFileScreen(
         printStatus = printStatus,
         onBack = onBack,
         onPrint = viewModel::printBilty,
+        onShare = viewModel::shareBilty,
         onDismissPrintStatus = viewModel::dismissPrintStatus,
         onAddPhoto = {
             photoPicker.launch(androidx.activity.result.PickVisualMediaRequest(
@@ -165,6 +167,7 @@ fun CaseFileContent(
     printStatus: com.example.transportapp.core.ui.PrintStatus,
     onBack: () -> Unit,
     onPrint: () -> Unit,
+    onShare: () -> Unit,
     onDismissPrintStatus: () -> Unit,
     onAddPhoto: () -> Unit,
     onHold: () -> Unit,
@@ -180,11 +183,10 @@ fun CaseFileContent(
             modifier = Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.MoreVert, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface) }
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate back", tint = MaterialTheme.colorScheme.onSurface) }
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurface) }
-            IconButton(onClick = {}) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
-        }
+            IconButton(onClick = onShare) { Icon(Icons.Rounded.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.onSurface) }
+                    }
 
         SummaryStrip(
             *state.stats.map { it.label to it.value }.toTypedArray(),

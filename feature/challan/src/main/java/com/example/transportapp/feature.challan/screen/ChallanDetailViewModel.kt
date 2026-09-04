@@ -5,8 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.common.formatIndianGrouping
+import com.example.transportapp.data.transport.documents.DocumentRepository
 import com.example.transportapp.data.transport.session.SessionRepository
 import com.example.transportapp.data.transport.trip.TripRepository
+import com.example.transportapp.core.ui.PrintStatus
 import com.example.transportapp.domain.transport.PaymentMode
 import com.example.transportapp.domain.transport.TripState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,7 +53,6 @@ data class ChallanDetailUiState(
     val costOpen: Boolean = false,
     val isOwnerOrManager: Boolean = false,
     val whatsLoadedTitle: String = "WHAT'S LOADED",
-    val whatsLoadedAction: String = "Group by station",
     val showAll: String = "",
     val editLoad: String = "Edit load",
     val vehicleAndDriverHeading: String = "VEHICLE AND DRIVER",
@@ -104,18 +105,24 @@ sealed interface ChallanDetailEvent {
 /**
  * T11 (Phase2.md S7): the challan as document and then as record — dispatch is one
  * confident action, close settles the trip and moves every consignment per §11.2.
+ * S22 (D60): Print/Share render the challan through the fixed-format document path.
  */
 @HiltViewModel
 class ChallanDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val tripRepository: TripRepository,
+    private val documentRepository: DocumentRepository,
 ) : ViewModel() {
 
     private val challanNo: String = checkNotNull(savedStateHandle["challanNo"])
 
     private val _uiState = MutableStateFlow(ChallanDetailUiState(challanNo = challanNo))
     val uiState: StateFlow<ChallanDetailUiState> = _uiState.asStateFlow()
+
+    /** S22: the challan render/print status (same shape the case file uses). */
+    private val _printStatus = MutableStateFlow<PrintStatus>(PrintStatus.Idle)
+    val printStatus: StateFlow<PrintStatus> = _printStatus.asStateFlow()
 
     /** S19: the open add-cost dialog draft. */
     private val _costDraft = MutableStateFlow(CostDraft())
@@ -208,7 +215,10 @@ class ChallanDetailViewModel @Inject constructor(
         when (event) {
             is ChallanDetailEvent.Dispatch -> act { tripRepository.dispatch(it, System.currentTimeMillis()) }
             is ChallanDetailEvent.CloseTrip -> act { tripRepository.close(it, System.currentTimeMillis()) }
-            ChallanDetailEvent.EditLoad, ChallanDetailEvent.Print, ChallanDetailEvent.Share, ChallanDetailEvent.More -> Unit
+            ChallanDetailEvent.EditLoad, ChallanDetailEvent.More -> Unit
+            // S22 (D60): the challan renders through the fixed-format template (§11).
+            ChallanDetailEvent.Print -> actRender(print = true)
+            ChallanDetailEvent.Share -> actRender(print = false)
             // S19 — trip costs (§11): every cost needs a remark; the save reloads the money card.
             ChallanDetailEvent.StartAddCost -> _costDraft.update { CostDraft() }.also { _uiState.update { s -> s.copy(costOpen = true) } }
             ChallanDetailEvent.DismissAddCost -> _uiState.update { it.copy(costOpen = false) }
@@ -236,6 +246,23 @@ class ChallanDetailViewModel @Inject constructor(
                     is com.example.transportapp.core.common.Result.Failure ->
                         _uiState.update { it.copy(isLoading = false, error = result.message ?: result.code.name) }
                 }
+            }
+        }
+    }
+
+    /** S22: render the challan through the byte path, then print or share it. */
+    private fun actRender(print: Boolean) {
+        if (_printStatus.value is PrintStatus.Rendering) return
+        _printStatus.value = PrintStatus.Rendering("Preparing the challan…")
+        viewModelScope.launch {
+            when (val result = documentRepository.renderChallan(challanNo)) {
+                is com.example.transportapp.core.common.Result.Success -> {
+                    _printStatus.value = PrintStatus.Idle
+                    if (print) documentRepository.print(result.value)
+                    else documentRepository.share(result.value, "Challan $challanNo")
+                }
+                is com.example.transportapp.core.common.Result.Failure ->
+                    _printStatus.value = PrintStatus.Error(result.message ?: "The challan could not be rendered")
             }
         }
     }

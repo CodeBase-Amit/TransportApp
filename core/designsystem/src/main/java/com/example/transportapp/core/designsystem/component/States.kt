@@ -152,6 +152,7 @@ fun EmptyStateIllustrated(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        val routeColor = MaterialTheme.colorScheme.outlineVariant
         // The route-line motif: origin tick, dashed stretch, hollow destination.
         androidx.compose.foundation.Canvas(
             modifier = Modifier
@@ -161,7 +162,7 @@ fun EmptyStateIllustrated(
         ) {
             val y = size.height / 2
             val tick = 8.dp.toPx()
-            val lineColor = androidx.compose.ui.graphics.Color(0xFF71807A)
+            val lineColor = routeColor
             // origin tick
             drawLine(lineColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(tick, y), strokeWidth = 4f)
             // dashed stretch

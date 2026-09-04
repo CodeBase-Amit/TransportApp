@@ -55,6 +55,7 @@ import com.example.transportapp.domain.transport.ConsignmentStatus
 fun ChallanDetailScreen(
     onBack: () -> Unit,
     onCloseTrip: () -> Unit,
+    onEditLoad: () -> Unit = {},
     viewModel: ChallanDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -115,7 +116,8 @@ fun ChallanDetailContent(
     state: ChallanDetailUiState,
     onEvent: (ChallanDetailEvent) -> Unit,
     onBack: () -> Unit,
-    onCloseTrip: () -> Unit
+    onCloseTrip: () -> Unit,
+    onEditLoad: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(
@@ -183,7 +185,7 @@ fun ChallanDetailContent(
             }
             item {
                 Column {
-                    GroupHeading(state.whatsLoadedTitle, trailing = { Text(state.editLoad, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp)) })
+                    if (state.editLoad.isNotEmpty()) { GroupHeading(state.whatsLoadedTitle, trailing = { Text(state.editLoad, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 8.dp).clickable { onEditLoad() }) }) } else { GroupHeading(state.whatsLoadedTitle) }
                     ContentCard(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         state.challanGroups.forEach { group ->
                             if (group.rows.isNotEmpty()) {

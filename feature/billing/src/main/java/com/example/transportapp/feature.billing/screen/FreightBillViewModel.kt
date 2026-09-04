@@ -24,12 +24,37 @@ import javax.inject.Inject
 class FreightBillViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val billingRepository: BillingRepository,
+    private val documentRepository: com.example.transportapp.data.transport.documents.DocumentRepository,
 ) : ViewModel() {
 
     private val billId: String = savedStateHandle.get<String>("billId").orEmpty()
 
     private val _uiState = MutableStateFlow(FreightBillUiState(billId = billId))
     val uiState: StateFlow<FreightBillUiState> = _uiState.asStateFlow()
+
+    /** S22: the bill render/print status. */
+    private val _printStatus = MutableStateFlow<com.example.transportapp.core.ui.PrintStatus>(com.example.transportapp.core.ui.PrintStatus.Idle)
+    val printStatus: StateFlow<com.example.transportapp.core.ui.PrintStatus> = _printStatus.asStateFlow()
+
+    fun printBill() = actRender(print = true)
+    fun shareBill() = actRender(print = false)
+
+    /** S22 (D60): render the issued freight bill, then print or share it. */
+    private fun actRender(print: Boolean) {
+        if (_printStatus.value is com.example.transportapp.core.ui.PrintStatus.Rendering) return
+        _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Rendering("Preparing the bill...")
+        viewModelScope.launch {
+            when (val result = documentRepository.renderFreightBill(billId)) {
+                is com.example.transportapp.core.common.Result.Success -> {
+                    _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Idle
+                    if (print) documentRepository.print(result.value)
+                    else documentRepository.share(result.value, "Freight bill")
+                }
+                is com.example.transportapp.core.common.Result.Failure ->
+                    _printStatus.value = com.example.transportapp.core.ui.PrintStatus.Error(result.message ?: "The bill could not be rendered")
+            }
+        }
+    }
 
     init {
         billingRepository.observeBill(billId)

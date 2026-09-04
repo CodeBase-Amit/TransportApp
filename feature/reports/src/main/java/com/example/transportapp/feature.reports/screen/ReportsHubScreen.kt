@@ -57,13 +57,6 @@ fun ReportsHubContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = {}) {
-                Icon(
-                    Icons.Rounded.History,
-                    contentDescription = "History",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
         })
 
         Row(

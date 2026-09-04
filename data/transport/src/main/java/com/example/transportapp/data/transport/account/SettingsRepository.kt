@@ -53,6 +53,7 @@ class SettingsRepository @Inject constructor(
     private val numberingDao: NumberingDao,
     private val sessionRepository: SessionRepository,
     private val outboxWriter: OutboxWriter,
+    private val photoImporter: com.example.transportapp.data.transport.tracking.PhotoImporter,
 ) {
 
     fun branches(): Flow<List<BranchRowData>> =
@@ -90,6 +91,7 @@ class SettingsRepository @Inject constructor(
         val gstin: String?,
         val pan: String?,
         val transporterId: String?,
+        val logoRef: String?,
     )
 
     suspend fun companyProfile(companyId: String): CompanyProfile? {
@@ -101,6 +103,7 @@ class SettingsRepository @Inject constructor(
             gstin = company.gstin,
             pan = company.pan,
             transporterId = company.transporter_id,
+            logoRef = company.logo_ref,
         )
     }
 
@@ -173,8 +176,116 @@ class SettingsRepository @Inject constructor(
     suspend fun branchIdForName(companyId: String, branchName: String): String? =
         orgDao.getBranchesForCompany(companyId).firstOrNull { it.name == branchName }?.local_id
 
+    /** S21: the invite row's X resolves by email (the UI row carries no membership id). */
+    suspend fun cancelInvitationByMail(companyId: String, email: String): com.example.transportapp.core.common.Result<Unit> {
+        val membership = orgDao.observeMemberships().first().firstOrNull {
+            it.company_id == companyId && it.user_email == email &&
+                it.status == com.example.transportapp.core.database.entity.MembershipEntity.STATUS_INVITED &&
+                it.deleted_at == null
+        } ?: return com.example.transportapp.core.common.Result.failure(
+            com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "That invitation no longer exists"
+        )
+        return cancelInvitation(membership.local_id)
+    }
+
     /**
-     * S19 — the §17.4.1 invite: Owner-only; writes an INVITED membership row with a
+     * S22 — save the company logo (D60): the picked image is imported into app files,
+     * COMPANY_E.logo_ref is set, and the change rides the outbox.
+     */
+    suspend fun saveLogo(companyId: String, source: android.net.Uri): com.example.transportapp.core.common.Result<String> {
+        val imported = photoImporter.importToAppFiles(source, "logos")
+            ?: return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.PHOTO_QUALITY, "That image could not be read. Try another one."
+            )
+        val company = orgDao.getCompany(companyId) ?: return com.example.transportapp.core.common.Result.failure(
+            com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "No company on this device"
+        )
+        val now = System.currentTimeMillis()
+        orgDao.upsertCompany(company.copy(logo_ref = imported.first, updated_at_local = now))
+        outboxWriter.enqueue(
+            op = OutboxOp.UPDATE,
+            entityType = OutboxEntityType.COMPANY,
+            entityLocalId = companyId,
+            payloadJson = """{"logo_ref":"${imported.first}"}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(imported.first)
+    }
+
+    /**
+     * S21 — add a branch (T26's Add a branch): Owner-only; BRANCH_E + outbox INSERT.
+     * A branch name that already exists in the company is refused.
+     */
+    suspend fun addBranch(companyId: String, name: String, code: String, address: String): com.example.transportapp.core.common.Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER" && session.role != "MANAGER") {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.AUTH_NO_ACCESS, "Only a Manager can add a branch"
+            )
+        }
+        if (name.isBlank() || code.isBlank()) {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "Branch name and code are required"
+            )
+        }
+        val existing = orgDao.getBranchesForCompany(companyId).firstOrNull { it.deleted_at == null && it.name.equals(name.trim(), ignoreCase = true) }
+        if (existing != null) {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "A branch named $name already exists"
+            )
+        }
+        val now = System.currentTimeMillis()
+        val branchId = java.util.UUID.randomUUID().toString()
+        orgDao.upsertBranch(
+            com.example.transportapp.core.database.entity.BranchEntity(
+                local_id = branchId, server_id = null,
+                updated_at_local = now, updated_at_server = null,
+                sync_state = com.example.transportapp.core.database.envelope.SyncState.PENDING, deleted_at = null,
+                company_id = companyId, name = name.trim(), code = code.trim().uppercase(),
+                address = address.trim().takeIf { it.isNotEmpty() }, is_head_office = false,
+            ),
+        )
+        outboxWriter.enqueue(
+            op = OutboxOp.INSERT,
+            entityType = OutboxEntityType.BRANCH,
+            entityLocalId = branchId,
+            payloadJson = """{"name":"${name.trim()}","code":"${code.trim().uppercase()}"}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(Unit)
+    }
+
+    /**
+     * S21 — cancel an invitation: the membership row is tombstoned (never hard-deleted,
+     * §16.2) and the change rides the outbox. Owner-only.
+     */
+    suspend fun cancelInvitation(membershipLocalId: String): com.example.transportapp.core.common.Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER") {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.AUTH_NO_ACCESS, "Only the Owner can cancel an invitation"
+            )
+        }
+        val now = System.currentTimeMillis()
+        val membership = orgDao.getMembership(membershipLocalId)
+            ?: return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.MASTER_IN_USE, "That invitation no longer exists"
+            )
+        orgDao.upsertMembership(
+            membership.copy(deleted_at = now, updated_at_local = now),
+        )
+        outboxWriter.enqueue(
+            op = OutboxOp.DELETE,
+            entityType = OutboxEntityType.MEMBERSHIP,
+            entityLocalId = membershipLocalId,
+            payloadJson = """{"email":"${membership.user_email}"}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(Unit)
+    }
+
+    /**
+     * S21 — the §17.4.1 invite: Owner-only; writes an INVITED membership row with a
      * five-day expiry and its outbox INSERT (the invite travels with the sync, §16.2).
      * A member already active on that email is refused.
      */

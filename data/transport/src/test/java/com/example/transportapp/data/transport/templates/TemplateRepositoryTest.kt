@@ -57,6 +57,7 @@ class TemplateRepositoryTest {
                 )
 
                 override suspend fun signIn() {}
+        override suspend fun updateDisplayName(name: String) {}
         override suspend fun signOut() {}
             },
             OutboxWriter(database.outboxDao()),

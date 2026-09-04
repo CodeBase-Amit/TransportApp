@@ -30,8 +30,17 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
     composable(Routes.SIGN_IN) {
         SignInScreen(
             onSignedIn = { navController.navigate(Routes.COMPANY_PICKER) { popUpTo(Routes.SIGN_IN) { inclusive = true } } },
-            onTerms = {},
-            onPrivacy = {}
+            onTerms = { navController.navigate(Routes.legalDoc("Terms")) },
+            onPrivacy = { navController.navigate(Routes.legalDoc("Privacy Policy")) }
+        )
+    }
+    composable(
+        route = Routes.LEGAL_DOC,
+        arguments = listOf(androidx.navigation.navArgument("title") { type = androidx.navigation.NavType.StringType })
+    ) { entry ->
+        com.example.transportapp.feature.auth.screen.LegalDocScreen(
+            title = entry.arguments?.getString("title") ?: "Terms",
+            onBack = { navController.popBackStack() }
         )
     }
     composable(Routes.COMPANY_PICKER) {

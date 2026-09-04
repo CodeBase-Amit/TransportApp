@@ -21,11 +21,27 @@ data class BranchesUiState(
     val addBranch: String = "Add a branch",
     val headOfficeChip: String = "HEAD OFFICE",
     val branches: List<BranchRow> = emptyList(),
-)
+    // S21 — the add-branch dialog (Owner/Manager only)
+    val canManage: Boolean = false,
+    val showAddBranch: Boolean = false,
+    val branchName: String = "",
+    val branchCode: String = "",
+    val branchAddress: String = "",
+    val isSaving: Boolean = false,
+    val error: String? = null,
+) {
+    val branchValid: Boolean get() = branchName.isNotBlank() && branchCode.isNotBlank()
+}
 
 sealed interface BranchesEvent {
     data object AddBranch : BranchesEvent
     data object BranchMore : BranchesEvent
+    // S21 — the add-branch dialog
+    data object DismissAddBranch : BranchesEvent
+    data class ChangeBranchName(val value: String) : BranchesEvent
+    data class ChangeBranchCode(val value: String) : BranchesEvent
+    data class ChangeBranchAddress(val value: String) : BranchesEvent
+    data object SaveBranch : BranchesEvent
 }
 
 /** T27 member rows (active + invited share one shape). */
@@ -70,11 +86,13 @@ sealed interface MembersEvent {
     data object Invite : MembersEvent
     data object ToggleRoleMatrix : MembersEvent
     data object Resend : MembersEvent
-    // S19 — the invite dialog
+    // S19 - the invite dialog
     data object DismissInvite : MembersEvent
     data class ChangeInviteEmail(val value: String) : MembersEvent
     data class ChangeInviteRole(val role: String) : MembersEvent
     data object SendInvite : MembersEvent
+    // S21 - cancel an invitation (tombstone + outbox)
+    data class CancelInvite(val memberEmail: String) : MembersEvent
 }
 
 /** T28 series card. */

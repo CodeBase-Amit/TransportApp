@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,10 +56,19 @@ fun CompanyProfileScreen(
     viewModel: CompanyProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    // S22 (D60): the logo picker — real Photo Picker, image imported + compressed into app files.
+    val logoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { viewModel.onEvent(CompanyProfileEvent.LogoPicked(it)) } }
     CompanyProfileContent(
         state = state,
         onEvent = viewModel::onEvent,
-        onBack = onBack
+        onBack = onBack,
+        onPickLogo = {
+            logoPicker.launch(androidx.activity.result.PickVisualMediaRequest(
+                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+            ))
+        }
     )
 }
 
@@ -66,7 +76,8 @@ fun CompanyProfileScreen(
 fun CompanyProfileContent(
     state: CompanyProfileUiState,
     onEvent: (CompanyProfileEvent) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onPickLogo: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(
@@ -155,10 +166,13 @@ fun CompanyProfileContent(
             TransportTextField(state.website, { onEvent(CompanyProfileEvent.ChangeWebsite(it)) }, "Website")
 
             GroupHeading(state.logoHeading)
+            // S22 (D60): the tappable logo box launches the Photo Picker; the letterhead
+            // preview shows the logo once saved to COMPANY_E.
             Box(
                 modifier = Modifier
                     .size(96.dp)
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppShapes.nestedCard)
+                    .clickable(onClick = onPickLogo)
                     .padding(Dimens.screenPadding),
                 contentAlignment = Alignment.Center
             ) {
