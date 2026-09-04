@@ -36,5 +36,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun numberingApi(client: ApiClient): com.example.transportapp.core.network.NumberingApi = com.example.transportapp.core.network.NumberingApi(client)
+
+    @Provides
+    @Singleton
+    fun mastersApi(client: ApiClient): com.example.transportapp.core.network.MastersApi = com.example.transportapp.core.network.MastersApi(client)
 }
 

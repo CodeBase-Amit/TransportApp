@@ -915,6 +915,7 @@ New decisions taken this sprint that amend the plan:
 | D61 | S22's operational documents — see the S22 section | challan/bill/receipt/statement are **fixed-format inline HTML** (OperationalDocuments), unlike the bilty's user-serviceable doc-engine template; they render through the same pdf-android byte path |
 | D62 | S23's offline-first networking — see the S23 section | the app works identically without the backend: `OFFLINE_UNAVAILABLE` is a typed state, sign-in degrades to the mock identity when the server is unreachable, and Room remains the only read source |
 | D63 | S24's refresh + lease reconciliation — see the S24 section | `MastersRefresher` upserts by `server_id` (local-only rows untouched — they belong to S25's drain); the server lease parks on a one-number local lease so the consumption path is unchanged, and any server failure falls back to the local block grant |
+| D64 | S25's drain — see the S25 section | `OutboxPush` maps PARTY ops → the REST surface (INSERT/UPDATE/DELETE), writes the server `_id` back on INSERT, marks rows DONE/retriable, and never fails the caller; unsupported families answer OFFLINE_UNAVAILABLE until their sprints |
 
 ---
 
@@ -1857,3 +1858,53 @@ offline-first contract.
 drivers follow the identical pattern when their screens need them; masters rows updated
 remotely still carry `sync_state = SYNCED`; conflict handling waits for S25's drain and the
 production backend's idempotency endpoints.
+
+---
+
+## Phase 3.3-lite, Sprint S25 — Outbox drain + pull-lite
+
+**Goal:** the outbox drain is real — local ops push to the backend, DONE/retriable
+bookkeeping happens per row, and T31's "Try now" forces a drain + masters refresh.
+
+### What was built
+
+- **`OutboxPush`** (data layer, D64). The op→REST mapper: PARTY INSERT → `POST /api/parties`,
+  UPDATE → `PATCH /api/parties/:serverId`, DELETE → `DELETE /api/parties/:serverId` (or a
+  local no-op when the row never reached the server). On INSERT success the server's `_id`
+  is written back onto the mirrored row (`server_id` + `SYNCED`) so later UPDATE/DELETE ops
+  address the real server document. Rows the clerk created offline stay untouched by the
+  refresher (D63) — only the drain owns their server identity.
+- **`OutboxDrainWorker` activated.** `doWork` now calls `OutboxPush.drain(limit = 100)`:
+  ready rows (prerequisite-ordered by the existing table) push one by one; 2xx marks DONE,
+  failures mark retriable with exponential backoff (base 60 s, capped shift 6) and the
+  failure code recorded for T31's queue. A blocked drain logs and returns success — the
+  periodic schedule governs retries, never the UI.
+- **T31 "Sync now" is real.** The Try now button forces `OutboxPush.drain()` +
+  `MastersRefresher.refreshAll()`, then re-reads the queue — the button label carries the
+  pushed count ("Sync now · N sent").
+- **Pull-lite.** Masters refresh (S24) is the pull; drain is the push. Together they form
+  the push/pull loop the offline-first design promised — with the reconciliation boundary
+  the test backend's shape dictates (below).
+
+### Verification
+
+- **233 tests / 0 failures / 53 suites.** New `OutboxPushTest` (4): a party INSERT drains
+  and writes the server `_id` back (SYNCED, DONE), a server failure marks the row retriable
+  with PENDING preserved, a dead network leaves rows PENDING (offline-first contract), and
+  an empty drain succeeds with zero.
+- **Live demo:** party created on-device → T31 → Sync now → the backend log recorded
+  `GET /api/parties 401` — the drain reached the server over HTTP and was refused because
+  the mock session carries no JWT; the 401→`AUTH_EXPIRED`→retriable path is the correct
+  protocol behaviour, and the tenant reconciliation (local seed ids ↔ Mongo ObjectIds)
+  waits for real auth (S24's deferred sign-in UI) with the production backend.
+
+### Decisions taken this sprint (D64)
+
+| # | Decision | Why |
+|---|---|---|
+| D64 | PARTY ops first (INSERT/UPDATE/DELETE + server-id writeback); other families answer OFFLINE_UNAVAILABLE until their sprints; the drain never fails its caller | the party family exercises the full REST mapping with the simplest shapes; every other family follows the identical pattern, and WorkManager's schedule — not the UI — owns retries |
+
+**Scope notes:** consignment/trip/billing ops drain when their POST mappings land (S24's
+booking push carries them); the 401 on unauthenticated drains is correct until the real
+sign-in UI ships (the repo path exists since S23); Mongo ObjectIds ↔ local UUID
+reconciliation is the production-backend boundary already recorded.

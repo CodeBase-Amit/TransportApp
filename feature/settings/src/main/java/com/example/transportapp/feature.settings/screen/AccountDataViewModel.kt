@@ -18,11 +18,14 @@ import javax.inject.Inject
  * T31 — Account and data (§B31): storage facts, the real OUTBOX queue read as sentences,
  * and sign-out. The destructive leave/delete blocks stay visual until the online tier.
  * All data comes from [AccountDataRepository] — a ViewModel never touches files (Spec §14).
+ * S25: "Try now" forces a real drain + masters refresh through the repositories.
  */
 @HiltViewModel
 class AccountDataViewModel @Inject constructor(
     private val accountDataRepository: AccountDataRepository,
     private val sessionRepository: SessionRepository,
+    private val outboxPush: com.example.transportapp.data.transport.sync.OutboxPush,
+    private val mastersRefresher: com.example.transportapp.data.transport.masters.MastersRefresher,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AccountDataUiState())
@@ -36,6 +39,13 @@ class AccountDataViewModel @Inject constructor(
 
     private fun refresh() {
         viewModelScope.launch {
+            // S25: Try now actually drains — push outbox rows, then pull masters — before
+            // re-reading the queue so the UI reflects what just left the device.
+            val pushed = when (val report = outboxPush.drain()) {
+                is com.example.transportapp.core.common.Result.Success -> report.value.pushed
+                is com.example.transportapp.core.common.Result.Failure -> 0
+            }
+            mastersRefresher.refreshAll()
             val data = accountDataRepository.phoneData()
             _uiState.update {
                 it.copy(
@@ -49,6 +59,7 @@ class AccountDataViewModel @Inject constructor(
                             state = if (row.pending) "Pending" else "Syncing",
                         )
                     },
+                    tryNow = "Sync now · $pushed sent",
                 )
             }
         }

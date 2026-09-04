@@ -22,6 +22,7 @@ android {
 
 dependencies {
     implementation(project(":core:database"))
+    implementation(project(":data:transport"))
 
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.hilt.work)
