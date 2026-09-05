@@ -43,12 +43,6 @@ class ReportsHubViewModel @Inject constructor(
         }
     }
 
-    fun onEvent(event: ReportsHubEvent) {
-        when (event) {
-            ReportsHubEvent.ChangePeriod -> _uiState.update { it }
-        }
-    }
-
     private fun fyStart(now: Long): Long {
         val cal = Calendar.getInstance()
         cal.timeInMillis = now

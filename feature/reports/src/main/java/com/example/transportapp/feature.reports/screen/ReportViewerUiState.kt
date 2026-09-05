@@ -29,7 +29,7 @@ data class ReportViewerUiState(
 sealed interface ReportViewerEvent {
     data class RemoveFilter(val filter: String) : ReportViewerEvent
     data object ClearAll : ReportViewerEvent
-    data object OpenFilters : ReportViewerEvent
+    // S27: OpenFilters removed with its dead icon — no filter sheet exists yet.
     data object ExportExcel : ReportViewerEvent
     data object ExportPdf : ReportViewerEvent
     data object DismissNotice : ReportViewerEvent

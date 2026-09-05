@@ -82,7 +82,11 @@ class DemoSeeder @Inject constructor(
             gst_treatment = "FORWARD",
             display_bilty_series = "IND/2627 · next number 04189",
                 logo_ref = null,
-        )
+                // S27 (D66): the demo letterhead now carries the fields T25 edits.
+                constitution = "Proprietorship", city = "Indore", pincode = "452003", state = "Madhya Pradesh",
+                phone = "+91 98260 11223", alt_phone = null, email = "office@shivshakti.example.in",
+                website = null, footer_clause = "Goods once booked travel at owner's risk subject to Indian Carriage of Goods by Road Act.",
+            )
         val bharatCargo = CompanyEntity(
             local_id = ID_BHARAT_CARGO,
             server_id = null,
@@ -99,7 +103,9 @@ class DemoSeeder @Inject constructor(
             gst_treatment = "FORWARD",
             display_bilty_series = null,
                 logo_ref = null,
-        )
+                constitution = null, city = null, pincode = null, state = null,
+                phone = null, alt_phone = null, email = null, website = null, footer_clause = null,
+            )
         val malwa = CompanyEntity(
             local_id = ID_MALWA,
             server_id = null,
@@ -116,7 +122,9 @@ class DemoSeeder @Inject constructor(
             gst_treatment = "FORWARD",
             display_bilty_series = null,
                 logo_ref = null,
-        )
+                constitution = null, city = null, pincode = null, state = null,
+                phone = null, alt_phone = null, email = null, website = null, footer_clause = null,
+            )
         orgDao.upsertCompany(shivshakti)
         orgDao.upsertCompany(bharatCargo)
         orgDao.upsertCompany(malwa)

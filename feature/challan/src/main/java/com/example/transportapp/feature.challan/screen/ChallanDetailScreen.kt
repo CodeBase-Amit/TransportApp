@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowRightAlt
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.LocalShipping
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Print
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.TaskAlt
@@ -60,11 +59,18 @@ fun ChallanDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val costDraft by viewModel.costDraft.collectAsState()
+    // S27: print/share render failures were written into a StateFlow nobody collected.
+    val printStatus by viewModel.printStatus.collectAsState()
     ChallanDetailContent(
         state = state,
         onEvent = viewModel::onEvent,
         onBack = onBack,
-        onCloseTrip = onCloseTrip
+        onCloseTrip = onCloseTrip,
+        // S27: the nav callback was accepted but never forwarded — "Edit load" clicked a
+        // default empty lambda and did nothing.
+        onEditLoad = onEditLoad,
+        printStatus = printStatus,
+        onDismissPrintStatus = viewModel::dismissPrintStatus,
     )
     // S19: the §11 add-cost dialog — head chips, rupee amount, mandatory remark.
     if (state.costOpen) {
@@ -117,7 +123,9 @@ fun ChallanDetailContent(
     onEvent: (ChallanDetailEvent) -> Unit,
     onBack: () -> Unit,
     onCloseTrip: () -> Unit,
-    onEditLoad: () -> Unit = {}
+    onEditLoad: () -> Unit = {},
+    printStatus: com.example.transportapp.core.ui.PrintStatus = com.example.transportapp.core.ui.PrintStatus.Idle,
+    onDismissPrintStatus: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         Row(
@@ -127,7 +135,34 @@ fun ChallanDetailContent(
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Navigate back", tint = MaterialTheme.colorScheme.onSurface) }
             Spacer(Modifier.weight(1f))
             IconButton(onClick = { onEvent(ChallanDetailEvent.Print) }) { Icon(Icons.Rounded.Print, contentDescription = "Print", tint = MaterialTheme.colorScheme.onSurface) }
-            IconButton(onClick = { onEvent(ChallanDetailEvent.More) }) { Icon(Icons.Rounded.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurface) }
+        }
+
+        // S27: render/print failures now surface with the CaseFile affordance (tap to dismiss).
+        when (val status = printStatus) {
+            is com.example.transportapp.core.ui.PrintStatus.Rendering -> androidx.compose.material3.LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth()
+            )
+            is com.example.transportapp.core.ui.PrintStatus.Error -> Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onDismissPrintStatus)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(status.message, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                Text("Dismiss", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            com.example.transportapp.core.ui.PrintStatus.Idle -> Unit
+        }
+
+        // S27: dispatch/close/add-cost failures set state.error that was never rendered.
+        state.error?.let { message ->
+            Text(
+                message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            )
         }
 
         LazyColumn(
@@ -203,7 +238,8 @@ fun ChallanDetailContent(
                                 }
                             }
                         }
-                        Text(state.showAll, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        // S27: the card already renders every leg — the old "Show all N"
+                        // was a styled link to nothing and is gone.
                     }
                 }
             }
@@ -312,7 +348,22 @@ private fun VehicleAndDriver(state: ChallanDetailUiState) {
                 Text(state.driverInitials, style = TransportTypeScale.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Rounded.Call, contentDescription = "Call driver", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            // S27: the call affordance is now honest — a real dialer intent when the driver
+            // has a phone on record, nothing drawn when they don't.
+            if (state.driverPhone.isNotBlank()) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Icon(
+                    Icons.Rounded.Call,
+                    contentDescription = "Call driver",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${state.driverPhone}"))
+                            context.startActivity(intent)
+                        },
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text(state.driverLine, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -343,7 +394,7 @@ private fun PaperChallanPreview(state: ChallanDetailUiState) {
                 }
             }
         }
-        Text(state.paperSeeFull, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+        // S27: "See full challan" was a styled link to nothing — Print/Share render the real paper.
     }
 }
 

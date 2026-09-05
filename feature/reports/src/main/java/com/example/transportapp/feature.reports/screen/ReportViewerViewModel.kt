@@ -65,7 +65,6 @@ class ReportViewerViewModel @Inject constructor(
         when (event) {
             is ReportViewerEvent.RemoveFilter -> _uiState.update { it.copy(filters = it.filters - event.filter) }
             ReportViewerEvent.ClearAll -> _uiState.update { it.copy(filters = emptyList()) }
-            ReportViewerEvent.OpenFilters -> _uiState.update { it }
             ReportViewerEvent.ExportExcel -> exportCsv()
             ReportViewerEvent.ExportPdf -> _uiState.update {
                 it.copy(notice = "PDF export ships with the online tier — use Export to CSV today")

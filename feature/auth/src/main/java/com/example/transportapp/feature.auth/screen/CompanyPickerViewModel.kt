@@ -131,7 +131,12 @@ class CompanyPickerViewModel @Inject constructor(
                 viewModelScope.launch { companyRepository.setInvitationDeclined(invite.membershipLocalId) }
             }
             CompanyPickerEvent.RegisterCompany -> Unit // navigation callback
-            CompanyPickerEvent.SignOut -> viewModelScope.launch { sessionRepository.signOut() }
+            // S27: sign out first, then surface signedOut — navigating before the session
+            // clears made Splash resolve straight back to the picker.
+            CompanyPickerEvent.SignOut -> viewModelScope.launch {
+                sessionRepository.signOut()
+                _uiState.update { it.copy(signedOut = true) }
+            }
         }
     }
 

@@ -53,12 +53,13 @@ data class ChallanDetailUiState(
     val costOpen: Boolean = false,
     val isOwnerOrManager: Boolean = false,
     val whatsLoadedTitle: String = "WHAT'S LOADED",
-    val showAll: String = "",
     val editLoad: String = "Edit load",
     val vehicleAndDriverHeading: String = "VEHICLE AND DRIVER",
     val vehicleNumber: String = "",
     val vehicleOwnership: String = "",
     val driverInitials: String = "",
+    /** S27: shown so the call affordance is honest — the pad dials the driver. */
+    val driverPhone: String = "",
     val driverLine: String = "",
     val challanGroups: List<ChallanStationGroup> = emptyList(),
     val paperCompany: String = "SHIVSHAKTI ROADLINES",
@@ -66,7 +67,6 @@ data class ChallanDetailUiState(
     val paperChallanNo: String = "",
     val paperVehicle: String = "",
     val paperBiltyLines: List<BiltyLine> = emptyList(),
-    val paperSeeFull: String = "See full challan",
     val dispatchedNotice: String = "",
     val isDispatched: Boolean = false,
     val isClosed: Boolean = false,
@@ -92,7 +92,6 @@ sealed interface ChallanDetailEvent {
     data object EditLoad : ChallanDetailEvent
     data object Print : ChallanDetailEvent
     data object Share : ChallanDetailEvent
-    data object More : ChallanDetailEvent
     // S19 — trip costs (§11)
     data object StartAddCost : ChallanDetailEvent
     data object DismissAddCost : ChallanDetailEvent
@@ -162,7 +161,6 @@ class ChallanDetailViewModel @Inject constructor(
                     hire = Money(detail.hirePaise).formatted(),
                     balance = Money(detail.balancePaise).formatted(),
                     editLoad = if (detail.state == TripState.ISSUED) "Edit load" else "",
-                    showAll = if (detail.consignments > 5) "Show all ${detail.consignments}" else "",
                     vehicleNumber = detail.vehicleNumber,
                     vehicleOwnership = when (detail.vehicleOwnership) {
                         "OWN" -> "Own · ${formatIndianGrouping(detail.vehicleCapacityKg.toLong())} kg"
@@ -170,6 +168,8 @@ class ChallanDetailViewModel @Inject constructor(
                         else -> "Market · ${formatIndianGrouping(detail.vehicleCapacityKg.toLong())} kg"
                     },
                     driverInitials = detail.driverName.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString("").uppercase(),
+                    // S27: the phone is surfaced on the driver card; the icon becomes a dial pad.
+                    driverPhone = detail.driverPhone.orEmpty(),
                     driverLine = listOfNotNull(detail.driverLicence?.let { "Licence $it" }, detail.driverPhone).joinToString(" · "),
                     challanGroups = detail.legs
                         .groupBy { it.toStation }
@@ -215,7 +215,8 @@ class ChallanDetailViewModel @Inject constructor(
         when (event) {
             is ChallanDetailEvent.Dispatch -> act { tripRepository.dispatch(it, System.currentTimeMillis()) }
             is ChallanDetailEvent.CloseTrip -> act { tripRepository.close(it, System.currentTimeMillis()) }
-            ChallanDetailEvent.EditLoad, ChallanDetailEvent.More -> Unit
+            // S27: EditLoad is handled by the screen via the nav callback; no VM action.
+            ChallanDetailEvent.EditLoad -> Unit
             // S22 (D60): the challan renders through the fixed-format template (§11).
             ChallanDetailEvent.Print -> actRender(print = true)
             ChallanDetailEvent.Share -> actRender(print = false)
@@ -265,6 +266,11 @@ class ChallanDetailViewModel @Inject constructor(
                     _printStatus.value = PrintStatus.Error(result.message ?: "The challan could not be rendered")
             }
         }
+    }
+
+    /** S27: the render error row's Dismiss — the same affordance CaseFile surfaces. */
+    fun dismissPrintStatus() {
+        _printStatus.value = PrintStatus.Idle
     }
 
     private fun act(action: suspend (String) -> com.example.transportapp.core.common.Result<Unit>) {

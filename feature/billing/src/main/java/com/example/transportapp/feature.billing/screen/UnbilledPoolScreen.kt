@@ -206,8 +206,12 @@ private fun UnbilledPartyCard(
             )
         }
         if (party.expanded) {
+            // S27: "Show all N" was a styled link to nothing — the card caps at five rows.
+            // The cap now toggles for real.
+            var showAllRows by androidx.compose.runtime.remember(party.group.partyId) { androidx.compose.runtime.mutableStateOf(false) }
             Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                party.rows.take(5).forEach { row ->
+                val visible = if (showAllRows) party.rows else party.rows.take(5)
+                visible.forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -223,7 +227,14 @@ private fun UnbilledPartyCard(
                     }
                 }
                 if (party.rows.size > 5) {
-                    Text("Show all ${party.group.consignments}", style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        if (showAllRows) "Show the five newest only" else "Show all ${party.group.consignments}",
+                        style = TransportTypeScale.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .clickable { showAllRows = !showAllRows },
+                    )
                 }
             }
         }

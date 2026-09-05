@@ -55,7 +55,13 @@ fun NavGraphBuilder.settingsNavGraph(navController: NavController) {
             onBack = { navController.popBackStack() },
             onOpenScreenMap = if (isDebuggable) {
                 { navController.navigate(Routes.SCREEN_INDEX) }
-            } else null
+            } else null,
+            // S27: Section C's sign-out card is live now — same route as T24's sign-out.
+            onSignedOut = {
+                navController.navigate(Routes.SPLASH) {
+                    popUpTo(0) { inclusive = true }
+                }
+            },
         )
     }
 }

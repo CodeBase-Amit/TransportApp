@@ -36,7 +36,7 @@ object Routes {
 
     // Masters
     const val MASTERS_HUB = "masters_hub"               // T17
-    const val MASTER_LIST = "master_list/{type}"        // T18
+    const val MASTER_LIST = "master_list/{type}?filter={filter}" // T18 (S27: optional preselected filter)
     const val MASTER_EDITOR = "master_editor/{type}/{id}" // T19
     const val RATE_CARD_EDITOR = "rate_card_editor/{partyId}" // T20
 
@@ -67,7 +67,7 @@ object Routes {
     fun challanDetail(challanNo: String) = "challan_detail/${Uri.encode(challanNo)}"
     fun freightBill(billId: String) = "freight_bill/${Uri.encode(billId)}"
     fun statement(partyId: String) = "statement/${Uri.encode(partyId)}"
-    fun masterList(type: String) = "master_list/${Uri.encode(type)}"
+    fun masterList(type: String, filter: Int = 0) = "master_list/${Uri.encode(type)}?filter=$filter"
     fun masterEditor(type: String, id: String) = "master_editor/${Uri.encode(type)}/${Uri.encode(id)}"
     fun rateCardEditor(partyId: String) = "rate_card_editor/${Uri.encode(partyId)}"
     fun legalDoc(title: String) = "legal_doc/${Uri.encode(title)}"

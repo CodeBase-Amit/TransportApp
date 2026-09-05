@@ -14,3 +14,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+key.properties
+*.jks
+*.keystore
+
+# Local tooling artifacts
+.ui-review/
+build-debug.log

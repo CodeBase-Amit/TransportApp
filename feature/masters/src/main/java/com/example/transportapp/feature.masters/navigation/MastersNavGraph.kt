@@ -23,12 +23,17 @@ fun NavGraphBuilder.mastersNavGraph(navController: NavController) {
                 } else {
                     navController.navigate(Routes.masterList(type))
                 }
-            }
+            },
+            // S27: "Review them" opens the party list prefiltered on duplicates.
+            onReviewDuplicates = { navController.navigate(Routes.masterList("Parties", filter = 3)) },
         )
     }
     composable(
         route = Routes.MASTER_LIST,
-        arguments = listOf(navArgument("type") { type = NavType.StringType })
+        arguments = listOf(
+            navArgument("type") { type = NavType.StringType },
+            navArgument("filter") { type = NavType.IntType; defaultValue = 0 },
+        )
     ) { entry ->
         val type = entry.arguments?.getString("type") ?: "parties"
         MasterListScreen(

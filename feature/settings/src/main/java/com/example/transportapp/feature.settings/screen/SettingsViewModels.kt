@@ -56,7 +56,6 @@ class BranchesViewModel @Inject constructor(
                         _uiState.update { it.copy(isSaving = false, error = result.message ?: result.code.name) }
                 }
             }
-            BranchesEvent.BranchMore -> _uiState.update { it }
         }
     }
 }
@@ -114,7 +113,6 @@ class MembersViewModel @Inject constructor(
                 }
             }
             MembersEvent.ToggleRoleMatrix -> _uiState.update { it.copy(showRoleMatrix = !it.showRoleMatrix) }
-            MembersEvent.Resend -> _uiState.update { it }
             // S21: the invitation row's X — tombstone + outbox, then the live query drops the row.
             is MembersEvent.CancelInvite -> viewModelScope.launch {
                 val session = sessionRepository.session.first()
@@ -184,13 +182,9 @@ class NumberingViewModel @Inject constructor(
                 val newCounter = edit.typed.toLongOrNull() ?: return@launch
                 _uiState.update { it.copy(isSaving = true, error = null) }
                 val companyId = sessionRepository.session.first().companyId
-                val branchId = settingsRepository.branchIdForName(companyId, edit.label.substringAfter(" · "))
-                val docType = edit.label.substringBefore(" · ").uppercase().replace(' ', '_')
-                if (branchId == null) {
-                    _uiState.update { it.copy(isSaving = false, error = "That branch could not be found") }
-                    return@launch
-                }
-                val result = settingsRepository.changeSeriesCounter(companyId, branchId, docType, newCounter)
+                // S27: resolve by the series' local id — the old path parsed the branch out
+                // of the display label (a branch_id) and every confirm failed.
+                val result = settingsRepository.changeSeriesCounterById(companyId, edit.seriesLocalId, newCounter)
                 when (result) {
                     is com.example.transportapp.core.common.Result.Success ->
                         _uiState.update { it.copy(isSaving = false, counterEdit = null) }
@@ -199,7 +193,6 @@ class NumberingViewModel @Inject constructor(
                 }
             }
             NumberingEvent.DismissCounterEdit -> _uiState.update { it.copy(counterEdit = null) }
-            NumberingEvent.SeriesMore -> _uiState.update { it }
         }
     }
 }

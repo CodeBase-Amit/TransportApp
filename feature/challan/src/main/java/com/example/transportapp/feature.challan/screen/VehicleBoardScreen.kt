@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.challan.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -262,7 +263,14 @@ private fun VehicleCard(vehicle: VehicleRow, loadIt: String, onLoad: () -> Unit)
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                Text(loadIt, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.primary)
+                // S27: the label took an onLoad callback it never used — a dead tap on
+                // every idle vehicle. It loads the challan builder now.
+                Text(
+                    loadIt,
+                    style = TransportTypeScale.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable(onClick = onLoad),
+                )
             }
         } else {
             // Route line — the shared animated primitive (S20: the truck rides the route).

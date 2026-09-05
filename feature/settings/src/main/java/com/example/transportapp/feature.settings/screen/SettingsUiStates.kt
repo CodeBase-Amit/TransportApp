@@ -35,7 +35,7 @@ data class BranchesUiState(
 
 sealed interface BranchesEvent {
     data object AddBranch : BranchesEvent
-    data object BranchMore : BranchesEvent
+    // S27: BranchMore removed — a no-op event with no menu behind it.
     // S21 — the add-branch dialog
     data object DismissAddBranch : BranchesEvent
     data class ChangeBranchName(val value: String) : BranchesEvent
@@ -85,7 +85,7 @@ data class RoleMatrixRowUi(val capability: String, val marks: List<Boolean>)
 sealed interface MembersEvent {
     data object Invite : MembersEvent
     data object ToggleRoleMatrix : MembersEvent
-    data object Resend : MembersEvent
+    // S27: Resend removed — no resend API exists; the row's X cancels the invitation.
     // S19 - the invite dialog
     data object DismissInvite : MembersEvent
     data class ChangeInviteEmail(val value: String) : MembersEvent
@@ -136,7 +136,7 @@ sealed interface NumberingEvent {
     data class ChangeCounter(val value: String) : NumberingEvent
     data object ConfirmCounter : NumberingEvent
     data object DismissCounterEdit : NumberingEvent
-    data object SeriesMore : NumberingEvent
+    // S27: SeriesMore removed — a no-op event with no menu behind it.
 }
 
 fun MemberRowData.toRow(selfEmail: String): MemberRow = MemberRow(
@@ -145,4 +145,7 @@ fun MemberRowData.toRow(selfEmail: String): MemberRow = MemberRow(
     scope = branchScope,
     role = role,
     isSelf = email == selfEmail,
+    // S27: the status was dropped, so invited rows never rendered and the S21
+    // cancel-invite flow was unreachable from the UI.
+    invited = status == "INVITED",
 )

@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.billing.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -122,12 +123,22 @@ fun FreightBillContent(
 
         Column(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(16.dp)) {
             state.issueError?.let { message ->
-                Text(
-                    message,
-                    style = TransportTypeScale.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                )
+                // S27: the DismissError event existed; the row never rendered it.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onEvent(FreightBillEvent.DismissError) }
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        message,
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("Dismiss", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
             }
             when (state.stage) {
                 FreightBillUiState.Stage.DRAFT -> AppPrimaryButton("Preview and issue", onClick = { onEvent(FreightBillEvent.ShowPreview) }, modifier = Modifier.fillMaxWidth())
@@ -356,10 +367,15 @@ private fun IssuedAction(
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
-    // S21: actions whose rendering lands in S22 (print/share) answer honestly —
-    // disabled with the theme's variant colour, never a dead tap.
+    // S22 renders the actions through the document path; S27 attaches the tap the call
+    // sites already pass — a rendered action that ignores its onClick is a dead tap.
     val tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(8.dp),
+    ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
         Text(label, style = TransportTypeScale.labelMedium, color = tint)
     }

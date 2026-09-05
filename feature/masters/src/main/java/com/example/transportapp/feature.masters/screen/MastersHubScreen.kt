@@ -44,23 +44,24 @@ import com.example.transportapp.core.designsystem.theme.transportColors
 fun MastersHubScreen(
     onBack: () -> Unit,
     onMasterClick: (String) -> Unit,
+    onReviewDuplicates: () -> Unit = {},
     viewModel: MastersHubViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     MastersHubContent(
         state = state,
-        onEvent = viewModel::onEvent,
         onBack = onBack,
-        onMasterClick = onMasterClick
+        onMasterClick = onMasterClick,
+        onReviewDuplicates = onReviewDuplicates,
     )
 }
 
 @Composable
 fun MastersHubContent(
     state: MastersHubUiState,
-    onEvent: (MastersHubEvent) -> Unit,
     onBack: () -> Unit,
-    onMasterClick: (String) -> Unit
+    onMasterClick: (String) -> Unit,
+    onReviewDuplicates: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -165,7 +166,8 @@ fun MastersHubContent(
                 )
                 AppTextButton(
                     state.duplicateAction,
-                    onClick = { onEvent(MastersHubEvent.ReviewDuplicates) },
+                    // S27: routes to the party list prefiltered on duplicates — was a VM no-op.
+                    onClick = onReviewDuplicates,
                     color = transportColors().onHaulAmber
                 )
             }
@@ -179,7 +181,6 @@ private fun MastersHubPreview() {
     TransportAppTheme {
         MastersHubContent(
             state = MastersHubUiState(),
-            onEvent = {},
             onBack = {},
             onMasterClick = {}
         )

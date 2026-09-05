@@ -33,6 +33,8 @@ class ProfileViewModel @Inject constructor(
                         roleLine = roleLine(session),
                         displayName = session.name,
                         defaultBranch = session.branchName.ifEmpty { it.defaultBranch },
+                        // S27: the avatar was "…" forever — initials now derive from the session.
+                        initials = initialsOf(session.name),
                     )
                 }
             }
@@ -45,8 +47,16 @@ class ProfileViewModel @Inject constructor(
         return "${role.label} · ${session.companyName}"
     }
 
+    /** S27: shared initials derivation — the avatar stops showing "…". */
+    private fun initialsOf(name: String): String =
+        name.split(" ").filter { it.isNotBlank() }.map { it.first().uppercaseChar() }
+            .take(2).joinToString("").ifEmpty { "?" }
+
     fun onEvent(event: ProfileEvent) {
         when (event) {
+            // S27: the display name was a read-only field posing as an input — it edits
+            // and saves through the same session seam the Save button already used.
+            is ProfileEvent.ChangeDisplayName -> _uiState.update { it.copy(displayName = event.value, saveNotice = null) }
             // S21: Save writes the display name through the session seam (membership
             // name update rides the outbox when the drain lands).
             ProfileEvent.Save -> viewModelScope.launch {

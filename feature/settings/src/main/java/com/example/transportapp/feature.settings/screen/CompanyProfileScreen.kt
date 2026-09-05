@@ -1,6 +1,8 @@
 package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -111,12 +113,26 @@ fun CompanyProfileContent(
                             .background(PaperColors.paperRule.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "SR",
-                            color = PaperColors.paperInk,
-                            fontWeight = FontWeight.Bold,
-                            style = TransportTypeScale.titleMedium
-                        )
+                        // S27: the saved logo renders in the letterhead preview — before the
+                        // fix the box was hardcoded "SR" no matter what was picked.
+                        if (state.logoRef != null) {
+                            val logoFile = java.io.File(androidx.compose.ui.platform.LocalContext.current.filesDir, state.logoRef)
+                            if (logoFile.exists()) {
+                                androidx.compose.foundation.Image(
+                                    bitmap = android.graphics.BitmapFactory.decodeFile(logoFile.absolutePath)
+                                        .asImageBitmap(),
+                                    contentDescription = "Company logo",
+                                    modifier = Modifier.size(64.dp),
+                                )
+                            }
+                        } else {
+                            Text(
+                                "SR",
+                                color = PaperColors.paperInk,
+                                fontWeight = FontWeight.Bold,
+                                style = TransportTypeScale.titleMedium
+                            )
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -221,6 +237,24 @@ fun CompanyProfileContent(
 
         StickyActionBar {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // S27: save produced no feedback — the saved flag and logo errors were
+                // computed and dropped.
+                if (state.saved) {
+                    Text(
+                        "Saved · will sync when there's signal",
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                state.error?.let { message ->
+                    Text(
+                        message,
+                        style = TransportTypeScale.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
                 AppPrimaryButton(
                     state.saveAndUpdate,
                     onClick = { onEvent(CompanyProfileEvent.Save) },

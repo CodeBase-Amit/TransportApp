@@ -19,6 +19,7 @@ import javax.inject.Inject
  * half-edited profile survives process death and re-opens with the draft, not the record.
  * The draft is cleared once the save commits.
  */
+@HiltViewModel
 class CompanyProfileViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val settingsRepository: SettingsRepository,
@@ -47,6 +48,16 @@ class CompanyProfileViewModel @Inject constructor(
                     pan = profile.pan ?: "",
                     transporterId = profile.transporterId ?: "",
                     logoRef = profile.logoRef,
+                    // S27 (D66): the letterhead loads too — these were never read back before.
+                    constitution = profile.constitution ?: state.constitution,
+                    city = profile.city ?: state.city,
+                    pincode = profile.pincode ?: state.pincode,
+                    state = profile.state ?: state.state,
+                    phone = profile.phone ?: state.phone,
+                    altPhone = profile.altPhone ?: state.altPhone,
+                    email = profile.email ?: state.email,
+                    website = profile.website ?: state.website,
+                    footerClause = profile.footerClause ?: state.footerClause,
                 )
             }
         }
@@ -112,6 +123,7 @@ class CompanyProfileViewModel @Inject constructor(
             val s = sessionRepository.session.first()
             if (s.role != "OWNER" && s.role != "MANAGER") return@launch
             val profile = settingsRepository.companyProfile(s.companyId) ?: return@launch
+            // S27 (D66): every edited field persists — the old save silently dropped nine.
             settingsRepository.saveCompanyProfile(
                 companyId = s.companyId,
                 name = state.tradeName.ifBlank { profile.name },
@@ -119,7 +131,16 @@ class CompanyProfileViewModel @Inject constructor(
                 address = state.address.ifBlank { profile.address ?: "" },
                 gstin = state.gstin.ifBlank { profile.gstin ?: "" },
                 pan = state.pan.ifBlank { profile.pan ?: "" },
-                transporterId = state.transporterId ?: profile.transporterId,
+                transporterId = state.transporterId.ifBlank { profile.transporterId },
+                constitution = state.constitution.ifBlank { profile.constitution },
+                city = state.city.ifBlank { profile.city },
+                pincode = state.pincode.ifBlank { profile.pincode },
+                state = state.state.ifBlank { profile.state },
+                phone = state.phone.ifBlank { profile.phone },
+                altPhone = state.altPhone.ifBlank { profile.altPhone },
+                email = state.email.ifBlank { profile.email },
+                website = state.website.ifBlank { profile.website },
+                footerClause = state.footerClause.ifBlank { profile.footerClause },
             )
             savedStateHandle["cp_draft"] = false
             _uiState.update { it.copy(saved = true) }

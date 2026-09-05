@@ -56,6 +56,4 @@ data class MastersHubUiState(
     }
 }
 
-sealed interface MastersHubEvent {
-    data object ReviewDuplicates : MastersHubEvent
-}
+// S27: ReviewDuplicates removed from the events — it's a nav callback now, wired in the graph.

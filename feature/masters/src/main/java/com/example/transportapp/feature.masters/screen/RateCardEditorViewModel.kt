@@ -120,10 +120,9 @@ class RateCardEditorViewModel @Inject constructor(
             RateCardEditorEvent.ViewAllRates -> _uiState.update {
                 it.copy(showAllRates = !it.showAllRates, rateRows = if (it.showAllRates) rows.take(VISIBLE_ROWS).map(::toRowState) else rows.map(::toRowState))
             }
-            RateCardEditorEvent.SaveRateCard -> viewModelScope.launch {
-                rows.forEach { row -> mastersRepository.saveRateRow(row.localId, row.ratePaise) }
-                _uiState.update { it.copy(justSaved = true) }
-            }
+            // S27: SaveRateCard removed — there is no row-edit UI, so the old save rewrote
+            // every rate with its current value (identical writes + outbox UPDATE spam).
+            // Rates change through AddRate, which persists immediately.
         }
     }
 

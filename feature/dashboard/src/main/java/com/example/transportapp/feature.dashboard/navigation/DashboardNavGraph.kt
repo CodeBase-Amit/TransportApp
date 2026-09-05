@@ -19,6 +19,7 @@ fun NavGraphBuilder.dashboardNavGraph(navController: NavController) {
             onSettings = { navController.navigate(Routes.SETTINGS_HUB) },
             onAccountData = { navController.navigate(Routes.ACCOUNT_DATA) },
             onUnbilled = { navController.navigate(Routes.UNBILLED_POOL) },
+            onPayments = { navController.navigate(Routes.PAYMENTS) },
             onException = { biltyNo -> navController.navigate(Routes.caseFile(biltyNo)) },
         )
     }

@@ -57,7 +57,8 @@ class ExportCentreViewModel @Inject constructor(
             is ExportCentreEvent.SelectQuarter -> _uiState.update { it.copy(selectedQuarter = event.value) }
             is ExportCentreEvent.SelectFormat -> _uiState.update { state ->
                 if (event.value == "Excel (.xlsx)" || event.value == "Tally XML") {
-                    state.copy(notice = "$event.value ships with the online tier — CSV (zip) is the offline format")
+                    // S27: this interpolated the whole event object before ("$event.value").
+                    state.copy(notice = "${event.value} ships with the online tier — CSV (zip) is the offline format")
                 } else {
                     state.copy(selectedFormat = event.value)
                 }

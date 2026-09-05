@@ -39,6 +39,8 @@ data class CompanyPickerUiState(
     val registerLabel: String = "Register a new company",
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** S27: set once signOut() commits; the screen navigates to Splash only after it. */
+    val signedOut: Boolean = false,
 )
 
 sealed interface CompanyPickerEvent {

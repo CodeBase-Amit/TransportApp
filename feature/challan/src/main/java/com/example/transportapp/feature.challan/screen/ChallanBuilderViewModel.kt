@@ -45,6 +45,15 @@ class ChallanBuilderViewModel @Inject constructor(
     private var driverId: String? = null
     private var originBranchId: String = ""
 
+    /** S27: the whole loadable pool, cached so the filter chips re-derive the visible list. */
+    private var poolCache: List<LoadableRow> = emptyList()
+
+    private fun visiblePool(filter: String): List<LoadableRow> = when (filter) {
+        "Booked here" -> poolCache.filter { !it.isOnwardLeg }
+        "Arrived from elsewhere" -> poolCache.filter { it.isOnwardLeg }
+        else -> poolCache
+    }
+
     init {
         viewModelScope.launch {
             val session = sessionRepository.session.first()
@@ -75,18 +84,21 @@ class ChallanBuilderViewModel @Inject constructor(
                             toStation = c.toStation,
                         )
                     }
+                    // S27: the filter chips were highlight-only — the visible list follows them now.
+                    poolCache = rows
+                    val visible = visiblePool(state.selectedFilter)
                     val selected = state.selectedBilties.filter { no -> rows.any { it.docNumber == no } }.toSet()
                     val vehicle = vehicles.firstOrNull { it.localId == vehicleId }
                     val driver = drivers.firstOrNull { it.localId == driverId }
-                    val selectedRows = rows.filter { it.docNumber in selected }
+                    val selectedRows = visible.filter { it.docNumber in selected }
                     val dest = selectedRows.firstOrNull()?.toStation ?: ""
                     val via = selectedRows.map { it.toStation }.filter { it != dest }.distinct()
                     val weight = selectedRows.sumOf { it.weightKg }.toInt()
                     val capacity = vehicle?.capacityKg ?: 0
                     state.copy(
                         reservedNumber = reserved?.display ?: "",
-                        readyToLoad = "READY TO LOAD · ${rows.size} AT ${session.branchName.uppercase()}",
-                        loadable = rows,
+                        readyToLoad = "READY TO LOAD · ${visible.size} AT ${session.branchName.uppercase()}",
+                        loadable = visible,
                         selectedBilties = selected,
                         vehicleNumber = vehicle?.number ?: "",
                         vehicleOwnership = vehicle?.let { "${it.ownershipLabel} · ${formatIndianGrouping(it.capacityKg.toLong())} kg" } ?: "",
@@ -121,7 +133,8 @@ class ChallanBuilderViewModel @Inject constructor(
             }
             is ChallanBuilderEvent.SelectFilter -> _uiState.update {
                 savedStateHandle[KEY_FILTER] = event.filter
-                it.copy(selectedFilter = event.filter)
+                // S27: re-derive the visible pool; the selection survives across filters.
+                it.copy(selectedFilter = event.filter, loadable = visiblePool(event.filter)).recomputed()
             }
             is ChallanBuilderEvent.Create -> create()
         }

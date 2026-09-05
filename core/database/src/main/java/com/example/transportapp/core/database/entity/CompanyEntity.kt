@@ -29,4 +29,14 @@ data class CompanyEntity(
     val display_bilty_series: String?,
     /** S22 (D60): relative file ref of the company logo, or null. Prints in letterheads. */
     val logo_ref: String?,
+    /** S27 (D66): T25's letterhead fields — persisted instead of dropped on save. */
+    val constitution: String?,
+    val city: String?,
+    val pincode: String?,
+    val state: String?,
+    val phone: String?,
+    val alt_phone: String?,
+    val email: String?,
+    val website: String?,
+    val footer_clause: String?,
 )

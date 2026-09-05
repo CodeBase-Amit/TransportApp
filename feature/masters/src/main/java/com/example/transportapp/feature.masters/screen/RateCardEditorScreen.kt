@@ -291,13 +291,8 @@ fun RateCardEditorContent(
             }
         }
 
-        StickyActionBar {
-            AppPrimaryButton(
-                state.saveLabel,
-                onClick = { onEvent(RateCardEditorEvent.SaveRateCard) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        // S27: the sticky "Save rate card" is gone — it rewrote unchanged rates (outbox
+        // spam); AddRate persists immediately and is the only edit path.
     }
 }
 

@@ -14,9 +14,11 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Company profile payload for the outbox (§16.2). */
+/** Company profile payload for the outbox (§16.2). S27 (D66): the full letterhead. */
 internal fun companyProfilePayload(
     name: String, legalName: String, address: String, gstin: String, pan: String, transporterId: String?,
+    constitution: String?, city: String?, pincode: String?, state: String?,
+    phone: String?, altPhone: String?, email: String?, website: String?, footerClause: String?,
 ): String = org.json.JSONObject()
     .put("name", name)
     .put("legal_name", legalName)
@@ -24,6 +26,15 @@ internal fun companyProfilePayload(
     .put("gstin", gstin)
     .put("pan", pan)
     .put("transporter_id", transporterId)
+    .put("constitution", constitution)
+    .put("city", city)
+    .put("pincode", pincode)
+    .put("state", state)
+    .put("phone", phone)
+    .put("alt_phone", altPhone)
+    .put("email", email)
+    .put("website", website)
+    .put("footer_clause", footerClause)
     .toString()
 
 /** One branch row as T26 prints it. */
@@ -92,6 +103,15 @@ class SettingsRepository @Inject constructor(
         val pan: String?,
         val transporterId: String?,
         val logoRef: String?,
+        val constitution: String? = null,
+        val city: String? = null,
+        val pincode: String? = null,
+        val state: String? = null,
+        val phone: String? = null,
+        val altPhone: String? = null,
+        val email: String? = null,
+        val website: String? = null,
+        val footerClause: String? = null,
     )
 
     suspend fun companyProfile(companyId: String): CompanyProfile? {
@@ -104,6 +124,15 @@ class SettingsRepository @Inject constructor(
             pan = company.pan,
             transporterId = company.transporter_id,
             logoRef = company.logo_ref,
+            constitution = company.constitution,
+            city = company.city,
+            pincode = company.pincode,
+            state = company.state,
+            phone = company.phone,
+            altPhone = company.alt_phone,
+            email = company.email,
+            website = company.website,
+            footerClause = company.footer_clause,
         )
     }
 
@@ -116,6 +145,15 @@ class SettingsRepository @Inject constructor(
         gstin: String,
         pan: String,
         transporterId: String?,
+        constitution: String? = null,
+        city: String? = null,
+        pincode: String? = null,
+        state: String? = null,
+        phone: String? = null,
+        altPhone: String? = null,
+        email: String? = null,
+        website: String? = null,
+        footerClause: String? = null,
     ) {
         val company = orgDao.getCompany(companyId) ?: return
         orgDao.upsertCompany(
@@ -126,6 +164,15 @@ class SettingsRepository @Inject constructor(
                 gstin = gstin,
                 pan = pan,
                 transporter_id = transporterId,
+                constitution = constitution,
+                city = city,
+                pincode = pincode,
+                state = state,
+                phone = phone,
+                alt_phone = altPhone,
+                email = email,
+                website = website,
+                footer_clause = footerClause,
                 updated_at_local = System.currentTimeMillis(),
             ),
         )
@@ -133,7 +180,10 @@ class SettingsRepository @Inject constructor(
             op = com.example.transportapp.core.database.outbox.OutboxOp.UPDATE,
             entityType = com.example.transportapp.core.database.outbox.OutboxEntityType.COMPANY,
             entityLocalId = companyId,
-            payloadJson = com.example.transportapp.data.transport.account.companyProfilePayload(name, legalName, address, gstin, pan, transporterId),
+            payloadJson = com.example.transportapp.data.transport.account.companyProfilePayload(
+                name, legalName, address, gstin, pan, transporterId,
+                constitution, city, pincode, state, phone, altPhone, email, website, footerClause,
+            ),
             now = System.currentTimeMillis(),
         )
     }
@@ -151,6 +201,41 @@ class SettingsRepository @Inject constructor(
             )
         }
         val series = numberingDao.getSeries(companyId, branchId, docType)
+            ?: return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.LEASE_INVALID, "Series not found"
+            )
+        if (newLastIssued < series.last_issued) {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.LEASE_INVALID,
+                "The counter can only move forward — it is already at ${series.last_issued}",
+            )
+        }
+        val now = System.currentTimeMillis()
+        numberingDao.upsertSeries(series.copy(last_issued = newLastIssued, updated_at_local = now))
+        outboxWriter.enqueue(
+            op = com.example.transportapp.core.database.outbox.OutboxOp.UPDATE,
+            entityType = com.example.transportapp.core.database.outbox.OutboxEntityType.NUMBER_SERIES,
+            entityLocalId = series.local_id,
+            payloadJson = """{"last_issued":$newLastIssued}""",
+            now = now,
+        )
+        return com.example.transportapp.core.common.Result.success(Unit)
+    }
+
+    /**
+     * S27 — the id-keyed form of the §9 counter change: the T28 dialog resolves the series
+     * by its local id directly (the label-parsing path failed on every seed row because the
+     * label carries the branch_id, not a branch name). Owner-only; same forward-only rule
+     * and audit outbox row as [changeSeriesCounter].
+     */
+    suspend fun changeSeriesCounterById(companyId: String, seriesLocalId: String, newLastIssued: Long): com.example.transportapp.core.common.Result<Unit> {
+        val session = sessionRepository.session.first()
+        if (session.role != "OWNER") {
+            return com.example.transportapp.core.common.Result.failure(
+                com.example.transportapp.core.common.ErrorCode.AUTH_NO_ACCESS, "Only the Owner can change a numbering counter"
+            )
+        }
+        val series = numberingDao.getSeriesById(companyId, seriesLocalId)
             ?: return com.example.transportapp.core.common.Result.failure(
                 com.example.transportapp.core.common.ErrorCode.LEASE_INVALID, "Series not found"
             )

@@ -916,6 +916,10 @@ New decisions taken this sprint that amend the plan:
 | D62 | S23's offline-first networking — see the S23 section | the app works identically without the backend: `OFFLINE_UNAVAILABLE` is a typed state, sign-in degrades to the mock identity when the server is unreachable, and Room remains the only read source |
 | D63 | S24's refresh + lease reconciliation — see the S24 section | `MastersRefresher` upserts by `server_id` (local-only rows untouched — they belong to S25's drain); the server lease parks on a one-number local lease so the consumption path is unchanged, and any server failure falls back to the local block grant |
 | D64 | S25's drain — see the S25 section | `OutboxPush` maps PARTY ops → the REST surface (INSERT/UPDATE/DELETE), writes the server `_id` back on INSERT, marks rows DONE/retriable, and never fails the caller; unsupported families answer OFFLINE_UNAVAILABLE until their sprints |
+| D65 | S26's ship build — see the S26 section | applicationId renamed to `com.haulmate.transportapp` (final); signing via gitignored `key.properties` + external keystore; R8 minify with keep rules for Room/Hilt/serialization/WebView bridge; the seed-DB debug identity stays debug-only |
+| D66 | S27's letterhead schema — see the S27 section | schema v13: nine letterhead columns on COMPANY_E; T25's fifteen-field edit surface persists in full; the payload carries them |
+| D67 | S27's wire-or-remove gate — see the S27 section | every dead control is wired or removed; lying controls (fake Save, fake chevrons) are removed, not decorated |
+| D68 | S27's SignaturePad contract — see the S27 section | the pad reports ink from the gesture handlers; effects keyed on in-place-mutated state are one-shot traps |
 
 ---
 
@@ -1908,3 +1912,194 @@ bookkeeping happens per row, and T31's "Try now" forces a drain + masters refres
 booking push carries them); the 401 on unauthenticated drains is correct until the real
 sign-in UI ships (the repo path exists since S23); Mongo ObjectIds ↔ local UUID
 reconciliation is the production-backend boundary already recorded.
+
+---
+
+## Phase 3.3-lite, Sprint S26 — Ship build
+
+**Goal:** the APK you can hand to the first office — production signing, R8 shrinking,
+final applicationId, and a clean cold start on a fresh install.
+
+### What was built
+
+- **Production signing (D65).** Keystore generated at
+  `C:\Users\Lenovo\haulmate-keystore\haulmate-release.jks` (outside the repo, backed up);
+  credentials in `key.properties` (gitignored, loaded by `app/build.gradle.kts` at
+  configuration time with forward-slash paths — the Properties loader eats backslashes).
+  Release signs with Haulmate's key when the file exists, debug otherwise, so CI stays green.
+- **applicationId final.** `com.example.transportapp` → **`com.haulmate.transportapp`**
+  (the namespace stays for now — the applicationId is the store identity; a full namespace
+  rename is cosmetic and comes with the first refactor pass).
+- **R8.** `isMinifyEnabled` + `isShrinkResources` with `proguard-rules.pro` covering the
+  four reflective surfaces: Room generated marshals, Hilt components,
+  kotlinx-serialization (companion/serializer patterns for `com.example.transportapp.**`),
+  the pdf-android WebView bridge, and the Google Fonts certificate resource.
+- **`INSTALL_CHECKLIST.md`** — the one-page hand-off note: sideload steps, first-run flow,
+  what works offline vs online, and the keystore-backup warning.
+
+### Verification
+
+- **Signed release APK: 2.63 MB** (R8 shrank it from 14.93 MB unminified — an 82% cut).
+- `apksigner verify` confirms the Haulmate cert (`CN=Haulmate Transport, O=Haulmate,
+  L=Indore`).
+- **Fresh-install walk on emulator-5554:** uninstall old → install signed APK → cold start
+  3.3 s wall to first frame → T1 Sign-in (correctly signed out; release skips seeding per
+  A1) → Continue with Google → T2 picker correctly EMPTY (no demo data — the release
+  contract) → Register a new company is the path. `INSTALL_CHECKLIST.md` documents it.
+- **233 tests / 0 failures / 53 suites**; `checkPureModules` green.
+
+### Decisions taken this sprint (D65)
+
+| # | Decision | Why |
+|---|---|---|
+| D65 | `com.haulmate.transportapp` final; keystore outside the repo with gitignored `key.properties`; R8 on with four targeted keep-rule groups | the applicationId is the permanent store identity; a lost keystore is an un-updatable app; every other reflective surface (Room/Hilt/serialization/WebView) breaks loudly if shrunk blind |
+
+**Scope notes:** cold start 3.3 s (emulator wall-clock) still exceeds the 1.6 s budget —
+baseline profiles + Macrobenchmark remain the P6 tooling; the namespace rename and Play
+Store assets (icon/feature graphic/data-safety) wait for the store decision; backend
+deployment (Atlas + hosted service) is the next infrastructure step before a second device
+can sync.
+
+---
+
+## Phase 3.4, Sprint S27 — Close the dead-tap list
+
+**Goal:** the five-agent audit that opened this sprint traced every interactive element on all
+35 screens and found 1 crash, 8 broken wirings, ~25 dead taps, ~15 silent failures, and 2
+partial saves. S27 closes the list by the S21 rule: **wire it, or remove it — never leave it
+faking**.
+
+### What was built
+
+1. **Crash fix (a1).** `CompanyProfileViewModel` was missing `@HiltViewModel` — the screen
+   instantiated it with `hiltViewModel()`, so navigating to Company Profile crashed at runtime
+   ("cannot create an instance"). Pinned by `CompanyProfileHiltBindingTest`, which asserts the
+   annotation descriptor is present in the class-file bytes (the annotation is CLASS-retention,
+   invisible to runtime reflection — the naive reflection test passed its red phase for the
+   wrong reason).
+2. **The delivery path works (a2).** Three stacked defects made a DELIVERED status impossible:
+   `SetSignature` was never dispatched (the pad's ink lived in a screen-local variable), so
+   `hasSignature` stayed false and the VM gate refused every delivery even after signing; the
+   exported POD PNG drew an **empty** `android.graphics.Path` (the `asAndroidPath()` return was
+   discarded); and `SignaturePad` reported the ink from a `LaunchedEffect(path)` that could never
+   re-fire — `lineTo` mutates the Path in place, so the effect keyed on the object reference ran
+   exactly once, at stroke start, reporting "empty". The pad now reports from the gesture
+   itself (`onDragStart` → null, `onDrag` → the live path). Robolectric UI test
+   `StatusUpdateSheetSignatureTest` pins the dispatch (it also taught us the pad sits below the
+   fold — touch injection must scroll first, and the scrollable must be matched by shape since
+   two windows define scroll semantics).
+3. **Broken wirings (a3–a8).** FreightBill's issued-stage Print/Share/Receipt now attach the
+   `onClick` that `IssuedAction` accepted but never used; CompanyPicker's sign-out icon routes
+   through the VM (`SignOut` → `signOut()` → `signedOut` → navigate — navigating first made
+   Splash resolve straight back to the picker); ChallanDetail forwards `onEditLoad` to its
+   Content (the nav callback was accepted and dropped) and lost its dead ⋮ menu; Members'
+   `toRow()` maps `status == "INVITED"` so invited rows finally render and the S21 cancel-invite
+   X is reachable (the no-op Resend button is gone); the §9 counter change resolves by series
+   `local_id` (`changeSeriesCounterById` + `NumberingDao.getSeriesById`) instead of parsing the
+   branch out of a display label that carries the branch_id — every confirm failed on seed data
+   before.
+4. **Silent failures now speak (b).** Booking failure, trip dispatch/close/cost failure,
+   challan print failures (`printStatus` collected — CaseFile always did), master save/delete
+   failures (the §18.3 refusal copy finally shows), statement load + share failures,
+   FreightBill's issue error (Dismiss wired), CompanyProfile's saved/error feedback, and the
+   ExportCentre/ReportViewer notices — including a real copy bug where `"$event.value"`
+   interpolated the whole event object into user-facing text. The Payments waiver flips
+   `waiving` before the call (TDD: `PaymentsWaiverStateTest` with a gated fake).
+5. **Dead taps wired or removed (c).** All nine dashboard tiles navigate (To Pay gained an
+   `onPayments` callback → T15); BookingForm's "Goods value" and "E-way bill number" fields —
+   hardcoded empty since they were drawn — now edit state, persist to SavedStateHandle, and
+   submit into the booking (`declaredValuePaise`, `ewayBillNo`); Profile's display name edits
+   and saves (the phone row is honest read-only; initials derive from the session); MastersHub's
+   "Review them" routes to the party list prefiltered on duplicates (`masterList(type,
+   filter=3)` via a new optional nav arg); the dead Change-period/Filter icons on ReportsHub,
+   ReportViewer and ExportCentre are removed (no pickers exist — S21 precedent); UnbilledPool's
+   "Show all N" toggles for real; VehicleBoard's "Load it" loads the challan builder; CaseFile's
+   action document rows lead to the unbilled pool (informational rows lost their fake chevrons);
+   AccountData's "Clear cached PDFs"/"Download your data" rows lost their fake affordances, the
+   Privacy row states what it does, and Section C's sign-out card signs out for real (same
+   Splash route as T24); ChallanBuilder's "Booked here"/"Arrived from elsewhere" chips now
+   filter the pool (the VM caches the pool and re-derives the visible list; the selection
+   survives); "Collect and print receipt" actually prints — the S22 receipt template renders
+   through the byte path after a successful collect (a render failure never undoes the
+   receipt).
+6. **Schema v13 (D66) — the T25 data-loss fix.** The profile screen edits fifteen fields but
+   `saveCompanyProfile` persisted six; the other nine were typed, draft-persisted across process
+   death, then silently discarded while the letterhead preview printed the half it never
+   received. `COMPANY_E` gains constitution/city/pincode/state/phone/alt_phone/email/website/
+   footer_clause (`MIGRATION_12_13` + `Migration12to13Test`), the payload carries them for the
+   outbox, the read path hydrates them, and `CompanyProfileSaveTest` round-trips the full
+   letterhead. The demo company seeds its letterhead so the preview shows the real thing.
+7. **RateCard honesty (D67).** "Save rate card" wrote identical values (no row-edit UI exists)
+   and the charge ON/OFF toggles reset on reload — the fake Save button is removed; AddRate
+   (the S21 flow that works) stays.
+
+### Verification
+
+- **244 tests / 0 failures / 61 suites** (was 233/53); `:app:compileDebugKotlin` green.
+- New: `CompanyProfileHiltBindingTest`, `StatusUpdateSheetSignatureTest`,
+  `MemberRowMappingTest`, `SeriesCounterResolutionTest`, `CompanyProfileSaveTest`,
+  `PaymentsWaiverStateTest`, `Migration12to13Test`.
+- Every new logic path ran red before green; UI wirings verified by compile + full suite.
+
+### Decisions taken this sprint (D66–D68)
+
+| # | Decision | Why |
+|---|---|---|
+| D66 | T25's letterhead is schema (v13: nine columns on COMPANY_E), not UI-only state | the preview prints phone/email/website — persisting half the edit surface was silent data loss; nullable columns mean every pre-S27 company survives untouched |
+| D67 | Wire-or-remove is the only answer to a dead control; a control that exists but lies (Save with no edit surface, chevrons with no tap) is removed, not decorated | the §13 rule "never a dead tap" failed quietly wherever honest removal felt rude — the audit list is the new gate |
+| D68 | `SignaturePad` reports ink from the gesture, not from state observation | Compose `Path` mutates in place; a `LaunchedEffect` keyed on the reference sees only the first frame of a stroke — an effect on mutable-in-place state is a latent one-shot bug |
+
+**Scope notes:** Profile's phone field stays read-only (no phone write path on the session
+seam — real email/password sign-in, S24 remainder, owns identity fields); SetupWizard still
+discards the vehicle-step fields (vehicle persistence wants VEHICLE_E rows at registration —
+its own sprint); dashboard sparkline stays demo-drawn; the AccountData delete flow remains the
+deliberate S18 stub; TemplateRequests remains the online-tier mock.
+
+### S27.1 — the emulator walk (same sprint, after the fixes)
+
+**Method:** the session's model cannot view screenshots, so the walk ran on the
+`uiautomator` accessibility tree — every clickable node enumerated per screen, tapped by
+bounds, and the tree re-dumped to verify the state actually changed; logcat watched for
+crashes. Animation scales were zeroed first (VehicleBoard's endless S20 animations otherwise
+make uiautomator return a stale dump). IME typing stayed flaky over adb (the documented
+limitation) — paths that need text entry lean on their unit tests.
+
+**Verified live (tap → state change confirmed):** T1 mock sign-in and the legal-pages links;
+T2 sign-out (S27: session clears before Splash), branch chips, company open; dashboard drawer,
+all nine tiles, FAB; Register filter sheet (chips + clear + Done), CSV export note, docket →
+CaseFile; status sheet opens with only the §7.1-legal continuations, "Use my location" fills
+the field; VehicleBoard filter chips + counts; ChallanBuilder: the S27 filter chips really
+filter (At-hub onward leg appeared only under "Arrived from elsewhere"), selection meter,
+create → CHL/IND/2627/00742 issued; ChallanDetail: "Add a cost" saved (margin moved to
+−7,770), "Call driver" opened the dialer with the driver's number, "Edit load" navigated to
+the builder, print reached the system PrintActivity with a 1-page A4 doc; UnbilledPool:
+checkbox selection, show-all, build → FreightBill draft of 23 consignments with GST computed;
+issuing offline shows the honest "Needs a connection" copy with a working Dismiss (S27);
+Payments: tabs, collect sheet on a held row (waiver gate holds), S27 To Pay tile; ReportViewer:
+CSV export saves + notice renders, PDF refusal notice renders (S27); ExportCentre: Excel/Tally
+refusal notice renders (including the fixed "$event.value" copy), pack builds (zip in Recent
+exports); MastersHub "Review them" opens the party list prefiltered on the 7 duplicates (S27);
+MasterEditor delete refusal copy renders (S27); RateCard AddRate persisted (Rates 12 → 13);
+Settings hub rows; T33 Profile: initials now "MP", display name editable (S27); T25 Company
+Profile **opens** (the S27 crash fix) with the v13 letterhead loaded and "Saved · will sync"
+feedback; Branches add-branch dialog; T31: sync queue reads live rows, long-press screen map
+(D53), delete type-to-confirm dialog.
+
+**The walk caught two things the sprint missed:**
+
+1. `DashboardScreen` accepted `onPayments` but never forwarded it into `DashboardContent` —
+   the To Pay tile stayed dead on-device. Fixed and re-verified live (tap → Payments opens).
+2. The RateCard "Save rate card" button survived despite D67 claiming its removal — found on
+   device, removed now (button + event + VM loop), suite green after.
+
+**Open finding (needs a fresh-state repro):** after appending ARRIVED to IND/2627/04188, the
+CaseFile status pill and register filter still read "In transit" although the event row is in
+the timeline. The repo fold is covered by green tests (`append writes the event and advances
+the projection`), so this is either a UI read staleness or an anomaly of the walk session —
+reproduce on a clean DB before touching code.
+
+**Walk-only notes:** Idle-filtered vehicle cards render without the "Load it" row (seeded
+rows carry `idleDays = null`, so the label's card branch simply doesn't compose — data
+shape, not a dead control); the waiver save needs typed text (adb-flaky; covered by
+`PaymentsWaiverStateTest`); wizard field entry likewise (covered by
+`SetupWizardViewModelTest`).

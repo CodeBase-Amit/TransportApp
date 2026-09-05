@@ -42,8 +42,11 @@ fun StatementScreen(
     viewModel: StatementViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    // S27: render/share progress and failures were exposed but never collected.
+    val printStatus by viewModel.printStatus.collectAsState()
     StatementContent(
         state = state,
+        printStatus = printStatus,
         onEvent = viewModel::onEvent,
         onBack = onBack
     )
@@ -52,11 +55,34 @@ fun StatementScreen(
 @Composable
 fun StatementContent(
     state: StatementUiState,
+    printStatus: com.example.transportapp.core.ui.PrintStatus = com.example.transportapp.core.ui.PrintStatus.Idle,
     onEvent: (StatementEvent) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = state.party.ifEmpty { "Statement" }, onNavigationClick = onBack, trailingIcons = {})
+
+        // S27: statement load failures were silent (blank ledger); render the copy.
+        state.error?.let { message ->
+            Text(
+                message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+        }
+        when (val status = printStatus) {
+            is com.example.transportapp.core.ui.PrintStatus.Rendering -> androidx.compose.material3.LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            )
+            is com.example.transportapp.core.ui.PrintStatus.Error -> Text(
+                status.message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            )
+            com.example.transportapp.core.ui.PrintStatus.Idle -> Unit
+        }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = Dimens.screenPadding)) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(state.partySubtitle, style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

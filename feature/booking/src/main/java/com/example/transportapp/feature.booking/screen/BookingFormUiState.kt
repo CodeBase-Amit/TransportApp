@@ -55,6 +55,9 @@ data class BookingFormUiState(
     /** §7.1 amendment mode (S15): the original bilty this form supersedes. */
     val amending: String? = null,
     val amendReason: String = "",
+    /** S27: the "More details" inputs were dead fields — they hold and submit now. */
+    val declaredValueRupees: String = "",
+    val ewayBillNo: String = "",
     val bookedBy: String = "",
     /** S21 - the Add-charge dialog */
     val showAddCharge: Boolean = false,
@@ -91,6 +94,8 @@ sealed interface BookingFormEvent {
     data class ChangeRisk(val risk: Risk) : BookingFormEvent
     data class ChangeDelivery(val delivery: DeliveryType) : BookingFormEvent
     data class ChangeAmendReason(val value: String) : BookingFormEvent
+data class ChangeDeclaredValue(val value: String) : BookingFormEvent
+data class ChangeEwayBill(val value: String) : BookingFormEvent
     data object ToggleMoreDetails : BookingFormEvent
     /** Removing a charge row disables that head; computed rows are never removable. */
     data class RemoveCharge(val headCode: String?) : BookingFormEvent

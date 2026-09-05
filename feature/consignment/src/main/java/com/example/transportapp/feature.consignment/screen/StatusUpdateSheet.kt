@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -242,9 +243,17 @@ fun StatusUpdateSheetContent(
             Spacer(Modifier.height(12.dp))
             androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                 com.example.transportapp.core.designsystem.component.SignaturePad(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // S27: the tag is the UI-test seam for the POD gate (hasSignature).
+                        .testTag("pod_signature_pad"),
                     clearSignal = state.signatureClearSignal,
-                    onPathChange = { signaturePath = it },
+                    // S27: the ink must reach the VM — hasSignature only ever changes here,
+                    // and the DELIVERED gate refuses the save without it.
+                    onPathChange = { path ->
+                        signaturePath = path
+                        onEvent(StatusUpdateSheetEvent.SetSignature(hasInk = path != null))
+                    },
                 )
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -288,8 +297,9 @@ fun StatusUpdateSheetContent(
                     val canvas = android.graphics.Canvas(bitmap)
                     canvas.drawColor(android.graphics.Color.WHITE)
                     canvas.save(); canvas.scale(2f, 2f)
-                    val androidPath = android.graphics.Path()
-                    path.asAndroidPath()
+                    // S27: asAndroidPath() returns a new Path — the old code called it as a
+                    // statement and drew an empty one, so every POD PNG came out blank.
+                    val androidPath = path.asAndroidPath()
                     val paint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK; style = android.graphics.Paint.Style.STROKE; strokeWidth = 6f; isAntiAlias = true }
                     canvas.drawPath(androidPath, paint)
                     canvas.restore()

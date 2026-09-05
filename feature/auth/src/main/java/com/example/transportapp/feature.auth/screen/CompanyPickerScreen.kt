@@ -54,6 +54,9 @@ fun CompanyPickerScreen(
     viewModel: CompanyPickerViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(state.signedOut) {
+        if (state.signedOut) onSignOut()
+    }
     CompanyPickerContent(state = state, onEvent = viewModel::onEvent, onCompanySelected = onCompanySelected, onRegisterCompany = onRegisterCompany, onSignOut = onSignOut)
 }
 
@@ -77,7 +80,9 @@ fun CompanyPickerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(state.title, style = TransportTypeScale.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-            IconButton(onClick = onSignOut) {
+            // S27: the icon routes through the VM event (real signOut) — navigation happens
+            // in the LaunchedEffect above, after the session is cleared.
+            IconButton(onClick = { onEvent(CompanyPickerEvent.SignOut) }) {
                 Icon(Icons.Rounded.Logout, contentDescription = "Sign out", tint = MaterialTheme.colorScheme.onSurface)
             }
         }

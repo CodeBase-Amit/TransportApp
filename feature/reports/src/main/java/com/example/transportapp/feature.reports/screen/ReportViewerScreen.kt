@@ -66,13 +66,7 @@ fun ReportViewerContent(
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         TransportTopAppBar(title = state.title, onNavigationClick = onBack, trailingIcons = {
-            IconButton(onClick = { onEvent(ReportViewerEvent.OpenFilters) }) {
-                Icon(
-                    Icons.Rounded.Tune,
-                    contentDescription = "Filter",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            // S27: the Tune icon fired a VM no-op — removed until report filters exist.
             IconButton(onClick = { onEvent(ReportViewerEvent.ExportExcel) }) {
                 Icon(
                     Icons.Rounded.FileDownload,
@@ -127,12 +121,14 @@ fun ReportViewerContent(
                 }
             }
 
-            Text(
-                state.clearAll,
-                style = TransportTypeScale.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { onEvent(ReportViewerEvent.ClearAll) }
-            )
+            if (state.filters.isNotEmpty()) {
+                Text(
+                    state.clearAll,
+                    style = TransportTypeScale.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onEvent(ReportViewerEvent.ClearAll) }
+                )
+            }
         }
 
         // Table header
@@ -250,6 +246,20 @@ fun ReportViewerContent(
                 leadingIcon = Icons.Rounded.PictureAsPdf,
                 modifier = Modifier.weight(1f),
                 height = 48.dp
+            )
+        }
+
+        // S27: the notice (PDF refusal, CSV answer) was computed and never rendered —
+        // the PDF button looked completely dead.
+        state.notice?.let { message ->
+            Text(
+                message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onEvent(ReportViewerEvent.DismissNotice) }
+                    .padding(horizontal = Dimens.screenPadding, vertical = 4.dp),
             )
         }
     }

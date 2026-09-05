@@ -1,6 +1,7 @@
 package com.example.transportapp.feature.settings.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,13 +55,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
  * T31 — Account and data. Leaving and deleting are visibly different acts.
  * D53: in debug builds the diagnostics card carries the hidden screen-map entry.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AccountDataScreen(
     onBack: () -> Unit,
     onOpenScreenMap: (() -> Unit)? = null,
+    onSignedOut: () -> Unit = {},
     viewModel: AccountDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(state.signedOut) {
+        if (state.signedOut) onSignedOut()
+    }
     AccountDataContent(
         state = state,
         onEvent = viewModel::onEvent,
@@ -110,11 +116,13 @@ fun AccountDataContent(
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(vertical = Dimens.chipGap)
                 )
+                // S27: the "Clear cached PDFs" row promised an action and fired nothing —
+                // removed until a cache-clear exists (no PDF cache is kept yet).
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         state.clearLabel,
                         style = TransportTypeScale.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         state.clearNote,
@@ -127,15 +135,24 @@ fun AccountDataContent(
 
             // Section B — Your data
             GroupHeading("Your data")
+            // S27: both rows drew chevrons with no tap target (no download/export exists
+            // yet, and Privacy Policy lives in sign-in's legal pages) — honest static copy.
             ContentCard(modifier = Modifier.fillMaxWidth()) {
-                DataRow(state.downloadLabel, state.downloadSub)
+                Text(state.downloadLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(state.downloadSub, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                DataRow(state.privacyLabel, null)
+                Text(state.privacyLabel, style = TransportTypeScale.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             }
 
             // Section C — Sign out
             GroupHeading("Sign out")
-            ContentCard(modifier = Modifier.fillMaxWidth()) {
+            // S27: the sign-out card was display-only; it now signs out for real — the nav
+            // graph routes the signed-out flag back to Splash (same wiring as T24).
+            ContentCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onEvent(AccountDataEvent.SignOut) },
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Rounded.Logout,

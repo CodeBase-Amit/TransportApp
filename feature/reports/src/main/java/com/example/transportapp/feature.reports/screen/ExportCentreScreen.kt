@@ -84,6 +84,25 @@ fun ExportCentreContent(
                     .padding(horizontal = Dimens.screenPadding),
                 verticalArrangement = Arrangement.spacedBy(Dimens.sectionSpacing)
             ) {
+                // S27: export answers (success path, refusals, failures) were computed into
+                // `notice` and never rendered — the user saw nothing at all.
+                (state.notice ?: state.builtFile?.let { "Saved to Downloads · $it" })?.let { message ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onEvent(ExportCentreEvent.DismissNotice) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            message,
+                            style = TransportTypeScale.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("Dismiss", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
                 GroupHeading(state.buildHeading)
 
                 ContentCard(
@@ -102,13 +121,8 @@ fun ExportCentreContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { onEvent(ExportCentreEvent.SelectQuarter(state.selectedQuarter)) }) {
-                            Icon(
-                                Icons.Rounded.DateRange,
-                                contentDescription = "Change period",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        // S27: the DateRange icon re-set the quarter to its current value —
+                        // a fake affordance, removed until a period picker exists.
                     }
 
                     Spacer(Modifier.height(Dimens.fieldGap))

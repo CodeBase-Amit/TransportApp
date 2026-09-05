@@ -101,6 +101,19 @@ fun MasterEditorContent(
             }
         }
 
+        // S27: save/delete answers were computed and dropped — render them.
+        state.error?.let { message ->
+            Text(message, style = com.example.transportapp.core.designsystem.theme.TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        }
+        state.deleteMessage?.let { message ->
+            Text(message, style = com.example.transportapp.core.designsystem.theme.TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        }
+        if (state.justSaved) {
+            Text("Saved", style = com.example.transportapp.core.designsystem.theme.TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        }
         StickyActionBar {
             AppPrimaryButton(
                 state.saveLabel,

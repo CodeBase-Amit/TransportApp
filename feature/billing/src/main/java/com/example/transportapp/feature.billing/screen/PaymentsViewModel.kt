@@ -30,6 +30,7 @@ class PaymentsViewModel @Inject constructor(
     private val billingRepository: BillingRepository,
     private val statusRepository: StatusRepository,
     private val sessionRepository: SessionRepository,
+    private val documentRepository: com.example.transportapp.data.transport.documents.DocumentRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PaymentsUiState())
@@ -94,6 +95,9 @@ class PaymentsViewModel @Inject constructor(
 
     private fun recordWaiver() {
         val sheet = _uiState.value.collectSheet ?: return
+        // S27: flip in-flight before the call — the sheet's Recording state and the
+        // double-tap gate read `waiving`, which nothing ever set.
+        _uiState.update { it.copy(collectSheet = sheet.copy(waiving = true, error = null)) }
         viewModelScope.launch {
             val result = statusRepository.waiveTopPay(sheet.line.displayNo, sheet.waiverReason, System.currentTimeMillis())
             when (result) {
@@ -101,7 +105,7 @@ class PaymentsViewModel @Inject constructor(
                     // The waiver unblocks collection in place — no reopen needed.
                     it.copy(collectSheet = it.collectSheet?.copy(line = sheet.line.copy(waived = true), waiving = false))
                 }
-                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(error = ErrorCopy.resolve(result))) }
+                is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(waiving = false, error = ErrorCopy.resolve(result))) }
             }
         }
     }
@@ -126,7 +130,15 @@ class PaymentsViewModel @Inject constructor(
                 now = System.currentTimeMillis(),
             )
             when (result) {
-                is Result.Success -> _uiState.update { it.copy(collectSheet = null) }
+                is Result.Success -> {
+                    _uiState.update { it.copy(collectSheet = null) }
+                    // S27: the button says "and print" — the S22 receipt template renders
+                    // through the byte path; a render failure must not undo the receipt.
+                    when (val doc = documentRepository.renderReceipt(result.value.localId)) {
+                        is com.example.transportapp.core.common.Result.Success -> documentRepository.print(doc.value)
+                        else -> Unit
+                    }
+                }
                 is Result.Failure -> _uiState.update { it.copy(collectSheet = it.collectSheet?.copy(saving = false, error = ErrorCopy.resolve(result))) }
             }
         }

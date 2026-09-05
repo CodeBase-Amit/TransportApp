@@ -21,6 +21,4 @@ data class ReportsHubUiState(
     val loading: Boolean = true,
 )
 
-sealed interface ReportsHubEvent {
-    data object ChangePeriod : ReportsHubEvent
-}
+// S27: ChangePeriod removed with its dead icon — the VM branch was a literal no-op.

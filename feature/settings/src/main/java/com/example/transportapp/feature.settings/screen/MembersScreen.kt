@@ -226,8 +226,7 @@ private fun InvitedMemberRow(member: MemberRow, onEvent: (MembersEvent) -> Unit)
             Text(member.email, style = TransportTypeScale.dataSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("Invited ${member.invitedDate} by ${member.invitedBy} · ${member.role} · ${member.scope}", style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        IconButton(onClick = { onEvent(MembersEvent.Resend) }) { Icon(Icons.Rounded.Refresh, contentDescription = "Resend", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-        // S21: the X now really cancels the invitation (tombstone + outbox).
+        // S27: the no-op Resend icon is gone — there is no resend API; the X cancels.
         IconButton(onClick = { onEvent(MembersEvent.CancelInvite(member.email)) }) { Icon(Icons.Rounded.Close, contentDescription = "Cancel invitation", tint = MaterialTheme.colorScheme.error) }
     }
 }

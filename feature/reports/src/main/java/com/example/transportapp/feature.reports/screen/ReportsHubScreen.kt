@@ -42,7 +42,6 @@ fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewMo
     val state by viewModel.uiState.collectAsState()
     ReportsHubContent(
         state = state,
-        onEvent = viewModel::onEvent,
         onBack = onBack,
         onReportClick = onReportClick
     )
@@ -51,7 +50,6 @@ fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewMo
 @Composable
 fun ReportsHubContent(
     state: ReportsHubUiState,
-    onEvent: (ReportsHubEvent) -> Unit,
     onBack: () -> Unit,
     onReportClick: (String) -> Unit
 ) {
@@ -74,13 +72,8 @@ fun ReportsHubContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = { onEvent(ReportsHubEvent.ChangePeriod) }) {
-                Icon(
-                    Icons.Rounded.DateRange,
-                    contentDescription = "Change period",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // S27: the period icon fired a VM no-op and drew a fake affordance — the quarter
+            // is fixed for now (the S21 removal precedent: remove what can't be wired).
         }
 
         Text(
@@ -164,7 +157,6 @@ private fun ReportsHubPreview() {
     TransportAppTheme {
         ReportsHubContent(
             state = ReportsHubUiState(),
-            onEvent = {},
             onBack = {},
             onReportClick = {}
         )

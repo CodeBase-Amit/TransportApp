@@ -129,6 +129,27 @@ fun BiltyPreviewContent(
             }
         )
 
+        // S27: a missing snapshot used to fall through and render the demo sample paper
+        // under a real bilty number. Loading and errors are now honest frames.
+        if (state.error != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = Dimens.screenPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    state.error,
+                    style = TransportTypeScale.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        } else if (state.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = Dimens.screenPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.material3.CircularProgressIndicator()
+            }
+        } else {
         Box(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = Dimens.screenPadding),
             contentAlignment = Alignment.Center
@@ -164,11 +185,14 @@ fun BiltyPreviewContent(
                 BiltyPaperContent(paper = state.paper, copyLabel = front.label)
             }
         }
+        } // S27: closes the loaded-paper branch of the loading/error frame
 
+        if (state.error == null && !state.isLoading) {
         val pagerSteps = List(4) { i -> RouteLineStep("", when { i == currentCopy -> StepState.CURRENT; i < currentCopy -> StepState.DONE; else -> StepState.UPCOMING }) }
         Column(modifier = Modifier.fillMaxWidth().padding(vertical = Dimens.fieldGap), horizontalAlignment = Alignment.CenterHorizontally) {
             RouteLine(pagerSteps, showTruck = false, showLabels = false, modifier = Modifier.width(88.dp))
             Text("${front.caption} · ${currentCopy + 1} of 4", style = TransportTypeScale.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = Dimens.grid))
+        }
         }
 
         // Render/share status

@@ -468,8 +468,19 @@ private fun GoodsWeightSection(state: BookingFormUiState, onEvent: (BookingFormE
             )
         }
         if (state.showMoreDetails) {
-            TransportTextField(value = "", onValueChange = {}, label = "Goods value", modifier = Modifier.padding(bottom = 12.dp))
-            TransportTextField(value = "", onValueChange = {}, label = "E-way bill number", modifier = Modifier.padding(bottom = 12.dp))
+            // S27: these were hardcoded empty fields; both wire to the booking now.
+            TransportTextField(
+                value = state.declaredValueRupees,
+                onValueChange = { onEvent(BookingFormEvent.ChangeDeclaredValue(it)) },
+                label = "Goods value (₹)",
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+            TransportTextField(
+                value = state.ewayBillNo,
+                onValueChange = { onEvent(BookingFormEvent.ChangeEwayBill(it)) },
+                label = "E-way bill number",
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
             // §10.1 volumetric: L×B×H in cm — the dated setting's divisor (6000) governs.
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
                 TransportTextField(
@@ -659,6 +670,16 @@ private fun BookingFooter(state: BookingFormUiState, onEvent: (BookingFormEvent)
                 onValueChange = { onEvent(BookingFormEvent.ChangeAmendReason(it)) },
                 label = "Amendment reason · required, at least 10 characters",
                 modifier = Modifier.padding(bottom = 12.dp),
+            )
+        }
+        // S27: a failed book/amend was silent — the VM computed the copy, the screen
+        // never rendered it.
+        state.error?.let { message ->
+            Text(
+                message,
+                style = TransportTypeScale.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
         Text(

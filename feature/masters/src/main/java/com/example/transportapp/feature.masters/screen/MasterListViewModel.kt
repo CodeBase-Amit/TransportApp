@@ -31,15 +31,17 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class MasterListViewModel @Inject constructor(
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val mastersRepository: MastersRepository,
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MasterListUiState())
+    private val _uiState = MutableStateFlow(MasterListUiState(selectedFilterIndex = savedStateHandle["filter"] ?: 0))
     val uiState: StateFlow<MasterListUiState> = _uiState.asStateFlow()
 
     private val query = MutableStateFlow("")
-    private val filterIndex = MutableStateFlow(0)
+    // S27: the duplicates "Review them" nav preselects the duplicates filter.
+    private val filterIndex = MutableStateFlow(savedStateHandle["filter"] ?: 0)
     private val letterIndex = MutableStateFlow<Int?>(null)
     private var duplicatePair: DuplicatePair? = null
 

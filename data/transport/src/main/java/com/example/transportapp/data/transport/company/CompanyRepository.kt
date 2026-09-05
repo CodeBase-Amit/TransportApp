@@ -173,6 +173,8 @@ class CompanyRepositoryImpl @Inject constructor(
                     gstin = request.gstin, pan = null, transporter_id = null, gst_treatment = "FORWARD",
                     display_bilty_series = null,
                 logo_ref = null,
+                constitution = null, city = null, pincode = null, state = null,
+                phone = null, alt_phone = null, email = null, website = null, footer_clause = null,
                 ),
             )
 

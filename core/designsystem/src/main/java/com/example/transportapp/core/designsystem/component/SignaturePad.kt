@@ -36,8 +36,6 @@ fun SignaturePad(
 ) {
     var path by remember(clearSignal) { mutableStateOf(Path()) }
 
-    androidx.compose.runtime.LaunchedEffect(path) { onPathChange(path.takeIf { !it.isEmpty }) }
-
     Canvas(
         modifier = modifier
             .fillMaxSize()
@@ -45,8 +43,17 @@ fun SignaturePad(
             .border(1.dp, PaperColors.paperRule, RoundedCornerShape(12.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { offset -> path = Path().apply { moveTo(offset.x, offset.y) } },
-                    onDrag = { change, _ -> path.lineTo(change.position.x, change.position.y) }
+                    onDragStart = { offset ->
+                        path = Path().apply { moveTo(offset.x, offset.y) }
+                        // S27: report from the gesture, not a LaunchedEffect — lineTo mutates
+                        // the Path in place, so an effect keyed on the reference never fires
+                        // again and the caller saw only the empty stroke-start path.
+                        onPathChange(null)
+                    },
+                    onDrag = { change, _ ->
+                        path.lineTo(change.position.x, change.position.y)
+                        onPathChange(path.takeIf { !it.isEmpty })
+                    }
                 )
             }
     ) {

@@ -216,7 +216,7 @@ fun CaseFileContent(
             item { DocketHeaderCard(state, state.biltyNo.ifEmpty { biltyNo }) }
             item { CaseFileActions(onPrint, onAddPhoto, onHold, onRaiseBill, canManage, onAmend, onCancel) }
             item { WhereItIs(state, onFullHistory) }
-            item { DocumentsSection(state) }
+            item { DocumentsSection(state, onRaiseBill) }
             item { MoneySection(state) }
             item { RecordSection(state) }
         }
@@ -372,7 +372,7 @@ private fun EventDot(state: StepState) {
 }
 
 @Composable
-private fun DocumentsSection(state: CaseFileUiState) {
+private fun DocumentsSection(state: CaseFileUiState, onRaiseBill: () -> Unit) {
     Column {
         GroupHeading("The documents", modifier = Modifier.padding(bottom = 8.dp))
         ContentCard {
@@ -388,6 +388,9 @@ private fun DocumentsSection(state: CaseFileUiState) {
                     detail = doc.detail,
                     trailing = doc.trailing,
                     action = doc.action,
+                    // S27: an action row (a document not yet created — e.g. the bill) now
+                    // leads to the unbilled pool where it gets built; others stay plain.
+                    onClick = if (doc.action) onRaiseBill else null,
                 )
             }
         }
@@ -400,10 +403,14 @@ private fun DocumentRow(
     title: String,
     detail: String,
     trailing: String?,
-    action: Boolean = false
+    action: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -420,7 +427,9 @@ private fun DocumentRow(
         if (trailing != null) {
             Text(trailing, style = TransportTypeScale.labelMedium, color = if (action) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (onClick != null) {
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

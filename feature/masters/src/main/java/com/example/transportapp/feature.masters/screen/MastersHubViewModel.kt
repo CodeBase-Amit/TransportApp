@@ -35,10 +35,4 @@ class MastersHubViewModel @Inject constructor(
             _uiState.update { MastersHubUiState.from(counts, duplicates) }
         }
     }
-
-    fun onEvent(event: MastersHubEvent) {
-        when (event) {
-            MastersHubEvent.ReviewDuplicates -> Unit // navigation callback
-        }
-    }
 }

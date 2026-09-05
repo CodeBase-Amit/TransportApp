@@ -110,9 +110,14 @@ fun ProfileContent(
 
         Spacer(Modifier.height(24.dp))
         GroupHeading(state.howYouAppear, modifier = Modifier.padding(bottom = 12.dp))
-        TransportTextField(value = state.displayName, onValueChange = {}, label = "Display name")
+        // S27: the name field accepts input and feeds Save (the phone stays read-only —
+        // no phone write path exists on the session seam yet).
+        TransportTextField(value = state.displayName, onValueChange = { onEvent(ProfileEvent.ChangeDisplayName(it)) }, label = "Display name")
         Spacer(Modifier.height(12.dp))
         TransportTextField(value = state.phone, onValueChange = {}, label = "Phone", monospace = true)
+        state.saveNotice?.let { notice ->
+            Text(notice, style = TransportTypeScale.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
 
         Spacer(Modifier.height(24.dp))
         GroupHeading(state.howAppBehaves, modifier = Modifier.padding(bottom = 12.dp))

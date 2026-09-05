@@ -69,6 +69,8 @@ class BookingFormViewModel @Inject constructor(
     private val savedRisk: String? = savedStateHandle["bf_risk"]
     private val savedDelivery: String? = savedStateHandle["bf_del"]
     private val savedAmendReason: String? = savedStateHandle["bf_amend_reason"]
+    private val savedDeclaredValue: String? = savedStateHandle["bf_decl"]
+    private val savedEwayBill: String? = savedStateHandle["bf_eway"]
     private val savedArticleDesc: List<String>? = savedStateHandle["bf_art_d"]
     private val savedArticlePkgs: List<String>? = savedStateHandle["bf_art_p"]
     private val savedArticleWt: List<String>? = savedStateHandle["bf_art_w"]
@@ -86,6 +88,8 @@ class BookingFormViewModel @Inject constructor(
             risk = savedRisk?.let { runCatching { Risk.valueOf(it) }.getOrNull() } ?: Risk.OWNER,
             delivery = savedDelivery?.let { runCatching { DeliveryType.valueOf(it) }.getOrNull() } ?: DeliveryType.DOOR,
             amendReason = savedAmendReason ?: "",
+            declaredValueRupees = savedDeclaredValue ?: "",
+            ewayBillNo = savedEwayBill ?: "",
             extraItems = savedArticleDesc?.mapIndexed { i, d ->
                 ArticleRow(
                     description = d,
@@ -267,6 +271,14 @@ class BookingFormViewModel @Inject constructor(
             is BookingFormEvent.SelectGoods -> onGoodsSelected(event.goodsId)
             BookingFormEvent.ToggleRoutePicker -> _uiState.update { it.copy(showRoutePicker = !it.showRoutePicker) }
             is BookingFormEvent.ChangeLengthCm -> _uiState.update { it.copy(lengthCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_len"] = v }) }.also { recompute() }
+            // S27: the goods value and e-way bill fields were hardcoded empty — typed text
+            // snapped back and nothing reached the booking. They persist + submit now.
+            is BookingFormEvent.ChangeDeclaredValue -> _uiState.update {
+                it.copy(declaredValueRupees = event.value.filter { ch -> ch.isDigit() || ch == '.' }.also { v -> savedStateHandle["bf_decl"] = v })
+            }
+            is BookingFormEvent.ChangeEwayBill -> _uiState.update {
+                it.copy(ewayBillNo = event.value.take(15).also { v -> savedStateHandle["bf_eway"] = v })
+            }
             is BookingFormEvent.ChangeBreadthCm -> _uiState.update { it.copy(breadthCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_brd"] = v }) }.also { recompute() }
             is BookingFormEvent.ChangeHeightCm -> _uiState.update { it.copy(heightCm = event.value.filter { ch -> ch.isDigit() }.also { v -> savedStateHandle["bf_hgt"] = v }) }.also { recompute() }
             is BookingFormEvent.AddArticle -> _uiState.update { it.copy(extraItems = it.extraItems + com.example.transportapp.feature.booking.screen.ArticleRow()) }.also { persistArticles() }
@@ -389,8 +401,8 @@ class BookingFormViewModel @Inject constructor(
                 deliveryType = if (current.delivery == com.example.transportapp.core.ui.sample.DeliveryType.DOOR) "DOOR" else "GODOWN",
                 packages = current.packages.toLongOrNull() ?: 0L,
                 actualWeightG = (current.actualWeightKg.toLongOrNull() ?: 0L) * 1000,
-                declaredValuePaise = 0,
-                ewayBillNo = null,
+                declaredValuePaise = declaredValuePaise(current.declaredValueRupees),
+                ewayBillNo = current.ewayBillNo.ifBlank { null },
                 privateMark = null,
                 calculationInput = input,
                 extraItems = current.extraItems.map { row ->
@@ -549,6 +561,16 @@ class BookingFormViewModel @Inject constructor(
     }
 
     private fun timestamp(): String = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.ENGLISH).format(Date())
+
+    /** S27: "₹12,500.50" or "12500" → paise (Long, the only money type on the write path). */
+    private fun declaredValuePaise(text: String): Long {
+        val clean = text.filter { it.isDigit() || it == '.' }
+        if (clean.isEmpty()) return 0L
+        val whole = clean.substringBefore('.').filter { it.isDigit() }.toLongOrNull() ?: 0L
+        val frac = clean.substringAfter('.', "").take(2)
+        val paise = when (frac.length) { 0 -> 0L; 1 -> frac.toLong() * 10; else -> frac.toLongOrNull() ?: 0L }
+        return whole * 100 + paise
+    }
 
     private companion object {
         const val DEFAULT_WEIGHT_STEP_G = 1000L

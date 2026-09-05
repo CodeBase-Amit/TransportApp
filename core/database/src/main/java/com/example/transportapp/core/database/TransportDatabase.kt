@@ -97,7 +97,7 @@ import com.example.transportapp.core.database.seed.SeedVersionEntity
         PartyFtsEntity::class,
         ConsignmentFtsEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -956,6 +956,25 @@ abstract class TransportDatabase : RoomDatabase() {
             }
         }
 
-        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+        /**
+         * S27 (D66): COMPANY_E gains the T25 letterhead fields. The profile screen edits
+         * fifteen fields but the save persisted six — the other nine were typed and then
+         * silently discarded (data loss). Nullable: every pre-S27 company survives with null.
+         */
+        val MIGRATION_12_13: Migration = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN constitution TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN city TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN pincode TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN state TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN phone TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN alt_phone TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN email TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN website TEXT")
+                db.execSQL("ALTER TABLE COMPANY_E ADD COLUMN footer_clause TEXT")
+            }
+        }
+
+        val ALL_MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
     }
 }

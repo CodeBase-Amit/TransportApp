@@ -79,6 +79,7 @@ fun DashboardScreen(
     onSettings: () -> Unit,
     onAccountData: () -> Unit,
     onUnbilled: () -> Unit,
+    onPayments: () -> Unit = {},
     onException: (String) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -95,6 +96,7 @@ fun DashboardScreen(
         onSettings = onSettings,
         onAccountData = onAccountData,
         onUnbilled = onUnbilled,
+        onPayments = onPayments,
         onException = onException,
     )
 }
@@ -112,6 +114,7 @@ fun DashboardContent(
     onSettings: () -> Unit,
     onAccountData: () -> Unit,
     onUnbilled: () -> Unit,
+    onPayments: () -> Unit = {},
     onException: (String) -> Unit
 ) {
     val drawerState = rememberAppDrawerState()
@@ -194,10 +197,13 @@ fun DashboardContent(
                                     rowTiles.forEachIndexed { colIndex, tile ->
                                         DashboardTile(
                                             tile = tile,
+                                            // S27: every tile lands somewhere real — the §13 rule
+                                            // "never a number with a dead tap" now holds.
                                             onClick = when (tile.label) {
                                                 "Unbilled freight" -> onUnbilled
-                                                "Vehicles idle" -> onVehicles
-                                                "Exceptions" -> onRegister
+                                                "Vehicles idle", "Running services", "In transit" -> onVehicles
+                                                "Exceptions", "Booked today", "Receivable", "Overdue arrivals" -> onRegister
+                                                "To Pay to collect" -> onPayments
                                                 else -> null
                                             },
                                             staggerDelay = (rowIndex * 2 + colIndex) * 40,

@@ -50,6 +50,7 @@ data class ProfileUiState(
 
 sealed interface ProfileEvent {
     data object Save : ProfileEvent
+    data class ChangeDisplayName(val value: String) : ProfileEvent
     data object Clear : ProfileEvent
     data object Redraw : ProfileEvent
     data class ChangeLanguage(val language: String) : ProfileEvent

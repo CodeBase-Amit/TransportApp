@@ -58,5 +58,5 @@ sealed interface RateCardEditorEvent {
     data class ChangeNewRate(val value: String) : RateCardEditorEvent
     data object ConfirmAddRate : RateCardEditorEvent
     data object ViewAllRates : RateCardEditorEvent
-    data object SaveRateCard : RateCardEditorEvent
+    // S27: SaveRateCard removed with its button — no row-edit UI exists to save.
 }
