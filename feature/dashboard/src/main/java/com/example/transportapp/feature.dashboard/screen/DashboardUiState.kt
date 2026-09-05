@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.dashboard.screen
 
+import androidx.compose.runtime.Stable
 /** One §13 tile as the grid prints it. Visible=false tiles are role-hidden (§13). */
 data class DashTile(
     val label: String,
@@ -21,6 +22,7 @@ data class DashException(
  * "as of" rather than pretending to be live. The exception strip is the only error-coloured
  * surface and it is dismissible per item.
  */
+@Stable
 data class DashboardUiState(
     val companyInitials: String = "SR",
     val companyName: String = "",

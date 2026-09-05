@@ -1,10 +1,12 @@
 package com.example.transportapp.feature.settings.screen
 
+import androidx.compose.runtime.Stable
 /**
  * T25 — company profile (S19): static labels inline (the sample singleton is gone, §5);
  * the editable fields default from the ViewModel's COMPANY_E read, and a half-edited
  * draft survives process death via the ViewModel's SavedStateHandle.
  */
+@Stable
 data class CompanyProfileUiState(
     val title: String = "Company profile",
     val previewHeading: String = "How it prints",

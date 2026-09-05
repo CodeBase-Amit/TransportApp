@@ -31,7 +31,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -68,8 +68,8 @@ fun BiltyPreviewScreen(
     onDone: () -> Unit,
     viewModel: BiltyPreviewViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val printStatus by viewModel.printStatus.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val printStatus by viewModel.printStatus.collectAsStateWithLifecycle()
     BiltyPreviewContent(
         state = state,
         printStatus = printStatus,

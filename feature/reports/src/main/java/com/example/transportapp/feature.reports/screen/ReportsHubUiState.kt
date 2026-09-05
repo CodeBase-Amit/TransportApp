@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.reports.screen
 
+import androidx.compose.runtime.Stable
 data class ReportRowUi(
     val id: String,
     val label: String,
@@ -7,11 +8,13 @@ data class ReportRowUi(
     val figure: String?,
 )
 
+@Stable
 data class ReportGroupUi(
     val heading: String,
     val reports: List<ReportRowUi>,
 )
 
+@Stable
 data class ReportsHubUiState(
     val title: String = "Reports",
     val period: String = "",

@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.billing.screen
 
+import androidx.compose.runtime.Stable
 data class StatementLedgerRow(
     val date: String,
     val docNo: String,
@@ -9,6 +10,7 @@ data class StatementLedgerRow(
     val balance: String,
 )
 
+@Stable
 data class StatementUiState(
     val party: String = "",
     val partySubtitle: String = "",

@@ -22,7 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +39,7 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 @Composable
 fun ReportsHubScreen(onBack: () -> Unit, onReportClick: (String) -> Unit, viewModel: ReportsHubViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     ReportsHubContent(
         state = state,
         onBack = onBack,

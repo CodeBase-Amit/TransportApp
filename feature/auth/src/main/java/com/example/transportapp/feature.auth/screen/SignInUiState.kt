@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.runtime.Stable
 data class Reassurance(
     val title: String,
     val body: String
@@ -8,6 +9,7 @@ data class Reassurance(
 /**
  * T1 sign-in copy (S18): static UI copy inline — the sample singleton is gone (§5).
  */
+@Stable
 data class SignInUiState(
     val title: String = "Book a bilty in under a minute",
     val body: String = "Four printed copies, a live register, and every challan and freight bill built from the same form.",

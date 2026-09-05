@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.settings.screen
 
+import androidx.compose.runtime.Stable
 /** One T24 row (Phase 3 S16): identity and counts come from the live session/org data. */
 data class SettingsRow(
     val icon: String,
@@ -10,11 +11,13 @@ data class SettingsRow(
     val syncIcon: Boolean = false
 )
 
+@Stable
 data class SettingsGroup(
     val heading: String,
     val rows: List<SettingsRow>
 )
 
+@Stable
 data class SettingsHubUiState(
     val title: String = "Settings",
     val identityInitials: String = "…",

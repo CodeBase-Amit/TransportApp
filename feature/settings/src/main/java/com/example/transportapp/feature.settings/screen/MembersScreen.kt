@@ -34,7 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,9 +51,9 @@ fun MembersScreen(
     onBack: () -> Unit,
     viewModel: MembersViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val inviteEmail by viewModel.inviteEmail.collectAsState()
-    val inviteRole by viewModel.inviteRole.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val inviteEmail by viewModel.inviteEmail.collectAsStateWithLifecycle()
+    val inviteRole by viewModel.inviteRole.collectAsStateWithLifecycle()
     MembersContent(
         state = state,
         onEvent = viewModel::onEvent,

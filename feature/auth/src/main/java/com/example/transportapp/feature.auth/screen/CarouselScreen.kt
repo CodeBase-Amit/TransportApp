@@ -24,7 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -55,7 +55,7 @@ fun CarouselScreen(
     onSkip: () -> Unit,
     viewModel: CarouselViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     CarouselContent(state = state, onEvent = viewModel::onEvent, onGetStarted = onGetStarted, onSkip = onSkip)
 }
 

@@ -19,7 +19,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,8 +39,8 @@ import com.example.transportapp.core.designsystem.theme.TransportTypeScale
 
 @Composable
 fun RateCardEditorScreen(onBack: () -> Unit, viewModel: RateCardEditorViewModel = hiltViewModel()) {
-    val state by viewModel.uiState.collectAsState()
-    val newRate by viewModel.newRate.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val newRate by viewModel.newRate.collectAsStateWithLifecycle()
     RateCardEditorContent(
         state = state,
         onEvent = viewModel::onEvent,

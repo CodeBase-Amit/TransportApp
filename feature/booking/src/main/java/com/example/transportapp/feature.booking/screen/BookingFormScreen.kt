@@ -35,7 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,8 +72,8 @@ fun BookingFormScreen(
     onSetRate: (() -> Unit)? = null,
     viewModel: BookingFormViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val bookedBiltyNo by viewModel.bookedBiltyNo.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val bookedBiltyNo by viewModel.bookedBiltyNo.collectAsStateWithLifecycle()
     LaunchedEffect(bookedBiltyNo) {
         bookedBiltyNo?.let { no ->
             onBooked(no)

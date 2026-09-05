@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.domain.transport.PaymentMode
 
 data class StampGraphic(
@@ -18,6 +19,7 @@ data class CarouselPanel(
  * T32 first-run carousel (S18): the three design panels are static UI copy, inline — the
  * sample singleton is gone (§5 decoupling).
  */
+@Stable
 data class CarouselUiState(
     val currentPage: Int = 0,
     val panels: List<CarouselPanel> = listOf(

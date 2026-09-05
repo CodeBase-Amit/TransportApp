@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.billing.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.data.transport.billing.OutstandingBill
 import com.example.transportapp.data.transport.billing.ReceiptLine
 import com.example.transportapp.data.transport.billing.TopayLine
@@ -18,6 +19,7 @@ data class CollectSheetState(
 )
 
 /** The record-a-receipt sheet with its explicit allocation (§12.2). */
+@Stable
 data class AllocationSheetState(
     val parties: List<Pair<String, String>> = emptyList(), // id to name
     val partyId: String? = null,
@@ -39,6 +41,7 @@ data class AllocationSheetState(
     val canSave: Boolean get() = amountPaise > 0 && unappliedPaise == 0L && partyId != null && !saving
 }
 
+@Stable
 data class PaymentsUiState(
     val tab: PaymentsTab = PaymentsTab.TOPAY,
     val toPayRows: List<TopayLine> = emptyList(),

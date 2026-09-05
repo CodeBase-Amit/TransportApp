@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.challan.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.common.formatIndianGrouping
 import com.example.transportapp.domain.transport.ConsignmentStatus
@@ -23,6 +24,7 @@ data class LoadableRow(
     val toStation: String = "",
 )
 
+@Stable
 data class ChallanBuilderUiState(
     val reservedNumber: String = "",
     val filterChips: List<String> = listOf("Booked here", "Arrived from elsewhere"),

@@ -31,7 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,10 +57,10 @@ fun ChallanDetailScreen(
     onEditLoad: () -> Unit = {},
     viewModel: ChallanDetailViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val costDraft by viewModel.costDraft.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val costDraft by viewModel.costDraft.collectAsStateWithLifecycle()
     // S27: print/share render failures were written into a StateFlow nobody collected.
-    val printStatus by viewModel.printStatus.collectAsState()
+    val printStatus by viewModel.printStatus.collectAsStateWithLifecycle()
     ChallanDetailContent(
         state = state,
         onEvent = viewModel::onEvent,

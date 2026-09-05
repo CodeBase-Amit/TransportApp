@@ -1,8 +1,10 @@
 package com.example.transportapp.feature.billing.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.data.transport.billing.BillConsignmentLine
 import com.example.transportapp.data.transport.billing.BillHeader
 
+@Stable
 data class FreightBillUiState(
     val billId: String = "",
     val bill: BillHeader? = null,

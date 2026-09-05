@@ -1,8 +1,10 @@
 package com.example.transportapp.feature.settings.screen
 
+import androidx.compose.runtime.Stable
 /** One row of the §B31 sync queue — the OUTBOX read as human sentences. */
 data class SyncQueueRowUi(val description: String, val atText: String, val state: String)
 
+@Stable
 data class AccountDataUiState(
     val title: String = "Account and data",
     val records: String = "…",

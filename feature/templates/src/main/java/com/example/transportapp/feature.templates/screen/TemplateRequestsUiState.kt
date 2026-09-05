@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.templates.screen
 
+import androidx.compose.runtime.Stable
 data class TemplateRequest(
     val id: String,
     val description: String,
@@ -23,6 +24,7 @@ data class PastRequest(
  * T30 template requests (S18): labels inline, request lists default EMPTY — §15 is the
  * online tier, so a real install starts with none in flight (§5 decoupling).
  */
+@Stable
 data class TemplateRequestsUiState(
     val title: String = "Template requests",
     val openHeading: String = "OPEN REQUESTS",

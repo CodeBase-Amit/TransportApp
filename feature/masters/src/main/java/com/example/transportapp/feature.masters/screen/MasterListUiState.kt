@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.compose.runtime.Stable
 /**
  * T18 — Master list (Parties). Rows come from PARTY_E via MastersRepository; the
  * duplicate flag is derived from parties sharing a phone number (Phase2.md S3).
@@ -12,6 +13,7 @@ data class MasterListParty(
     val isDuplicate: Boolean = false,
 )
 
+@Stable
 data class MasterListUiState(
     val title: String = "Parties",
     val filterOptions: List<String> = listOf("All", "In use", "Never used", "Possible duplicates"),

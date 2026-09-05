@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.reports.screen
 
+import androidx.compose.runtime.Stable
 data class ExportSheetUi(
     val name: String,
     val count: Long?,
@@ -12,6 +13,7 @@ data class RecentExportUi(
     val isPack: Boolean,
 )
 
+@Stable
 data class ExportCentreUiState(
     val title: String = "Exports",
     val buildHeading: String = "BUILD A PACK",

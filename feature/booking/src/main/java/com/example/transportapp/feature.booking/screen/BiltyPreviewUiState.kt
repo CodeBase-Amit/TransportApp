@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.booking.screen
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,6 +25,7 @@ import javax.inject.Inject
  * payload and the pinned template version — never of today's rate card. The copy pager
  * paginates the snapshot's copy_count with the §8 copy labels.
  */
+@Stable
 data class BiltyPreviewUiState(
     val biltyNo: String = BiltySampleData.BILTY_NO,
     val copyCount: Int = 4,

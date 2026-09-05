@@ -1,9 +1,11 @@
 package com.example.transportapp.feature.billing.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.data.transport.billing.BillConsignmentLine
 import com.example.transportapp.data.transport.billing.UnbilledPartyGroup
 
 /** One T13 party card, with its selection and expansion as the user left it. */
+@Stable
 data class UnbilledPartyState(
     val group: UnbilledPartyGroup,
     val selected: Boolean = false,
@@ -12,6 +14,7 @@ data class UnbilledPartyState(
     val rows: List<BillConsignmentLine> = emptyList(),
 )
 
+@Stable
 data class UnbilledPoolUiState(
     val parties: List<UnbilledPartyState> = emptyList(),
     val thisQuarter: Boolean = true,

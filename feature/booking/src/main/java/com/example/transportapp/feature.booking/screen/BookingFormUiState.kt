@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.booking.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.core.common.Money
 import com.example.transportapp.core.ui.sample.ChargeLine
 import com.example.transportapp.core.ui.sample.DeliveryType
@@ -11,6 +12,7 @@ import com.example.transportapp.domain.transport.PaymentMode
  * T5 state. S18: first-frame defaults are empty — a real company books against its own
  * parties, not the demo seed (the ViewModel overwrites every money field per keystroke).
  */
+@Stable
 data class BookingFormUiState(
     val reservedNumber: String = "",
     val consignor: Party? = null,

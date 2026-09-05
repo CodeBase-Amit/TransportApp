@@ -1,12 +1,15 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.domain.transport.masters.MasterCounts
 
+@Stable
 data class MasterGroup(
     val heading: String,
     val rows: List<Pair<String, String>>,
 )
 
+@Stable
 data class MastersHubUiState(
     val title: String = "Masters",
     val subtitle: String = "Reference data the booking form fills itself from. The better this is, the less anyone types.",

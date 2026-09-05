@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.compose.runtime.Stable
 data class RateCardResolutionStep(
     val number: String,
     val label: String,
@@ -21,6 +22,7 @@ data class RateChargeItem(
     val enabled: Boolean,
 )
 
+@Stable
 data class RateCardEditorUiState(
     val title: String = "Rate card",
     val subtitle: String = "",

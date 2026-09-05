@@ -43,7 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,8 +74,8 @@ fun SettingsHubScreen(
     onSignedOut: () -> Unit,
     viewModel: SettingsHubViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val signedOut by viewModel.signedOut.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
     LaunchedEffect(signedOut) {
         if (signedOut) onSignedOut()
     }

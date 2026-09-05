@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.consignment.screen
 
+import androidx.compose.runtime.Stable
 import com.example.transportapp.domain.transport.ConsignmentStatus
 
 /**
@@ -21,6 +22,7 @@ enum class HoldReason(val label: String, val code: String) {
     OTHER("Other", "OTHER")
 }
 
+@Stable
 data class StatusUpdateSheetUiState(
     val biltyNo: String = "",
     val contextLine: String = "",

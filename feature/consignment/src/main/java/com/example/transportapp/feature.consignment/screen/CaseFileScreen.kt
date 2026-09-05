@@ -41,7 +41,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,9 +80,9 @@ fun CaseFileScreen(
     onFullHistory: () -> Unit,
     viewModel: CaseFileViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val printStatus by viewModel.printStatus.collectAsState()
-    val canManage by viewModel.canManage.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val printStatus by viewModel.printStatus.collectAsStateWithLifecycle()
+    val canManage by viewModel.canManage.collectAsStateWithLifecycle()
     var showCancelDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     // S19: the real Photo Picker — the picked image is imported + compressed into app
     // files and enqueued as ATTACHMENT_E with its outbox row.

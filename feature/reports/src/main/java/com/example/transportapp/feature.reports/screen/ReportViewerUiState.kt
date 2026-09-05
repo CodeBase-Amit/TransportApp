@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.reports.screen
 
+import androidx.compose.runtime.Stable
 data class RegisterRowUi(
     val bilty: String,
     val date: String,
@@ -9,6 +10,7 @@ data class RegisterRowUi(
     val status: String,
 )
 
+@Stable
 data class ReportViewerUiState(
     val title: String = "Freight register",
     val subtitle: String = "",

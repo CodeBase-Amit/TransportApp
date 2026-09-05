@@ -1,8 +1,10 @@
 package com.example.transportapp.feature.masters.screen
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.SavedStateHandle
 import com.example.transportapp.domain.transport.masters.PartyDetail
 
+@Stable
 data class MasterEditorUiState(
     val title: String = "Edit party",
     val identityHeading: String = "Identity",

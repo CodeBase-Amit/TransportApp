@@ -28,7 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +64,7 @@ fun FreightBillScreen(
     onRecordReceipt: () -> Unit,
     viewModel: FreightBillViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     FreightBillContent(
         state = state,
         onEvent = viewModel::onEvent,
@@ -72,7 +72,7 @@ fun FreightBillScreen(
         onRecordReceipt = onRecordReceipt,
         onPrint = viewModel::printBill,
         onShare = viewModel::shareBill,
-        printStatus = viewModel.printStatus.collectAsState().value
+        printStatus = viewModel.printStatus.collectAsStateWithLifecycle().value
     )
 }
 

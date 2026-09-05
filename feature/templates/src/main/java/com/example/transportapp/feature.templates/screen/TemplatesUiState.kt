@@ -1,6 +1,8 @@
 package com.example.transportapp.feature.templates.screen
 
+import androidx.compose.runtime.Stable
 /** One T29 template card (Phase 3 S11: rows read TEMPLATE_E through the repository). */
+@Stable
 data class TemplateRow(
     val templateKey: String,
     val name: String,
@@ -23,6 +25,7 @@ data class VersionHistory(
     val change: String,
 )
 
+@Stable
 data class TemplatesUiState(
     val title: String = "Templates",
     val subtitle: String = "A template decides what a printed document looks like. Documents already issued keep the version they were printed with.",

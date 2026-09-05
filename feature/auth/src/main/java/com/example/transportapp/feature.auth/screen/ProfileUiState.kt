@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.runtime.Stable
 data class NotificationSetting(
     val label: String,
     val on: Boolean
@@ -9,6 +10,7 @@ data class NotificationSetting(
  * T33 profile (S18): static labels inline; the identity block (name/email/role) is
  * populated from the live session by the ViewModel — the sample singleton is gone (§5).
  */
+@Stable
 data class ProfileUiState(
     val title: String = "Your profile",
     val saveLabel: String = "Save",

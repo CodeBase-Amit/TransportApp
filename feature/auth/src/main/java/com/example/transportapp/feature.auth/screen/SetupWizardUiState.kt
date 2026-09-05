@@ -1,9 +1,11 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.runtime.Stable
 /**
  * T3 — Company setup wizard (S18). Input fields default EMPTY — the user types their own
  * company; the sample values were demo furniture and no longer seed the registration.
  */
+@Stable
 data class SetupWizardUiState(
     val step: Int = 0,
     val stepLabels: List<String> = listOf("Company", "Tax", "Branch", "Vehicle"),

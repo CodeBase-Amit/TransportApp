@@ -1,5 +1,6 @@
 package com.example.transportapp.feature.auth.screen
 
+import androidx.compose.runtime.Stable
 /**
  * T2 — Company and branch picker UI models. Migrated to real data in Phase2 S2: companies and
  * invitations flow from CompanyRepository; these data classes are the UiState's own view models.
@@ -23,6 +24,7 @@ data class Invitation(
     val expiresIn: String,
 )
 
+@Stable
 data class CompanyPickerUiState(
     val title: String = "Your companies",
     val companiesHeading: String = "Companies you work at",
